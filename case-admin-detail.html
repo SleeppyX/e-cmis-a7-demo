@@ -117,7 +117,6 @@
 
     function renderDetail() {
       const k = kase;
-      const procType = k.procType || (ECMIS.isCase72(k) ? '7.2' : '7.1');
       document.getElementById('pageTitle').textContent = 'รายละเอียดคดี ' + k.id;
       document.getElementById('headBadges').innerHTML = ECMIS.typeBadge(k) + ' ' + ECMIS.statusBadge(k.status) + ' ' + ECMIS.slaBadge(k);
 
@@ -127,7 +126,7 @@
         : '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">— รอส่งเข้าคณะ</span>';
       document.getElementById('headKv').innerHTML = `
         <dt>เลขคดี</dt><dd>${esc(k.id)}</dd>
-        <dt>ประเภทเรื่อง</dt><dd>${procType} ${procType.startsWith('7.2') ? 'วินิจฉัยชี้มูล (รายงาน 644/RULING)' : 'ไต่สวนเบื้องต้น (รายงาน 213)'}</dd>
+        <dt>ประเภทเรื่อง</dt><dd>${ECMIS.isCase72(k) ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</dd>
         <dt>ผู้ถูกกล่าวหา</dt><dd>${accused}</dd>
         <dt>เจ้าของสำนวน</dt><dd>${esc(k.owner || '—')}${k.ownerOrg ? ' · ' + esc(k.ownerOrg) : ''}</dd>
         <dt>เรื่องกล่าวหา</dt><dd>${esc(k.allegation || k.subject || '—')}</dd>
@@ -191,7 +190,7 @@
       Swal.fire({
         title: 'ส่งเข้าคณะอนุกลั่นกรองฯ',
         html: `<div class="text-start small">
-            <div class="mb-2">สำนวน <strong>${kase.id}</strong> — ${ECMIS.isCase72(kase) ? '7.2 วินิจฉัยชี้มูล' : '7.1 ไต่สวนเบื้องต้น'}</div>
+            <div class="mb-2">สำนวน <strong>${kase.id}</strong> — ${ECMIS.isCase72(kase) ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</div>
             <label class="form-label fw-semibold">เลือกคณะอนุกลั่นกรองฯ</label>
             <select id="swTeam" class="form-select form-select-sm mb-2">${opts}</select>
             <div class="text-muted mb-2">ระบบเสนอ <strong>${suggested}</strong> (Round-Robin — คณะที่รับงานน้อยสุด)</div>

@@ -61,8 +61,8 @@
                 class="fa-solid fa-pen-to-square me-1 text-muted"></i>ประเภทเรื่อง</label>
             <select id="typeFilter" class="form-select form-select-sm">
               <option value="ALL">ทั้งหมด</option>
-              <option value="7.1">7.1 ไต่สวนเบื้องต้น</option>
-              <option value="7.2">7.2 วินิจฉัยชี้มูล</option>
+              <option value="7.1">ไต่สวนเบื้องต้น</option>
+              <option value="7.2">วินิจฉัยชี้มูล</option>
             </select>
           </div>
           <div class="col-md-3 text-end">
@@ -137,8 +137,8 @@
       const cards = activeTab === 'QUEUE'
         ? [
           { key: 'ALL', n: rows.length, label: 'รอส่งเข้าคณะทั้งหมด', icon: 'fa-folder-open', color: '#0F2A62' },
-          { key: '7.1', n: rows.filter(c => !ECMIS.isCase72(c)).length, label: '7.1 ไต่สวนเบื้องต้น', icon: 'fa-file-lines', color: '#475569' },
-          { key: '7.2', n: rows.filter(c => ECMIS.isCase72(c)).length, label: '7.2 วินิจฉัยชี้มูล', icon: 'fa-gavel', color: '#7C3AED' },
+          { key: '7.1', n: rows.filter(c => !ECMIS.isCase72(c)).length, label: 'ไต่สวนเบื้องต้น', icon: 'fa-file-lines', color: '#475569' },
+          { key: '7.2', n: rows.filter(c => ECMIS.isCase72(c)).length, label: 'วินิจฉัยชี้มูล', icon: 'fa-gavel', color: '#7C3AED' },
           { key: 'OVERDUE', n: rows.filter(overdue).length, label: 'เกินกำหนด', icon: 'fa-triangle-exclamation', color: '#B91C1C' }
         ]
         : [
@@ -240,7 +240,7 @@
       Swal.fire({
         title: 'ส่งเข้าคณะอนุกลั่นกรองฯ',
         html: `<div class="text-start small">
-            <div class="mb-2">สำนวน <strong>${kase.id}</strong> — ${ECMIS.isCase72(kase) ? '7.2 วินิจฉัยชี้มูล' : '7.1 ไต่สวนเบื้องต้น'}</div>
+            <div class="mb-2">สำนวน <strong>${kase.id}</strong> — ${ECMIS.isCase72(kase) ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</div>
             <label class="form-label fw-semibold">เลือกคณะอนุกลั่นกรองฯ</label>
             <select id="swTeam" class="form-select form-select-sm mb-2">${opts}</select>
             <div class="text-muted mb-2">ระบบเสนอ <strong>${suggested}</strong> (Round-Robin — คณะที่รับงานน้อยสุด)</div>

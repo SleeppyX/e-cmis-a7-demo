@@ -97,26 +97,21 @@ htmlFiles.forEach(file => {
   console.log(`  📄 Migrated: ${file}`);
 });
 
-// 3. Create Aliases for Backward Compatibility
-console.log('\n[3/4] Creating Legacy Route Aliases...');
-const aliases = {
-  'board-resolution-72.html': 'resolution-72.html',
-  'report-213.html': 'approval-review.html',
-  'agenda.html': 'agenda-set.html',
-  'review.html': 'approval-review.html',
-  'chairman.html': 'chairman-agenda.html',
-  'screening.html': 'subcommittee-screening.html',
-  'resolution.html': 'board-resolution.html',
-  'order.html': 'order-m24.html'
-};
+// 3. Clean up legacy / orphan HTML files in destination
+console.log('\n[3/4] Cleaning up legacy / orphan files in destination...');
+const destEntries = fs.existsSync(destDir) ? fs.readdirSync(destDir, { withFileTypes: true }) : [];
+const destHtmlFiles = destEntries
+  .filter(e => e.isFile() && e.name.endsWith('.html'))
+  .map(e => e.name);
 
-for (const [aliasName, targetName] of Object.entries(aliases)) {
-  const targetPath = path.join(destDir, targetName);
-  const aliasPath = path.join(destDir, aliasName);
-  if (fs.existsSync(targetPath)) {
-    fs.copyFileSync(targetPath, aliasPath);
-    console.log(`  🔗 Alias: ${aliasName} -> ${targetName}`);
+const orphanHtmlFiles = destHtmlFiles.filter(name => !htmlFiles.includes(name));
+if (orphanHtmlFiles.length > 0) {
+  for (const orphan of orphanHtmlFiles) {
+    fs.unlinkSync(path.join(destDir, orphan));
+    console.log(`  🗑️  Removed orphan file: ${orphan}`);
   }
+} else {
+  console.log('  ✓ No orphan files detected.');
 }
 
 // 4. Clean up temporary files

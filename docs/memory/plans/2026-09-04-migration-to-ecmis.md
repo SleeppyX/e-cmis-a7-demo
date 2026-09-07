@@ -49,3 +49,19 @@ Following project policy that Activity 7 must strictly confine all code changes 
 2. **Commit & Push:** Created commit `291cc78` (`fix(repo): restore files outside board-resolution to preserve module boundaries`) on `main` and pushed to `origin/main`.
 3. **Module Independence:** Role `case_admin` remains fully functional and accessible via `board-resolution/login.html` and internal mock stores in `board-resolution/assets/ecmis-app.js`.
 4. **Verification:** `node scripts/test-system.js` passed 100% (24 accounts, 10 modules), and `git diff c99cec8..HEAD --stat` verified that 100% of diffs are within `board-resolution/`.
+
+---
+
+## 5. Activity 7 Feature Sync & Orphan Cleanup (2026-09-07 17:40)
+Following completion of Tasks 74–91 in `e-cmis-a7-demo`, the latest features were migrated into `ecmis/board-resolution/`:
+1. **Grill-me Decisions:**
+   - Branch strategy: Commit on `activity-7` first, test, then merge into `main`.
+   - Cleaned orphan file: Deleted `board-resolution/notifications.html` to maintain 1:1 parity with demo source.
+   - Commit & Push: Committed and merged locally; left push for user to review and push manually.
+2. **Synced Components (38 files):**
+   - 15 HTML files: Single-table case admin inbox + Supabase pagination + routing modal, numerical agenda sorting + meeting grouping in resolution inbox, board attendance inheritance, live subcommittee screening persistence, chairman urgent queue separation + M.24 footer removal, hidden demo accounts in login.
+   - 2 Assets: `ecmis-app.js` and `agenda-registry-data.js`.
+   - 1 Deleted file: `notifications.html`.
+3. **Boundary Integrity:** 100% confined within `board-resolution/` (0 files modified outside).
+4. **Verification:** `node scripts/test-system.js` in `ecmis` passed 100% (399 files, 98 JS files, 24 users, 10 modules).
+5. **Git Commit:** Commit `b5b3873` (`feat(board-resolution): sync activity 7 updates from demo repo`) created on `activity-7` and fast-forward merged into `main`.

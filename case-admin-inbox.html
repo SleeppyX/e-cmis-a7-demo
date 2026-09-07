@@ -152,16 +152,18 @@
 
     function overdue(c) { return (c.slaDays || 0) >= (c.slaLimit || 15); }
 
-    /* ทะเบียนคุมคดีเดียว เห็นทุกสถานะเสมอ — กรองด้วยสถานะผ่าน KPI card แทนการแยกแท็บ
-       (ประเภทเรื่อง 7.1/7.2 มีตัวกรอง "ประเภทเรื่อง" แยกอยู่แล้ว ไม่ต้องซ้ำใน KPI) */
+    /* ขอบเขตงานจริงของกองบริหารคดี = เฉพาะสำนวนที่อยู่ชั้นกลั่นกรอง (IN_SCREENING/IN_SCREENING_72)
+       เท่านั้น — ไม่นับคดีที่ผ่าน/ยังไม่ถึงขั้นนี้ (canViewCase ให้เห็นได้กว้างกว่านี้มาก แต่ไม่ใช่
+       ขอบเขตงานที่ต้องทำจริง) ทั้ง KPI และตารางจึงอิง SCREEN สถานะเดียวกันเสมอ กรองย่อยด้วย
+       KPI card แทนการแยกแท็บ (ประเภทเรื่อง 7.1/7.2 มีตัวกรอง "ประเภทเรื่อง" แยกอยู่แล้ว) */
     function baseCases() {
-      return CASES.filter(c => ECMIS.canViewCase(c, role.id));
+      return CASES.filter(c => ECMIS.canViewCase(c, role.id) && SCREEN.includes(c.status));
     }
 
     function renderKPI() {
       const rows = baseCases();
       const cards = [
-        { key: 'ALL', n: rows.length, label: 'คดีทั้งหมดในทะเบียน', icon: 'fa-folder-open', color: '#0F2A62' },
+        { key: 'ALL', n: rows.length, label: 'คดีในชั้นกลั่นกรองทั้งหมด', icon: 'fa-folder-open', color: '#0F2A62' },
         { key: 'WAIT', n: rows.filter(c => ECMIS.isCaseAdminQueue(c)).length, label: 'รอส่งเข้าคณะ', icon: 'fa-hourglass-half', color: '#D0A830' },
         { key: 'ROUTED', n: rows.filter(c => ECMIS.caseAdminRouted(c)).length, label: 'ส่งเข้าคณะแล้ว', icon: 'fa-share-from-square', color: '#15803D' },
         { key: 'OVERDUE', n: rows.filter(overdue).length, label: 'เกินกำหนด', icon: 'fa-triangle-exclamation', color: '#B91C1C' }
@@ -191,10 +193,10 @@
     }
 
     const TABLE_TITLE_BY_FILTER = {
-      ALL: 'ทะเบียนคุมคดี — ทุกสำนวน',
+      ALL: 'ทะเบียนคุมคดี — ชั้นกลั่นกรองทั้งหมด',
       WAIT: 'คิวสำนวนรอส่งเข้าคณะอนุกลั่นกรองฯ',
       ROUTED: 'ทะเบียนคุมคดี — ส่งเข้าคณะแล้ว',
-      OVERDUE: 'ทะเบียนคุมคดี — เกินกำหนด'
+      OVERDUE: 'ทะเบียนคุมคดี — เกินกำหนด (ชั้นกลั่นกรอง)'
     };
 
     function render() {

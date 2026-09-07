@@ -1,4 +1,4 @@
-﻿# Plan: Migration & Sync of Activity 7 into ecmis Monorepo
+# Plan: Migration & Sync of Activity 7 into ecmis Monorepo
 
 **Date:** 2026-09-04  
 **Author:** Antigravity (Gemini)  
@@ -40,3 +40,12 @@ Following ongoing development in `e-cmis-a7-demo` on 2026-09-04 (specifically in
    - Activity 7 bridge and scoped isolation verified.
 3. `npm test` in `e-cmis-a7-demo`:
    - All 5 layers passed (37 paired HTML routes, 260 internal links verified, zero 404s).
+
+---
+
+## 4. Boundary Enforcement & External Files Revert (2026-09-07)
+Following project policy that Activity 7 must strictly confine all code changes within `board-resolution/`, modifications to external files (`cases.js`, `shared-assets/auth.js`, and `tests/seam-logic.test.mjs`) were reverted:
+1. **Reverted to Base:** `git checkout c99cec8 -- cases.js shared-assets/auth.js tests/seam-logic.test.mjs`
+2. **Commit & Push:** Created commit `291cc78` (`fix(repo): restore files outside board-resolution to preserve module boundaries`) on `main` and pushed to `origin/main`.
+3. **Module Independence:** Role `case_admin` remains fully functional and accessible via `board-resolution/login.html` and internal mock stores in `board-resolution/assets/ecmis-app.js`.
+4. **Verification:** `node scripts/test-system.js` passed 100% (24 accounts, 10 modules), and `git diff c99cec8..HEAD --stat` verified that 100% of diffs are within `board-resolution/`.

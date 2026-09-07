@@ -440,7 +440,35 @@
       { n: 'นายสุรพงษ์ อินทรถาวร', r: 'กรรมการ ป.ป.ท.' }
     ];
     const TOTAL = BOARD.length;
-    const savedAtt = kase.boardAttendance || kase.boardAttendance72 || ECMIS.getLockedBoardAttendance(kase, BOARD) || {};
+
+    /* จำสถานะ "เข้าประชุม" ของกรรมการจากวาระที่บันทึก/แก้ไขล่าสุดในครั้งประชุมเดียวกัน
+       เป็น default ให้วาระถัดไป — ลำดับความสำคัญ: ค่าที่เคสนี้บันทึกเอง > locked meeting
+       roster (chairman-agenda.html) > default จากวาระล่าสุดของมีตินี้ > 'present' */
+    const MEETING_ATTENDANCE_KEY = 'ecmis.boardAttendanceLastByMeeting.v1';
+    function loadMeetingLastAttendance(meetingNo) {
+      if (!meetingNo) return null;
+      try {
+        const all = JSON.parse(localStorage.getItem(MEETING_ATTENDANCE_KEY) || '{}') || {};
+        return (all[meetingNo] && all[meetingNo].attendance) || null;
+      } catch (e) { return null; }
+    }
+    function saveMeetingLastAttendance(meetingNo, attendanceMap) {
+      if (!meetingNo) return;
+      try {
+        const all = JSON.parse(localStorage.getItem(MEETING_ATTENDANCE_KEY) || '{}') || {};
+        all[meetingNo] = { attendance: attendanceMap, updatedAt: Date.now(), agendaNo: document.getElementById('agendaNo').value.trim(), caseId: kase.id };
+        localStorage.setItem(MEETING_ATTENDANCE_KEY, JSON.stringify(all));
+      } catch (e) { /* localStorage เต็ม/ไม่พร้อมใช้งาน — ข้ามแบบเงียบ */ }
+    }
+
+    /* ข้อมูล mock เติม kase.boardAttendance เป็น "เข้าประชุมทุกคน" ไว้ล่วงหน้าแม้เคสจะยัง
+       ไม่เคยถูกบันทึกมติจริง (status ยังอยู่ขั้นรอประชุม) — ถือว่า "บันทึกจริง" เฉพาะเมื่อ
+       สถานะผ่านขั้นประชุมไปแล้วเท่านั้น ไม่งั้นค่า placeholder นี้จะชนะ default ใหม่เสมอ */
+    const PENDING_MEETING_STATUSES = ['AGENDA_SET', 'IN_MEETING', 'PENDING_INVITE_72', 'IN_MEETING_72'];
+    const hasRecordedBoardAttendance = !PENDING_MEETING_STATUSES.includes(kase.status) && !!(kase.boardAttendance || kase.boardAttendance72);
+
+    const meetNoVal = document.getElementById('meetNo').value.trim();
+    const savedAtt = (hasRecordedBoardAttendance && (kase.boardAttendance || kase.boardAttendance72)) || ECMIS.getLockedBoardAttendance(kase, BOARD) || loadMeetingLastAttendance(meetNoVal) || {};
     const savedVote = kase.boardVotes || {};
 
     document.getElementById('boardTb').innerHTML = BOARD.map((b, i) => {
@@ -512,7 +540,15 @@
       return { ...t, ...q };
     }
 
-    document.getElementById('boardTb').addEventListener('change', () => { renderQuorum(); renderDoc(); });
+    document.getElementById('boardTb').addEventListener('change', () => {
+      const meetNoNow = document.getElementById('meetNo').value.trim();
+      const attendanceNow = {};
+      document.querySelectorAll('#boardTb tr').forEach((tr, i) => {
+        attendanceNow[BOARD[i].n] = tr.querySelector('.attend').value;
+      });
+      saveMeetingLastAttendance(meetNoNow, attendanceNow);
+      renderQuorum(); renderDoc();
+    });
     refreshAgendaContext();
 
     function currentMode() { return 'AFTER'; }
@@ -1406,7 +1442,8 @@
       document.getElementById('meetNo').value = context.meetingNo || '';
       setDateInputValue('meetDate', context.meetingDate || '');
       document.getElementById('agendaNo').value = context.agendaNo || '';
-      const attendance = ECMIS.getLockedBoardAttendance(kase, BOARD, { includeLegacy:false });
+      const attendance = ECMIS.getLockedBoardAttendance(kase, BOARD, { includeLegacy:false })
+        || (!hasRecordedBoardAttendance && loadMeetingLastAttendance(context.meetingNo));
       if (attendance) document.querySelectorAll('#boardTb tr').forEach((tr, index) => {
         tr.querySelector('.attend').value = attendance[BOARD[index].n] || 'present';
       });

@@ -135,6 +135,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="assets/ecmis-app.js"></script>
   <script>
     ECMIS.renderShell('subcommittee-inbox.html');
@@ -146,34 +147,60 @@
     let sortField = 'id';
     let sortOrder = 'asc';
 
+    /* ---------- โหลดสำนวนจาก Supabase / Local Data (เดียวกับ case-admin-inbox.html) ---------- */
+    let sb = null;
+    try { sb = window.ECMIS && window.ECMIS.getSupabaseClient ? window.ECMIS.getSupabaseClient() : null; }
+    catch (e) { console.warn('Supabase init skipped, using local data store:', e); }
+
+    async function loadCasesFromSupabase() {
+      if (!sb) return null;
+      try {
+        const { data, error } = await sb
+          .from('tbl_res_request')
+          .select('*, tbl_cmp_case(*, tbl_cmp_case_accused(*))')
+          .eq('is_deleted', false);
+        if (error) throw error;
+        return data.map(row => ECMIS.supabaseRowToCase(row)).filter(Boolean);
+      } catch (err) {
+        console.warn('Supabase fetch failed, falling back to local CASES:', err);
+        return null;
+      }
+    }
+
+    let CASES = ECMIS.CASES.slice();
+    let teamCases = [];
+
     /* คิวของคณะที่เลือก: สำนวนที่ subCommittee ตรงกับคณะที่กำลังดูอยู่ —
        รวมสถานะ รอกลั่นกรอง (IN_SCREENING/_72), รอข้อมูลเพิ่มเติม (SCREENING_MORE_INFO/_72)
        และ ส่งคืน/กลั่นกรองเสร็จ (RETURNED/_72, AGENDA_SET, PENDING_INVITE_72) เฉพาะที่มี subOutcome
        บันทึกไว้แล้ว เพื่อให้แถวยังค้างอยู่ในแท็บของตัวเอง (audit trail) */
     const ACTIVE_SCREEN = ['IN_SCREENING', 'IN_SCREENING_72', 'SCREENING_MORE_INFO', 'SCREENING_MORE_INFO_72'];
     const CARRIED_SCREEN = ['RETURNED', 'RETURNED_72', 'AGENDA_SET', 'PENDING_INVITE_72'];
-    const teamCases = ECMIS.CASES.filter(c =>
-      c.subCommittee === selectedTeam &&
-      (ACTIVE_SCREEN.includes(c.status) || (CARRIED_SCREEN.includes(c.status) && c.subOutcome))
-    ).map(c => {
-      const om = ECMIS.mapSubOutcome(c.subOutcome);
-      return {
-        id: c.id,
-        subject: c.subject,
-        allegation: c.allegation,
-        procType: ECMIS.isCase72(c) ? '7.2' : '7.1',
-        owner: c.owner,
-        ownerOrg: c.ownerOrg,
-        slaLimit: c.slaLimit,
-        slaEff: ECMIS.slaEffectiveDays(c),
-        slaDays: ECMIS.slaEffectiveDays(c),
-        onHold: ECMIS.slaIsOnHold(c),
-        screenStatus: ECMIS.subScreeningStatus(c),
-        outcomeLabel: om ? om.label : null,
-        outcomeLawRef: om ? om.lawRef : null,
-        accused: c.accused || []
-      };
-    });
+    function computeTeamCases() {
+      teamCases = CASES.filter(c =>
+        c.subCommittee === selectedTeam &&
+        (ACTIVE_SCREEN.includes(c.status) || (CARRIED_SCREEN.includes(c.status) && c.subOutcome))
+      ).map(c => {
+        const om = ECMIS.mapSubOutcome(c.subOutcome);
+        return {
+          id: c.id,
+          subject: c.subject,
+          allegation: c.allegation,
+          procType: ECMIS.isCase72(c) ? '7.2' : '7.1',
+          owner: c.owner,
+          ownerOrg: c.ownerOrg,
+          slaLimit: c.slaLimit,
+          slaEff: ECMIS.slaEffectiveDays(c),
+          slaDays: ECMIS.slaEffectiveDays(c),
+          onHold: ECMIS.slaIsOnHold(c),
+          screenStatus: ECMIS.subScreeningStatus(c),
+          outcomeLabel: om ? om.label : null,
+          outcomeLawRef: om ? om.lawRef : null,
+          accused: c.accused || []
+        };
+      });
+    }
+    computeTeamCases();
 
     const SCREEN_META = ECMIS.SUB_SCREENING_STATUS;
 
@@ -293,6 +320,16 @@
     $(document).ready(function () {
       renderKPI();
       renderQueue();
+
+      (async function refreshFromSupabase() {
+        const live = await loadCasesFromSupabase();
+        if (live && live.length) {
+          CASES = live;
+          computeTeamCases();
+          renderKPI();
+          renderQueue();
+        }
+      })();
 
       $('#searchInput').on('input', renderQueue);
       $('#typeFilter').on('change', renderQueue);

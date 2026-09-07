@@ -209,6 +209,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script src="../assets/ecmis-app.js"></script>
     <script src="../assets/ecmis-model.js"></script>
     <script>
@@ -218,6 +219,32 @@
         const kase = ECMIS.requireCase(params.get('case') || '1547/2568');
         if (!kase) throw new Error('ECMIS_CASE_NOT_FOUND');
         const role = ECMIS.currentRole();
+
+        /* ---------- เขียนกลับ Supabase จริงคู่กับ mock store เดิม (CaseStore.update) ----------
+           kase ที่มาจาก DB จริงล้วน (ไม่มีใน ECMIS.CASES mock) จะไม่ถูก CaseStore.update แก้ไข
+           เพราะ CaseStore.find หาไม่เจอ — ต้อง Object.assign(kase, patch) เองเสมอ แล้วเขียน DB
+           ตาม trr_id: status/subCommittee มีคอลัมน์จริง ส่วนฟิลด์ที่เหลือ (subOutcome ฯลฯ) รวมเข้า
+           trr_resolution_data JSONB เหมือน pattern เดิมที่ supabaseRowToCase() อ่านออกมา */
+        let sb = null;
+        try { sb = window.ECMIS && window.ECMIS.getSupabaseClient ? window.ECMIS.getSupabaseClient() : null; }
+        catch (e) { console.warn('Supabase init skipped, using local data store:', e); }
+
+        function persistPatch(patch) {
+            Object.assign(kase, patch);
+            ECMIS.Model.CaseStore.update(kase.id, patch);
+            if (!sb || !kase.trr_id) return;
+            const dbPatch = {};
+            if (patch.status) dbPatch.trr_status = ECMIS.STATUS_CODE[patch.status] || patch.status;
+            if ('subCommittee' in patch) dbPatch.trr_sub_committee = patch.subCommittee || null;
+            const extra = Object.assign({}, kase.resolutionData || {});
+            Object.keys(patch).forEach(k => {
+                if (k !== 'status' && k !== 'subCommittee' && k !== 'history') extra[k] = patch[k];
+            });
+            dbPatch.trr_resolution_data = extra;
+            kase.resolutionData = extra;
+            sb.from('tbl_res_request').update(dbPatch).eq('trr_id', kase.trr_id)
+                .then(({ error }) => { if (error) console.warn('บันทึกข้อมูลลง Supabase ไม่สำเร็จ:', error); });
+        }
 
         /* อนุกลั่นกรองฯ เห็นเฉพาะส่วนที่ตนทำได้ — การกระจายสำนวนเข้าคณะเป็นงานของ ผอ.กบค. เท่านั้น
            ซ่อนด้วย d-none แทนการลบ DOM เพราะ initScreening71/72 ยังเขียนลง #quotaGrid/#assignedTeam/
@@ -285,7 +312,7 @@
                 status: targetStatus
             }, extraPatch || {});
             if (isRuling && om && om.docxTemplate) patch.rulingTemplate = om.docxTemplate; // 3 = ชี้มูล, 4 = ไม่ชี้มูล/ทำเพิ่ม/ตกไป
-            ECMIS.Model.CaseStore.update(kase.id, patch);
+            persistPatch(patch);
             return { om, targetStatus };
         }
 
@@ -294,7 +321,7 @@
             ECMIS.pushCaseHistory(kase, {
                 from: kase.status, to: MORE_INFO_STATUS, event: MORE_INFO_EVENT, note: note || ''
             });
-            ECMIS.Model.CaseStore.update(kase.id, {
+            persistPatch({
                 status: MORE_INFO_STATUS,
                 subCommittee: team || kase.subCommittee,
                 onHoldDays: Number(kase.onHoldDays) || 0,
@@ -881,7 +908,7 @@
                         confirmText: 'ยืนยันขอข้อมูลเพิ่มเติม'
                     }).then(res => {
                         if (!res.isConfirmed) return;
-                        ECMIS.Model.CaseStore.update(kase.id, {
+                        persistPatch({
                             screeningOpinion72: opinion,
                             moreInfoRequested72: { date: new Date().toISOString().slice(0, 10), note: opinion }
                         });

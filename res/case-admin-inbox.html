@@ -188,6 +188,7 @@
       $('#kpiRow .kpi-card').on('click', function () {
         kpiFilter = $(this).data('kpi') === 'ALL' ? 'ALL' : $(this).data('kpi');
         currentPage = 1;
+        renderKPI();
         render();
       });
     }

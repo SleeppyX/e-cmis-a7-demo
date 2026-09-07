@@ -159,7 +159,7 @@
                 <tr>
                   <th class="sortable-header" data-sort="id" style="cursor:pointer">เรื่องที่ <i class="fa-solid fa-sort-down ms-1" style="font-size:0.75rem"></i></th>
                   <th>ประเภทเรื่อง</th>
-                  <th>ครั้งที่ประชุม/วาระ</th>
+                  <th>วาระ</th>
                   <th>เรื่องที่กล่าวหา / ผู้รับผิดชอบ</th>
                   <th>สถานะมติ</th>
                   <th class="sortable-header" data-sort="slaDays" style="cursor:pointer">กำหนดเวลา <i class="fa-solid fa-sort ms-1" style="font-size:0.75rem"></i></th>
@@ -390,14 +390,22 @@ function typeBadge(c, is72){
   return ECMIS.typeBadge(c, is72);
 }
 
-function meetingAgendaCell(c){
-  if (!c.meetingNo && !c.agendaNo) {
-    return '<span class="text-muted">-</span>';
-  }
-  return `<div class="small">
-    <div class="fw-medium">${c.meetingNo || '-'}</div>
-    <div class="text-muted" style="font-size:0.75rem">วาระ ${c.agendaNo || '-'}</div>
-  </div>`;
+function agendaCell(c){
+  if (!c.agendaNo) return '<span class="text-muted">-</span>';
+  return `<span class="small">วาระ ${c.agendaNo}</span>`;
+}
+
+function meetingGroupKey(c){ return c.meetingNo || 'NONE'; }
+function meetingGroupLabel(key){ return key === 'NONE' ? 'ยังไม่บรรจุวาระ' : `ครั้งที่ ${key}`; }
+
+function groupHeaderRow(key, continued){
+  return `<tr class="meeting-group-row">
+    <td colspan="7" class="py-2 px-3" style="background:#EEF2F8;border-top:2px solid #0F2A62;border-bottom:1px solid #D8DEE9;">
+      <span class="fw-bold text-navy" style="color:#0F2A62">
+        <i class="fa-regular fa-calendar-days me-2"></i>${meetingGroupLabel(key)}${continued ? ' <span class="text-muted fw-normal">(ต่อ)</span>' : ''}
+      </span>
+    </td>
+  </tr>`;
 }
 
 function row(c){
@@ -414,7 +422,7 @@ function row(c){
   return `<tr>
     <td class="case-no">${c.id}${(c.urgent || c.urgent72)?' <span class="st st-urgent ms-1">ด่วน</span>':''}</td>
     <td>${typeBadge(c, is72)}</td>
-    <td>${meetingAgendaCell(c)}</td>
+    <td>${agendaCell(c)}</td>
     <td style="max-width:320px">
       <div class="text-truncate fw-medium" title="${c.subject}">${c.subject}</div>
       <small class="text-muted d-block" style="font-size:0.75rem">
@@ -464,19 +472,43 @@ function renderMyQueue(loading = false) {
     return;
   }
 
-  const sortedCases = [...filteredCombined].sort((a, b) => {
-    let valA = a[sortField];
-    let valB = b[sortField];
-    if (sortField === 'id') {
-      valA = caseIdSortValue(a.id);
-      valB = caseIdSortValue(b.id);
-    } else if (sortField === 'slaDays') {
-      valA = a.slaDays;
-      valB = b.slaDays;
-    }
-    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-    return 0;
+  function sortByField(list) {
+    return [...list].sort((a, b) => {
+      let valA = a[sortField];
+      let valB = b[sortField];
+      if (sortField === 'id') {
+        valA = caseIdSortValue(a.id);
+        valB = caseIdSortValue(b.id);
+      } else if (sortField === 'slaDays') {
+        valA = a.slaDays;
+        valB = b.slaDays;
+      }
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  // จัดกลุ่มตามครั้งที่ประชุม: เรียงกลุ่มใหม่->เก่า, "ยังไม่บรรจุวาระ" ไว้ท้ายสุด, เรียงลำดับเดิมทำงานภายในแต่ละกลุ่ม
+  const groups = new Map();
+  filteredCombined.forEach(c => {
+    const key = meetingGroupKey(c);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(c);
+  });
+  const groupKeys = [...groups.keys()].sort((a, b) => {
+    if (a === 'NONE') return 1;
+    if (b === 'NONE') return -1;
+    return caseIdSortValue(b) - caseIdSortValue(a);
+  });
+
+  const sortedCases = [];
+  const groupKeyForIndex = [];
+  groupKeys.forEach(key => {
+    sortByField(groups.get(key)).forEach(c => {
+      sortedCases.push(c);
+      groupKeyForIndex.push(key);
+    });
   });
 
   const totalItems = sortedCases.length;
@@ -484,13 +516,25 @@ function renderMyQueue(loading = false) {
   if (currentPage > totalPages) currentPage = totalPages;
   const startIdx = (currentPage - 1) * pageSize;
   const paginatedCases = sortedCases.slice(startIdx, startIdx + pageSize);
+  const paginatedKeys = groupKeyForIndex.slice(startIdx, startIdx + pageSize);
 
-  tbodyPrimary.innerHTML = paginatedCases.length
-    ? paginatedCases.map(c => row(c)).join('')
-    : `<tr><td colspan="7" class="text-center text-muted py-4">
+  if (!paginatedCases.length) {
+    tbodyPrimary.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">
          <i class="fa-solid fa-folder-open fa-2x mb-2 d-block text-primary"></i>
          ไม่มีรายการสำนวนในมุมมองนี้ตามเงื่อนไขที่ค้นหา<br>
          <small>ลองเลือกแท็บมุมมองอื่น หรือเลือกตัวกรองสถานะเป็น "ทั้งหมด"</small></td></tr>`;
+  } else {
+    let html = '';
+    paginatedKeys.forEach((key, i) => {
+      const isNewGroup = i === 0 || key !== paginatedKeys[i - 1];
+      if (isNewGroup) {
+        const continued = i === 0 && startIdx > 0 && groupKeyForIndex[startIdx - 1] === key;
+        html += groupHeaderRow(key, continued);
+      }
+      html += row(paginatedCases[i]);
+    });
+    tbodyPrimary.innerHTML = html;
+  }
 
 
   const paginUl = document.getElementById('queuePagination');

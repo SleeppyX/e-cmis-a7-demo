@@ -415,8 +415,11 @@ function renderKPICards() {
   const currentSt = document.getElementById('statusFilter')?.value || 'ALL';
 
   if (role.id === 'chairman') {
-    const pendingNormalCount = allCasesCombined.filter(c => c.status === 'PENDING_CHAIRMAN').length;
-    const pendingUrgentCount = allCasesCombined.filter(c => c.status === 'PENDING_CHAIRMAN_URGENT_72').length;
+    /* เคส 7.1 ด่วน: ผอ.กบค. รับรองใบด่วนแล้ว state จะ merge กลับเป็น PENDING_CHAIRMAN
+       (ไม่มีสถานะ urgent แยกเหมือนสาย 7.2) — จัดเข้าการ์ด "วาระด่วน" ด้วย c.urgent
+       และตัดออกจาก "รอสั่งการวาระปกติ" ให้สองการ์ดแยกขาดจากกัน */
+    const pendingNormalCount = allCasesCombined.filter(c => c.status === 'PENDING_CHAIRMAN' && !c.urgent).length;
+    const pendingUrgentCount = allCasesCombined.filter(c => c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent)).length;
     const pendingRulingCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_RULING_72').length;
     const pendingOrderCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_ORDER_CHAIRMAN').length;
 
@@ -624,7 +627,7 @@ function row(c){
        ถูกจำกัดเหลือเฉพาะ isChairActionable แล้ว (ดู all= ด้านล่าง) จึงไม่มีสถานะอื่นหลุดเข้ามา
        ให้ตกไปที่ ECMIS.statusBadge() (ป้ายกำกับทั่วไปที่ใช้คำไม่ตรงกับ dropdown นี้) อีก */
     let catBadge = '';
-    if (c.status === 'PENDING_CHAIRMAN_URGENT_72') catBadge = `<span class="meet-badge meet-urgent"><i class="fa-solid fa-bolt me-1"></i>วาระด่วน</span>`;
+    if (c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent)) catBadge = `<span class="meet-badge meet-urgent"><i class="fa-solid fa-bolt me-1"></i>วาระด่วน</span>`;
     else if (c.status === 'PENDING_SIGN_RULING_72') catBadge = `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามรายงานชี้มูล</span>`;
     else if (c.status === 'PENDING_SIGN_ORDER_CHAIRMAN') catBadge = `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามคำสั่ง ม.24</span>`;
     else catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-hourglass-half me-1"></i>รอสั่งการวาระปกติ</span>`;
@@ -827,8 +830,8 @@ function applyFilters() {
     let matchSt = true;
     if (role.id === 'chairman') {
       if (st !== 'ALL') {
-        if (st === 'PENDING_NORMAL') matchSt = (c.status === 'PENDING_CHAIRMAN');
-        else if (st === 'PENDING_URGENT') matchSt = (c.status === 'PENDING_CHAIRMAN_URGENT_72');
+        if (st === 'PENDING_NORMAL') matchSt = (c.status === 'PENDING_CHAIRMAN' && !c.urgent);
+        else if (st === 'PENDING_URGENT') matchSt = (c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent));
         else if (st === 'PENDING_RULING') matchSt = (c.status === 'PENDING_SIGN_RULING_72');
         else if (st === 'PENDING_ORDER') matchSt = (c.status === 'PENDING_SIGN_ORDER_CHAIRMAN');
       }

@@ -157,12 +157,12 @@
               </colgroup>
               <thead>
                 <tr>
-                  <th class="sortable-header" data-sort="id" style="cursor:pointer">เรื่องที่ <i class="fa-solid fa-sort-down ms-1" style="font-size:0.75rem"></i></th>
+                  <th>เรื่องที่</th>
                   <th>ประเภทเรื่อง</th>
                   <th>วาระ</th>
                   <th>เรื่องที่กล่าวหา / ผู้รับผิดชอบ</th>
                   <th>สถานะมติ</th>
-                  <th class="sortable-header" data-sort="slaDays" style="cursor:pointer">กำหนดเวลา <i class="fa-solid fa-sort ms-1" style="font-size:0.75rem"></i></th>
+                  <th>กำหนดเวลา</th>
                   <th class="text-end">ดำเนินการ</th>
                 </tr>
               </thead>
@@ -353,13 +353,25 @@ function switchViewTab(tab, resetFilter = true) {
 
 let currentPage = 1;
 const pageSize = 10;
-let sortField = 'id';
-let sortOrder = 'desc';
-
 function caseIdSortValue(id) {
   const m = /^(\d+)\/(\d+)$/.exec(id || '');
   if (!m) return 0;
   return parseInt(m[2], 10) * 100000 + parseInt(m[1], 10);
+}
+
+/* เรียง "4.1.1" < "4.1.2" < "4.1.3" < "5.1.1" ตามค่าตัวเลขแต่ละส่วนที่คั่นด้วยจุด
+   ไม่ใช่เรียงแบบ string (ซึ่งจะทำให้ "4.1.10" มาก่อน "4.1.2" ผิดธรรมชาติ) */
+function agendaNoSortValue(agendaNo) {
+  return String(agendaNo || '').split('.').map(s => parseInt(s, 10) || 0);
+}
+function compareAgendaNo(a, b) {
+  const pa = agendaNoSortValue(a), pb = agendaNoSortValue(b);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const diff = (pa[i] || 0) - (pb[i] || 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
 }
 
 function getActionBadge(c) {
@@ -472,24 +484,18 @@ function renderMyQueue(loading = false) {
     return;
   }
 
+  // เรียงตามวาระจากน้อยไปมากเสมอ (4.1.1 < 4.1.2 < 4.1.3 < 5.1.1); เคสไม่มีวาระ (null)
+  // เรียงตามเลขสำนวนแทน
   function sortByField(list) {
     return [...list].sort((a, b) => {
-      let valA = a[sortField];
-      let valB = b[sortField];
-      if (sortField === 'id') {
-        valA = caseIdSortValue(a.id);
-        valB = caseIdSortValue(b.id);
-      } else if (sortField === 'slaDays') {
-        valA = a.slaDays;
-        valB = b.slaDays;
-      }
-      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
+      if (a.agendaNo && b.agendaNo) return compareAgendaNo(a.agendaNo, b.agendaNo);
+      if (a.agendaNo && !b.agendaNo) return -1;
+      if (!a.agendaNo && b.agendaNo) return 1;
+      return caseIdSortValue(a.id) - caseIdSortValue(b.id);
     });
   }
 
-  // จัดกลุ่มตามครั้งที่ประชุม: เรียงกลุ่มใหม่->เก่า, "ยังไม่บรรจุวาระ" ไว้ท้ายสุด, เรียงลำดับเดิมทำงานภายในแต่ละกลุ่ม
+  // จัดกลุ่มตามครั้งที่ประชุม: เรียงกลุ่มใหม่->เก่า, "ยังไม่บรรจุวาระ" ไว้ท้ายสุด, เรียงตามวาระทำงานภายในแต่ละกลุ่ม
   const groups = new Map();
   filteredCombined.forEach(c => {
     const key = meetingGroupKey(c);
@@ -559,26 +565,6 @@ function changePage(p) {
   currentPage = p;
   renderMyQueue(true);
 }
-
-document.querySelectorAll('.sortable-header').forEach(header => {
-  header.addEventListener('click', () => {
-    const field = header.dataset.sort;
-    if (sortField === field) {
-      sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortField = field;
-      sortOrder = 'asc';
-    }
-
-    document.querySelectorAll('.sortable-header i').forEach(icon => {
-      icon.className = 'fa-solid fa-sort text-muted';
-    });
-    const activeIcon = header.querySelector('i');
-    if (activeIcon) activeIcon.className = `fa-solid fa-sort-${sortOrder === 'asc' ? 'up' : 'down'}`;
-
-    renderMyQueue(true);
-  });
-});
 
 function applyFilters() {
   const q = document.getElementById('searchInput').value.trim().toLowerCase();

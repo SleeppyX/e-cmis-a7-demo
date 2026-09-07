@@ -84,7 +84,6 @@
                 <th>ประเภทเรื่อง</th>
                 <th>เรื่องกล่าวหา / ผู้รับผิดชอบ</th>
                 <th>คณะที่มอบหมาย</th>
-                <th>สถานะ</th>
                 <th class="sortable-header" data-sort="slaDays" style="cursor:pointer">กำหนดเวลา <i
                     class="fa-solid fa-sort ms-1" style="font-size:0.75rem"></i></th>
                 <th class="text-end">ดำเนินการ</th>
@@ -235,7 +234,7 @@
       renderPagination(totalPages);
 
       if (!pagedRows.length) {
-        $('#caQueue').html(`<tr><td colspan="7" class="text-center py-4 text-muted">
+        $('#caQueue').html(`<tr><td colspan="6" class="text-center py-4 text-muted">
           <i class="fa-solid fa-folder-open fa-2x mb-2 d-block text-secondary"></i>ไม่พบสำนวนตามเงื่อนไขที่เลือก</td></tr>`);
         return;
       }
@@ -257,7 +256,6 @@
             <small class="text-muted d-block text-truncate" style="font-size:0.75rem">${c.owner ? c.owner + ' · ' : ''}${c.ownerOrg || ''}</small>
           </td>
           <td>${teamCell}</td>
-          <td>${ECMIS.statusBadge(c.status)}</td>
           <td>${ECMIS.slaBadge(c)}</td>
           <td class="text-end">${actionBtn}</td>
         </tr>`;

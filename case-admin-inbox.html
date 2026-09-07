@@ -94,7 +94,10 @@
           </table>
         </div>
         <div class="px-3 py-2 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <div class="small text-muted ms-auto" id="tableSummaryText">แสดง 0 ถึง 0 จาก 0 รายการ</div>
+          <div class="small text-muted" id="tableSummaryText">แสดง 0 ถึง 0 จาก 0 รายการ</div>
+          <nav aria-label="Case queue navigation" class="ms-auto">
+            <ul class="pagination pagination-sm m-0" id="caPagination"></ul>
+          </nav>
         </div>
       </div>
     </div>
@@ -104,6 +107,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="assets/ecmis-app.js"></script>
   <script src="assets/ecmis-model.js"></script>
   <script>
@@ -112,16 +116,46 @@
     const role = ECMIS.currentRole();
     $('#myRoleLabel').text('บทบาท: ' + (role.group || 'กองบริหารคดี'));
 
+    /* ---------- โหลดสำนวนจาก Supabase / Local Data (เดียวกับ resolution-inbox.html) ---------- */
+    const SUPABASE_URL = 'https://ljhabbwjxnoucrcrsoii.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_2Bps-dWMZHz_7cs3BppF6A_ul1_A_xd';
+    let sb = null;
+    try {
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        sb = (window.ECMIS && window.ECMIS.getSupabaseClient) ? window.ECMIS.getSupabaseClient(SUPABASE_URL, SUPABASE_KEY) : window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+      }
+    } catch (e) {
+      console.warn('Supabase init skipped, using local data store:', e);
+    }
+
+    async function loadCasesFromSupabase() {
+      if (!sb) return null;
+      try {
+        const { data, error } = await sb
+          .from('tbl_res_request')
+          .select('*, tbl_cmp_case(*, tbl_cmp_case_accused(*))')
+          .eq('is_deleted', false);
+        if (error) throw error;
+        return data.map(row => ECMIS.supabaseRowToCase(row)).filter(Boolean);
+      } catch (err) {
+        console.warn('Supabase fetch failed, falling back to local CASES:', err);
+        return null;
+      }
+    }
+
     const SCREEN = ECMIS.CASE_ADMIN_SCREEN_STATUSES; // ['IN_SCREENING','IN_SCREENING_72']
+    let CASES = ECMIS.CASES.slice();
     let kpiFilter = 'WAIT';
     let sortField = 'id', sortOrder = 'asc';
+    let currentPage = 1;
+    const pageSize = 10;
 
     function overdue(c) { return (c.slaDays || 0) >= (c.slaLimit || 15); }
 
     /* ทะเบียนคุมคดีเดียว เห็นทุกสถานะเสมอ — กรองด้วยสถานะผ่าน KPI card แทนการแยกแท็บ
        (ประเภทเรื่อง 7.1/7.2 มีตัวกรอง "ประเภทเรื่อง" แยกอยู่แล้ว ไม่ต้องซ้ำใน KPI) */
     function baseCases() {
-      return ECMIS.CASES.filter(c => ECMIS.canViewCase(c, role.id));
+      return CASES.filter(c => ECMIS.canViewCase(c, role.id));
     }
 
     function renderKPI() {
@@ -151,6 +185,7 @@
 
       $('#kpiRow .kpi-card').on('click', function () {
         kpiFilter = $(this).data('kpi') === 'ALL' ? 'ALL' : $(this).data('kpi');
+        currentPage = 1;
         render();
       });
     }
@@ -184,14 +219,25 @@
         return sortOrder === 'asc' ? ((va || 0) - (vb || 0)) : ((vb || 0) - (va || 0));
       });
 
-      $('#tableSummaryText').text(`แสดง 1 ถึง ${rows.length} จาก ${rows.length} รายการ`);
-      if (!rows.length) {
+      const totalItems = rows.length;
+      const totalPages = Math.ceil(totalItems / pageSize) || 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+      const startIdx = (currentPage - 1) * pageSize;
+      const pagedRows = rows.slice(startIdx, startIdx + pageSize);
+
+      $('#tableSummaryText').text(totalItems
+        ? `แสดง ${startIdx + 1} ถึง ${Math.min(startIdx + pageSize, totalItems)} จาก ${totalItems} รายการ`
+        : 'แสดง 0 ถึง 0 จาก 0 รายการ');
+
+      renderPagination(totalPages);
+
+      if (!pagedRows.length) {
         $('#caQueue').html(`<tr><td colspan="7" class="text-center py-4 text-muted">
           <i class="fa-solid fa-folder-open fa-2x mb-2 d-block text-secondary"></i>ไม่พบสำนวนตามเงื่อนไขที่เลือก</td></tr>`);
         return;
       }
 
-      $('#caQueue').html(rows.map(c => {
+      $('#caQueue').html(pagedRows.map(c => {
         const inScreen = SCREEN.includes(c.status);
         const teamCell = c.subCommittee
           ? `<span class="badge bg-success-subtle text-success border border-success-subtle">${c.subCommittee}</span>`
@@ -219,9 +265,33 @@
       });
     }
 
+    function renderPagination(totalPages) {
+      const ul = document.getElementById('caPagination');
+      let html = `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+          <a class="page-link" href="#" onclick="changeCaPage(${currentPage - 1}); return false;">«</a>
+        </li>`;
+      for (let i = 1; i <= totalPages; i++) {
+        html += `
+          <li class="page-item ${currentPage === i ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="changeCaPage(${i}); return false;">${i}</a>
+          </li>`;
+      }
+      html += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+          <a class="page-link" href="#" onclick="changeCaPage(${currentPage + 1}); return false;">»</a>
+        </li>`;
+      ul.innerHTML = html;
+    }
+
+    function changeCaPage(p) {
+      currentPage = p;
+      render();
+    }
+
     /* ── modal: ส่งเข้าคณะอนุกลั่นกรองฯ ─────────────────────────────── */
     function openRouteModal(caseId) {
-      const kase = ECMIS.getCase(caseId);
+      const kase = CASES.find(c => c.id === caseId);
       if (!kase) return;
       const suggested = ECMIS.nextSubcommitteeTeam();
       const opts = ECMIS.SUBCOMMITTEE_QUOTA.map(qq =>
@@ -257,7 +327,14 @@
           event: 'ROUTE_TO_SUBCOMMITTEE', from: kase.status, to: kase.status, team,
           note: `กระจายสำนวนเข้า ${team}${team === suggested ? ' (Round-Robin)' : ' (เลือกโดย ผอ.กบค.)'}${reason ? ' — ' + reason : ''}`
         });
-        ECMIS.Model.CaseStore.update(kase.id, { subCommittee: team, routedByCaseAdminAt: new Date().toISOString(), history: kase.history });
+        const routedAt = new Date().toISOString();
+        kase.subCommittee = team;
+        kase.routedByCaseAdminAt = routedAt;
+        ECMIS.Model.CaseStore.update(kase.id, { subCommittee: team, routedByCaseAdminAt: routedAt, history: kase.history });
+        if (sb && kase.trr_id) {
+          sb.from('tbl_res_request').update({ trr_sub_committee: team }).eq('trr_id', kase.trr_id)
+            .then(({ error }) => { if (error) console.warn('บันทึกคณะที่มอบหมายลง Supabase ไม่สำเร็จ:', error); });
+        }
         ECMIS.toastOk(`ส่งสำนวน ${kase.id} เข้า ${team} เรียบร้อย`);
         renderKPI(); render();
       });
@@ -265,10 +342,10 @@
 
     $(document).ready(function () {
       renderKPI(); render();
-      $('#searchInput').on('input', render);
-      $('#typeFilter').on('change', render);
+      $('#searchInput').on('input', function () { currentPage = 1; render(); });
+      $('#typeFilter').on('change', function () { currentPage = 1; render(); });
       $('#btnClearFilter').on('click', function () {
-        $('#searchInput').val(''); $('#typeFilter').val('ALL'); kpiFilter = 'WAIT';
+        $('#searchInput').val(''); $('#typeFilter').val('ALL'); kpiFilter = 'WAIT'; currentPage = 1;
         renderKPI(); render();
       });
       $('.sortable-header').on('click', function () {
@@ -277,8 +354,17 @@
         else { sortField = f; sortOrder = 'asc'; }
         $('.sortable-header i').attr('class', 'fa-solid fa-sort ms-1');
         $(this).find('i').attr('class', `fa-solid fa-sort-${sortOrder === 'asc' ? 'up' : 'down'} ms-1`);
-        render();
+        currentPage = 1; render();
       });
+
+      (async function refreshFromSupabase() {
+        const live = await loadCasesFromSupabase();
+        if (live && live.length) {
+          CASES = live;
+          currentPage = 1;
+          renderKPI(); render();
+        }
+      })();
     });
   </script>
 </body>

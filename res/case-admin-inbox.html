@@ -18,7 +18,6 @@
     .kpi-card { transition: all 0.2s ease; cursor: pointer; }
     .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(15, 42, 98, 0.12); }
     .kpi-card.active { outline: 2px solid #0F2A62; outline-offset: 1px; }
-    .ca-tab { cursor: pointer; }
   </style>
 </head>
 
@@ -34,12 +33,6 @@
         <span class="flow-ref">กองบริหารคดี (กลุ่มงานบริหารคดีและบริหารทั่วไป) — ด่านรับ: ลงทะเบียนคุมคดี · เตรียมสำนวน · ส่งเข้าคณะอนุกลั่นกรองฯ</span>
       </div>
     </div>
-
-    <!-- Tabs -->
-    <ul class="nav nav-tabs mb-3" id="caTabs">
-      <li class="nav-item"><a class="nav-link active ca-tab" data-tab="QUEUE" href="#">คิวงานของฉัน</a></li>
-      <li class="nav-item"><a class="nav-link ca-tab" data-tab="ALL" href="#">ทะเบียนคุมคดีทั้งหมด</a></li>
-    </ul>
 
     <!-- KPI Cards Row -->
     <div class="row g-3 mb-4" id="kpiRow"></div>
@@ -120,33 +113,25 @@
     $('#myRoleLabel').text('บทบาท: ' + (role.group || 'กองบริหารคดี'));
 
     const SCREEN = ECMIS.CASE_ADMIN_SCREEN_STATUSES; // ['IN_SCREENING','IN_SCREENING_72']
-    let activeTab = 'QUEUE';
-    let kpiFilter = 'ALL';
+    let kpiFilter = 'WAIT';
     let sortField = 'id', sortOrder = 'asc';
 
     function overdue(c) { return (c.slaDays || 0) >= (c.slaLimit || 15); }
 
-    /* คิวงาน = สำนวนถึงชั้นกลั่นกรองแล้ว ยังไม่มีคณะ · ทะเบียนคุมคดี = ทุกคดีที่มองเห็น */
+    /* ทะเบียนคุมคดีเดียว เห็นทุกสถานะเสมอ — กรองด้วยสถานะผ่าน KPI card แทนการแยกแท็บ
+       (ประเภทเรื่อง 7.1/7.2 มีตัวกรอง "ประเภทเรื่อง" แยกอยู่แล้ว ไม่ต้องซ้ำใน KPI) */
     function baseCases() {
-      const all = ECMIS.CASES.filter(c => ECMIS.canViewCase(c, role.id));
-      return activeTab === 'QUEUE' ? all.filter(c => ECMIS.isCaseAdminQueue(c)) : all;
+      return ECMIS.CASES.filter(c => ECMIS.canViewCase(c, role.id));
     }
 
     function renderKPI() {
       const rows = baseCases();
-      const cards = activeTab === 'QUEUE'
-        ? [
-          { key: 'ALL', n: rows.length, label: 'รอส่งเข้าคณะทั้งหมด', icon: 'fa-folder-open', color: '#0F2A62' },
-          { key: '7.1', n: rows.filter(c => !ECMIS.isCase72(c)).length, label: 'ไต่สวนเบื้องต้น', icon: 'fa-file-lines', color: '#475569' },
-          { key: '7.2', n: rows.filter(c => ECMIS.isCase72(c)).length, label: 'วินิจฉัยชี้มูล', icon: 'fa-gavel', color: '#7C3AED' },
-          { key: 'OVERDUE', n: rows.filter(overdue).length, label: 'เกินกำหนด', icon: 'fa-triangle-exclamation', color: '#B91C1C' }
-        ]
-        : [
-          { key: 'ALL', n: rows.length, label: 'คดีทั้งหมดในทะเบียน', icon: 'fa-folder-open', color: '#0F2A62' },
-          { key: 'WAIT', n: rows.filter(c => ECMIS.isCaseAdminQueue(c)).length, label: 'รอส่งเข้าคณะ', icon: 'fa-hourglass-half', color: '#D0A830' },
-          { key: 'ROUTED', n: rows.filter(c => ECMIS.caseAdminRouted(c)).length, label: 'ส่งเข้าคณะแล้ว', icon: 'fa-share-from-square', color: '#15803D' },
-          { key: 'OVERDUE', n: rows.filter(overdue).length, label: 'เกินกำหนด', icon: 'fa-triangle-exclamation', color: '#B91C1C' }
-        ];
+      const cards = [
+        { key: 'ALL', n: rows.length, label: 'คดีทั้งหมดในทะเบียน', icon: 'fa-folder-open', color: '#0F2A62' },
+        { key: 'WAIT', n: rows.filter(c => ECMIS.isCaseAdminQueue(c)).length, label: 'รอส่งเข้าคณะ', icon: 'fa-hourglass-half', color: '#D0A830' },
+        { key: 'ROUTED', n: rows.filter(c => ECMIS.caseAdminRouted(c)).length, label: 'ส่งเข้าคณะแล้ว', icon: 'fa-share-from-square', color: '#15803D' },
+        { key: 'OVERDUE', n: rows.filter(overdue).length, label: 'เกินกำหนด', icon: 'fa-triangle-exclamation', color: '#B91C1C' }
+      ];
 
       document.getElementById('kpiRow').innerHTML = cards.map(k => `
         <div class="col">
@@ -170,16 +155,21 @@
       });
     }
 
+    const TABLE_TITLE_BY_FILTER = {
+      ALL: 'ทะเบียนคุมคดี — ทุกสำนวน',
+      WAIT: 'คิวสำนวนรอส่งเข้าคณะอนุกลั่นกรองฯ',
+      ROUTED: 'ทะเบียนคุมคดี — ส่งเข้าคณะแล้ว',
+      OVERDUE: 'ทะเบียนคุมคดี — เกินกำหนด'
+    };
+
     function render() {
-      $('#tableTitle').text(activeTab === 'QUEUE' ? 'คิวสำนวนรอส่งเข้าคณะอนุกลั่นกรองฯ' : 'ทะเบียนคุมคดี — ทุกสำนวน');
+      $('#tableTitle').text(TABLE_TITLE_BY_FILTER[kpiFilter] || TABLE_TITLE_BY_FILTER.ALL);
       const q = ($('#searchInput').val() || '').trim().toLowerCase();
       const type = $('#typeFilter').val() || 'ALL';
 
       let rows = baseCases().filter(c => {
         const pt = c.procType || (ECMIS.isCase72(c) ? '7.2' : '7.1');
         if (type !== 'ALL' && !pt.startsWith(type)) return false;
-        if (kpiFilter === '7.1' && ECMIS.isCase72(c)) return false;
-        if (kpiFilter === '7.2' && !ECMIS.isCase72(c)) return false;
         if (kpiFilter === 'OVERDUE' && !overdue(c)) return false;
         if (kpiFilter === 'WAIT' && !ECMIS.isCaseAdminQueue(c)) return false;
         if (kpiFilter === 'ROUTED' && !ECMIS.caseAdminRouted(c)) return false;
@@ -275,16 +265,10 @@
 
     $(document).ready(function () {
       renderKPI(); render();
-      $('#caTabs .ca-tab').on('click', function (e) {
-        e.preventDefault();
-        $('#caTabs .ca-tab').removeClass('active'); $(this).addClass('active');
-        activeTab = $(this).data('tab'); kpiFilter = 'ALL';
-        renderKPI(); render();
-      });
       $('#searchInput').on('input', render);
       $('#typeFilter').on('change', render);
       $('#btnClearFilter').on('click', function () {
-        $('#searchInput').val(''); $('#typeFilter').val('ALL'); kpiFilter = 'ALL';
+        $('#searchInput').val(''); $('#typeFilter').val('ALL'); kpiFilter = 'WAIT';
         renderKPI(); render();
       });
       $('.sortable-header').on('click', function () {

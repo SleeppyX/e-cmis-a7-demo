@@ -141,8 +141,14 @@
             <div class="val-msg val-err" data-for="boardOpinion">กรุณาระบุความเห็นที่ประชุม</div>
 
             <div class="mt-3">
-              <label class="form-label field-req">เรื่องกล่าวหา (แก้ไขได้)</label>
+              <label class="form-label field-req">หัวเรื่องจากวาระ (แก้ไขได้)</label>
               <input class="form-control" id="caseSubject">
+            </div>
+
+            <div class="mt-3">
+              <label class="form-label">รายละเอียดจากวาระ</label>
+              <textarea class="form-control" id="agendaDetails" rows="3"
+                placeholder="ระบบจะดึงรายละเอียดจากวาระให้อัตโนมัติ"></textarea>
             </div>
 
             <div class="mt-3">
@@ -340,6 +346,8 @@
     /* เรื่องกล่าวหา (แก้ไขได้) */
     document.getElementById('caseSubject').value = kase.subject;
     document.getElementById('caseSubject').addEventListener('input', renderDoc);
+    document.getElementById('agendaDetails').value = kase.allegation || '';
+    document.getElementById('agendaDetails').addEventListener('input', renderDoc);
 
     /* ผู้รับผิดชอบสำนวนมีได้มากกว่า 1 ท่าน (คีย์เพิ่มชื่อได้) */
     document.getElementById('caseOwnersField').value = kase.owner;
@@ -814,6 +822,7 @@
       }
 
       const curSubject = document.getElementById('caseSubject')?.value?.trim() || kase.subject;
+      const agendaDetails = document.getElementById('agendaDetails')?.value?.trim() || kase.allegation || kase.subject;
       const curOwners = document.getElementById('caseOwnersField')?.value?.trim() || kase.owner;
 
       const introBlock = `
@@ -848,7 +857,7 @@
         bi(`<div class="doc-indent" style="margin-top:4px">
         ${M(presenter)} ${M(ownerOrg)} กล่าวต่อที่ประชุมว่า
       </div>`),
-        bi(`<div class="doc-indent" style="margin-top:6px">${M(kase.allegation, kase.subject)}</div>`),
+        bi(`<div class="doc-indent" style="margin-top:6px">${M(agendaDetails, curSubject)}</div>`),
         bi(`<div class="doc-h">มติที่ประชุม</div>
     <div>๑. คณะกรรมการ ป.ป.ท. มีมติ${M(unanimous ? 'เป็นเอกฉันท์' : `ด้วยคะแนนเสียงข้างมาก ${t.forV} ต่อ ${t.againstV} เสียง`)} ${M(resText)}</div>`),
         ...(t.againstV > 0 ? [bi(`<div style="padding-left:1.5em;color:#DB2626">
@@ -1001,7 +1010,7 @@
         accused3: ac[2] ? P(`${ac[2].name} ${ac[2].pos}`) : '',
         allegation: P(kase.allegation), explainNote: P(presenterNote),
         boardOpinion: P(opinion), resolutionText: computeResolutionText(),
-        caseContent: P(kase.allegation),
+        caseContent: P(document.getElementById('agendaDetails')?.value?.trim() || kase.allegation),
         subCommitteeNo: P(kase.subCommittee ? String(kase.subCommittee).replace('คณะที่', '').trim() : ''),
         agendaCount: P('', '1'),
         nacc65Clause,
@@ -1053,12 +1062,6 @@
           { act: 'back_inbox', label: 'กลับไปกล่องงาน', icon: 'fa-arrow-left', cls: 'btn-outline-secondary' }
         ];
       }
-      if (kase.status === 'RESOLVED') {
-        return [
-          { act: 'back_inbox', label: 'กลับไปกล่องงาน', icon: 'fa-arrow-left', cls: 'btn-outline-secondary' },
-          { act: 'dispatch_resolution', label: kase.resolutionDispatchedAt ? 'ส่งมติและเอกสารแล้ว' : 'ส่งมติและเอกสารคืนผู้รับผิดชอบ', icon: kase.resolutionDispatchedAt ? 'fa-check-double' : 'fa-paper-plane', cls: kase.resolutionDispatchedAt ? 'btn-outline-success' : 'btn-success', disabled: !!kase.resolutionDispatchedAt }
-        ];
-      }
       return [
         { act: 'back_inbox', label: 'กลับไปกล่องงาน', icon: 'fa-arrow-left', cls: 'btn-outline-secondary' },
         { act: 'save', label: 'บันทึกร่างมติ', icon: 'fa-floppy-disk', cls: 'btn-outline-primary' },
@@ -1067,7 +1070,7 @@
     }
 
     function renderActionButtons() {
-      document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(kase, role.id, buildButtons(), { forceAllowed:mayEdit });
+      document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(kase, role.id, buildButtons());
       document.querySelectorAll('.action-bar [data-act]').forEach(b =>
         b.addEventListener('click', () => handle(b.dataset.act)));
     }
@@ -1154,32 +1157,6 @@
         return;
       }
 
-      if (act === 'dispatch_resolution') {
-        if (kase.resolutionDispatchedAt) return;
-        ECMIS.confirmAction({
-          title:'ยืนยันส่งมติและเอกสาร',
-          html:`ส่งมติและเอกสารของสำนวน <strong>${kase.id}</strong> คืนเจ้าของสำนวน ผอ.หน่วยงาน และธุรการคดี`,
-          confirmText:'ยืนยันส่งมติ'
-        }).then(result => {
-          if (!result.isConfirmed) return;
-          const sentAt = new Date().toISOString();
-          kase.resolutionDispatchedAt = sentAt;
-          kase.resolutionStage = 5;
-          ECMIS.Model.CaseStore.update(kase.id, { resolutionDispatchedAt:sentAt, resolutionStage:5 });
-          ECMIS.NotificationStore.createEvent({
-            eventKey:`resolution-dispatched:${kase.id}:${kase.resolvedAtIso || kase.resolvedAt || 'current'}`,
-            type:'RESOLUTION_DISPATCHED', caseId:kase.id,
-            recipientIds:ECMIS.resolveCaseNotificationRecipients(kase),
-            title:'ส่งมติที่ประชุมแล้ว',
-            body:`มติและเอกสารสำนวน ${kase.id} ถูกส่งคืนผู้รับผิดชอบแล้ว`,
-            href:'notifications.html'
-          });
-          ECMIS.toastOk('ส่งมติและเอกสารพร้อมสร้างการแจ้งเตือนเรียบร้อย');
-          renderActionButtons();
-        });
-        return;
-      }
-
       if (act === 'save') {
         const t = tally();
         const otherText = (document.getElementById('otherResText')?.value || '').trim();
@@ -1228,6 +1205,11 @@
           const recordedDocHtml = document.getElementById('docPaper').innerHTML;
           const t = tally();
           const otherText = (document.getElementById('otherResText')?.value || '').trim();
+          const agendaTitle = document.getElementById('caseSubject')?.value?.trim() || kase.subject || '';
+          const agendaDetails = document.getElementById('agendaDetails')?.value?.trim() || kase.allegation || '';
+          const accusedSnapshot = (kase.accused || []).map(acc => ({
+            no: acc.no, name: acc.name || '', pos: acc.pos || '', agency: acc.agency || '', idcard: acc.idcard || ''
+          }));
 
           ECMIS.Model.CaseStore.update(kase.id, {
             status: 'RESOLVED',
@@ -1238,7 +1220,9 @@
             resolutionStage: 1,
             boardAttendance: t.attendanceMap,
             boardVotes: t.votesMap,
-            otherResolutionText: otherText
+            otherResolutionText: otherText,
+            agendaTitle, agendaDetails, accusedSnapshot,
+            offenseBasis: kase.offenseBasis || kase.legalBase || ''
           });
 
           /* เขียนมติจริงลง Supabase ก่อน redirect เสมอ (ต้อง await ให้เสร็จก่อน) — ไม่งั้น
@@ -1256,6 +1240,11 @@
                 meetingNo: document.getElementById('meetNo')?.value || '',
                 agendaNo: document.getElementById('agendaNo')?.value || '',
                 meetingDate: document.getElementById('meetDate')?.value || '',
+                agendaTitle,
+                agendaDetails,
+                factSummary72: agendaDetails,
+                accusedSnapshot,
+                offenseBasis: kase.offenseBasis || kase.legalBase || '',
                 boardOpinion: document.getElementById('boardOpinion')?.value || '',
                 boardAttendance: t.attendanceMap,
                 boardVotes: t.votesMap,
@@ -1442,6 +1431,8 @@
       document.getElementById('meetNo').value = context.meetingNo || '';
       setDateInputValue('meetDate', context.meetingDate || '');
       document.getElementById('agendaNo').value = context.agendaNo || '';
+      document.getElementById('caseSubject').value = context.agendaTitle || kase.subject || '';
+      document.getElementById('agendaDetails').value = context.agendaDetails || kase.allegation || '';
       const attendance = ECMIS.getLockedBoardAttendance(kase, BOARD, { includeLegacy:false })
         || (!hasRecordedBoardAttendance && loadMeetingLastAttendance(context.meetingNo));
       if (attendance) document.querySelectorAll('#boardTb tr').forEach((tr, index) => {

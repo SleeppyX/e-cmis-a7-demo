@@ -319,6 +319,12 @@ const TRANSITIONS = [
     ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. รับรองเหตุผลเร่งด่วน' },
   { from:'PENDING_CHAIRMAN_URGENT_72', to:'PENDING_INVITE_72', event:'AGENDA_URGENT_72', actor:'chairman',
     ref:'ลงนามบรรจุวาระด่วน', note:'ประธานฯ ลงนามมอบหมาย/บรรจุวาระด่วน — ข้ามขั้นตอนการกลั่นกรอง' },
+  { from:'PENDING_CHAIRMAN_URGENT_72', to:'IN_SCREENING_72', event:'URGENT_REJECT_72', actor:'chairman',
+    ref:'ประธานฯ เห็นว่ายังไม่ด่วนจริง — ส่งเข้าคณะอนุกลั่นกรองฯ',
+    note:'ไม่บรรจุวาระด่วน — เข้าเส้นทางกลั่นกรองปกติ (กบค. กระจายเข้าคณะที่ ๑–๘)' },
+  { from:'PENDING_CHAIRMAN_URGENT_72', to:'RETURNED_72', event:'URGENT_RETURN_OWNER_72', actor:'chairman',
+    ref:'ประธานฯ ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข',
+    note:'ส่งคืนเจ้าของสำนวน (RETURNED_72 owner=owner) — แก้ไขแล้วเสนอกลับตามสาย' },
 
   { from:'IN_SCREENING_72', to:'PENDING_INVITE_72', event:'SCREEN_DONE_72', actor:'subcommittee',
     ref:'กลั่นกรองและบรรจุวาระ',

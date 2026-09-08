@@ -294,9 +294,10 @@
     function openRouteModal(caseId) {
       const kase = CASES.find(c => c.id === caseId);
       if (!kase) return;
-      const suggested = ECMIS.nextSubcommitteeTeam();
-      const opts = ECMIS.SUBCOMMITTEE_QUOTA.map(qq =>
-        `<option value="คณะที่ ${qq.n}" ${qq.used >= 40 ? 'disabled' : ''} ${('คณะที่ ' + qq.n) === suggested ? 'selected' : ''}>คณะที่ ${qq.n} (ใช้ไป ${qq.used}/40)${qq.used >= 40 ? ' — เต็ม' : ''}</option>`
+      const load = ECMIS.subcommitteeActiveLoad(CASES);
+      const suggested = ECMIS.nextSubcommitteeTeam(CASES);
+      const opts = ECMIS.SUBCOMMITTEE_TEAMS.map(t =>
+        `<option value="${t}" ${t === suggested ? 'selected' : ''}>${t} — ค้าง ${load[t]} สำนวน${t === suggested ? ' (น้อยสุด)' : ''}</option>`
       ).join('');
       Swal.fire({
         title: 'ส่งเข้าคณะอนุกลั่นกรองฯ',
@@ -304,7 +305,7 @@
             <div class="mb-2">สำนวน <strong>${kase.id}</strong> — ${ECMIS.isCase72(kase) ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</div>
             <label class="form-label fw-semibold">เลือกคณะอนุกลั่นกรองฯ</label>
             <select id="swTeam" class="form-select form-select-sm mb-2">${opts}</select>
-            <div class="text-muted mb-2">ระบบเสนอ <strong>${suggested}</strong> (Round-Robin — คณะที่รับงานน้อยสุด)</div>
+            <div class="text-muted mb-2">ระบบเสนอ <strong>${suggested}</strong> — คณะที่มีสำนวนค้างระหว่างกลั่นกรองน้อยที่สุด</div>
             <label class="form-label fw-semibold">หมายเหตุ / เหตุผลกรณีเลือกคณะเอง</label>
             <textarea id="swReason" class="form-control form-control-sm" rows="2" placeholder="ระบุเหตุผลหากไม่ใช้คณะที่ระบบเสนอ"></textarea>
           </div>`,

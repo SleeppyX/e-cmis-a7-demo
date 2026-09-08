@@ -487,15 +487,32 @@ function caseAdminIntakeStep(kase){
   return caseAdminRouted(kase) ? 'DONE' : 'ROUTED';
 }
 
-/* โควตาคณะอนุกลั่นกรองฯ ๑–๘ (ชุดเดียวกับการ์ด Auto-Routing ใน screening.html) */
-const SUBCOMMITTEE_QUOTA = [
-  { n:1, used:40 }, { n:2, used:38 }, { n:3, used:22 }, { n:4, used:31 },
-  { n:5, used:40 }, { n:6, used:19 }, { n:7, used:27 }, { n:8, used:35 }
-];
-/* คณะถัดไปแบบ round-robin — เลือกคณะที่ใช้ไปน้อยสุดที่ยังไม่เต็ม (used < 40) */
-function nextSubcommitteeTeam(){
-  const avail = SUBCOMMITTEE_QUOTA.filter(q => q.used < 40).sort((a, b) => a.used - b.used);
-  return 'คณะที่ ' + (avail.length ? avail[0].n : 1);
+/* สถานะที่ถือว่าสำนวน "ยังค้างอยู่ระหว่างการกลั่นกรอง" ของคณะอนุกลั่นกรองฯ
+   (ชุดเดียวกับ ACTIVE_SCREEN ใน subcommittee-inbox.html เพื่อให้ตัวเลขตรงกัน) */
+const SUBCOMMITTEE_ACTIVE_STATUSES = ['IN_SCREENING', 'IN_SCREENING_72', 'SCREENING_MORE_INFO', 'SCREENING_MORE_INFO_72'];
+
+/* นับจำนวนสำนวนที่ยังค้างอยู่ระหว่างกลั่นกรองของแต่ละคณะ ๑–๘ จากข้อมูลจริง
+   (ค่าเริ่มต้นอ่านจาก CASES ในโมดูล — หน้าที่โหลด Supabase เองให้ส่ง array สดเข้ามา)
+   คืน { 'คณะที่ 1': n, ..., 'คณะที่ 8': n } */
+function subcommitteeActiveLoad(cases){
+  const list = Array.isArray(cases) ? cases : CASES;
+  const load = {};
+  SUBCOMMITTEE_TEAMS.forEach(t => { load[t] = 0; });
+  (list || []).forEach(c => {
+    if (c && c.subCommittee && Object.prototype.hasOwnProperty.call(load, c.subCommittee)
+        && SUBCOMMITTEE_ACTIVE_STATUSES.includes(c.status)) {
+      load[c.subCommittee]++;
+    }
+  });
+  return load;
+}
+/* คณะถัดไปแบบ round-robin — เลือกคณะที่มีสำนวนค้างจริงน้อยที่สุด
+   (เสมอกัน → เลขคณะน้อยกว่ามาก่อน) */
+function nextSubcommitteeTeam(cases){
+  const load = subcommitteeActiveLoad(cases);
+  return SUBCOMMITTEE_TEAMS.slice().sort((a, b) =>
+    (load[a] - load[b]) || (SUBCOMMITTEE_TEAMS.indexOf(a) - SUBCOMMITTEE_TEAMS.indexOf(b))
+  )[0];
 }
 
 /* ฐานอำนาจ / กฎหมายที่เกี่ยวข้อง (law box) — เฉพาะงาน "ด่านรับ" ของ กบค. อ้าง law_pacc_68.pdf */
@@ -7043,7 +7060,7 @@ if (typeof localStorage !== 'undefined') {
   SUB_OUTCOME_MAP, SUB_SCREENING_STATUS, subOutcomeOptions, mapSubOutcome,
   subScreeningStatus, slaEffectiveDays, slaIsOnHold, isScreeningLocked, pushCaseHistory,
   CASE_ADMIN_INTAKE, CASE_ADMIN_SCREEN_STATUSES, isCaseAdminQueue, caseAdminRouted,
-  caseAdminIntakeStep, SUBCOMMITTEE_QUOTA, nextSubcommitteeTeam, CASE_ADMIN_LAW, caseAdminLaw,
+  caseAdminIntakeStep, SUBCOMMITTEE_ACTIVE_STATUSES, subcommitteeActiveLoad, nextSubcommitteeTeam, CASE_ADMIN_LAW, caseAdminLaw,
   BOARD_MIN_IN_OFFICE, boardQuorum,
   M24P1_MIN_PANEL, M24P1_STAFF_FREE, panelComposition,
   CONFIG, RETURN_SCOPES, MATERIAL_FIELDS, daysUntil,

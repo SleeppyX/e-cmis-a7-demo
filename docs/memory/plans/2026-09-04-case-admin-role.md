@@ -205,7 +205,8 @@
   - `isCaseAdminQueue(kase)` = `status ∈ SCREEN_STATUSES && !kase.subCommittee` (คิวรอส่งเข้าคณะ)
   - `caseAdminRouted(kase)` = `status ∈ SCREEN_STATUSES && !!kase.subCommittee`
   - `caseAdminIntakeStep(kase)` → `'DONE' | 'ROUTED'`
-  - `SUBCOMMITTEE_QUOTA` (used-counts เท่า screening.html) + `nextSubcommitteeTeam()` (least-loaded, `used < 40`)
+  - `SUBCOMMITTEE_ACTIVE_STATUSES` + `subcommitteeActiveLoad(cases?)` (นับสำนวนค้างจริงต่อคณะ ๑–๘ จาก CASES)
+    + `nextSubcommitteeTeam(cases?)` (เสนอคณะที่ค้างน้อยสุด · เดิมใช้ `SUBCOMMITTEE_QUOTA` ตัวเลขหลอก — ลบทิ้ง 2026-09-08)
   - `CASE_ADMIN_LAW` — array เดียว 6 มาตรา (ม.๑๘/๑, ๑๘/๓, ๒๓, ๒๔ ว.๑/๓, ๒๘, ๕๙) + `caseAdminLaw()`
 - **routing = plain field write ไม่ใช่ workflow transition:** `case_admin` ไม่อยู่ใน TRANSITIONS ใด ๆ
   และ `subCommittee` ไม่ใช่ concept ของ workflow engine → "ส่งเข้าคณะ" = modal (`#swTeam` +

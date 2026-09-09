@@ -891,8 +891,13 @@
       const activeOffenses = allOffenses.filter(b => selectedTrobIds.has(b.trob_id));
       activeOffenses.sort((a, b) => (a.trob_sort_order || 99) - (b.trob_sort_order || 99));
 
+      /* ระดับสำนวน: มีผู้สนับสนุนอยู่ที่มาตราใดมาตราหนึ่งหรือไม่
+         — ผู้สนับสนุน (ม.๘๖) มีไม่ได้ถ้าไม่มีตัวการ ดังนั้นถ้าสำนวนมีผู้สนับสนุน
+         บรรทัดที่มีตัวการทุกบรรทัดต้องขึ้นคำว่า "ตัวการ" กำกับ */
+      const caseHasAccessory = activeOffenses.some(b =>
+        accusedRealList.some(a => a.selected.has(b.trob_id) && a.roleType === 'ACCESSORY'));
+
       const lines = activeOffenses.map(b => {
-        const principals = accusedRealList.filter(a => a.selected.has(b.trob_id) && a.roleType === 'PRINCIPAL');
         const accessories = accusedRealList.filter(a => a.selected.has(b.trob_id) && a.roleType === 'ACCESSORY');
 
         const pYears = b.p_principal || 15;
@@ -901,17 +906,19 @@
         const pExpText = getExpiryRangeText(incDateStart, incDateEnd, pYears);
         const aExpText = getExpiryRangeText(incDateStart, incDateEnd, aYears);
 
-        if (principals.length > 0 && accessories.length > 0) {
-          // รูปแบบ: ตัวการ + ผู้สนับสนุน
+        if (accessories.length > 0) {
+          // มาตรานี้มีผู้สนับสนุน → แสดงคู่ ตัวการ + ผู้สนับสนุน เสมอ
+          // (แม้ไม่มีผู้ถูกกล่าวหาที่เป็นตัวการเลือกมาตรานี้ ก็ดึง p_principal ของมาตรามาเติมให้ครบ
+          //  — ผู้สนับสนุนลอยเดี่ยวไม่มีตามกฎหมาย)
           // ตัวอย่าง: ประมวลกฎหมายอาญา มาตรา ๑๔๙ ตัวการ อายุความ ๒๐ ปี ขาดอายุความวันที่ ๒๐ เมษายน ๒๕๗๗ ผู้สนับสนุน อายุความ ๒๐ ปี ขาดอายุความวันที่ ๒๐ เมษายน ๒๕๗๗
           return `${b.trob_law_name} ${b.trob_article_no} ตัวการ อายุความ ${ECMIS.toThaiDigits(pYears)} ปี ${pExpText} ผู้สนับสนุน อายุความ ${ECMIS.toThaiDigits(aYears)} ปี ${aExpText}`;
-        } else if (principals.length > 0) {
-          // รูปแบบ: ตัวการอย่างเดียว
+        } else if (caseHasAccessory) {
+          // มาตรานี้เป็นตัวการล้วน แต่สำนวนมีผู้สนับสนุนที่มาตราอื่น → กำกับคำว่า "ตัวการ"
+          return `${b.trob_law_name} ${b.trob_article_no} ตัวการ อายุความ ${ECMIS.toThaiDigits(pYears)} ปี ${pExpText}`;
+        } else {
+          // ตัวการล้วน และทั้งสำนวนไม่มีผู้สนับสนุน → ไม่ขึ้นคำว่า "ตัวการ" (คงเดิม)
           // ตัวอย่าง: ประมวลกฎหมายอาญา มาตรา ๑๔๗ อายุความ ๒๐ ปี ขาดอายุความระหว่างวันที่ ๑๐ มกราคม ๒๕๗๘ ถึงวันที่ ๑๘ พฤษภาคม ๒๕๘๑
           return `${b.trob_law_name} ${b.trob_article_no} อายุความ ${ECMIS.toThaiDigits(pYears)} ปี ${pExpText}`;
-        } else {
-          // รูปแบบ: ผู้สนับสนุนอย่างเดียว
-          return `${b.trob_law_name} ${b.trob_article_no} ผู้สนับสนุน อายุความ ${ECMIS.toThaiDigits(aYears)} ปี ${aExpText}`;
         }
       });
 

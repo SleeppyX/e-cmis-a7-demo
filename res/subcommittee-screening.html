@@ -267,6 +267,15 @@
             document.querySelector('.flow-ref').innerHTML = 'คณะอนุกลั่นกรองฯ พิจารณาและส่งต่อเพื่อเตรียมประชุม';
         }
 
+        /* ประธานฯ ตีกลับให้ทบทวนความเห็น (จากขั้น PENDING_SIGN_AGENDA_72) — แสดงเหตุผล, ฟอร์มปลดล็อคเอง
+           (subScreeningStatus คืน 'PENDING' เมื่อ status = IN_SCREENING_72 → isScreeningLocked = false) */
+        if (kase.status === 'IN_SCREENING_72' && (kase.chairmanReturnReason72 || '').trim()) {
+            document.getElementById('stBadge').insertAdjacentHTML('afterend',
+                '<div class="alert alert-warning mt-2 mb-0 py-2 px-3 small">' +
+                '<i class="fa-solid fa-rotate-left me-1"></i><strong>ประธานฯ ตีกลับให้คณะอนุกลั่นกรองฯ ทบทวนความเห็น</strong>' +
+                '<div class="mt-1">' + ECMIS.escapeHtml(kase.chairmanReturnReason72) + '</div></div>');
+        }
+
         /* ---------- มติ/ความเห็นคณะอนุฯ (subOutcome) — โครงสร้าง + สิทธิ์ + audit ---------- */
         /* เขียนได้เฉพาะ role subcommittee ของคณะนั้น — role อื่นดูอย่างเดียว */
         const SUB_CAN_WRITE = role.id === 'subcommittee';
@@ -295,7 +304,7 @@
             const targetStatus = om
                 ? (om.localStatus === 'RETURNED'
                     ? (isRuling ? 'RETURNED_72' : 'RETURNED')
-                    : (isRuling ? 'PENDING_INVITE_72' : 'AGENDA_SET'))
+                    : (isRuling ? 'PENDING_SIGN_AGENDA_72' : 'AGENDA_SET'))  /* 7.2: เสนอประธานฯ ลงนามสั่งบรรจุวาระก่อน (G3) */
                 : kase.status;
             ECMIS.pushCaseHistory(kase, {
                 from: kase.status, to: targetStatus,
@@ -309,6 +318,7 @@
                 subOutcomeAt: now, subOutcomeBy: role.id, subOutcomeTeam: team,
                 subCommittee: team || kase.subCommittee,
                 history: kase.history,
+                chairmanReturnReason72: '',  /* ล้างเหตุตีกลับของประธานฯ เมื่อคณะอนุฯ ส่งมติใหม่ (G3) */
                 status: targetStatus
             }, extraPatch || {});
             if (isRuling && om && om.docxTemplate) patch.rulingTemplate = om.docxTemplate; // 3 = ชี้มูล, 4 = ไม่ชี้มูล/ทำเพิ่ม/ตกไป
@@ -970,9 +980,9 @@
 
                     Swal.fire({
                         icon: 'success',
-                        title: isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อทำเพิ่มเติมเรียบร้อย' : 'บันทึกความเห็นและส่งบรรจุวาระเรียบร้อย',
+                        title: isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อทำเพิ่มเติมเรียบร้อย' : 'บันทึกความเห็นและเสนอประธานฯ เรียบร้อย',
                         html: `<div class="text-start">
-                            สำนวน <strong>${kase.id}</strong> — ${isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อไต่สวนเพิ่มเติม (ม.๖๗ พ.ร.ป. ป.ป.ช. ๒๕๖๑)' : 'ส่งฝ่ายจัดประชุมเพื่อจัดพิมพ์หนังสือเชิญประชุม (T11_72)'}<br>
+                            สำนวน <strong>${kase.id}</strong> — ${isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อไต่สวนเพิ่มเติม (ม.๖๗ พ.ร.ป. ป.ป.ช. ๒๕๖๑)' : 'เสนอประธานกรรมการ ป.ป.ท. ลงนามสั่งบรรจุระเบียบวาระการประชุม'}<br>
                             <span class="st st-done mt-2 d-inline-block"><i class="fa-solid fa-signature me-1"></i>ลงนามรับรองความเห็นแล้ว</span>
                         </div>`,
                         confirmButtonColor: '#0F2A62',

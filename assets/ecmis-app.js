@@ -187,6 +187,7 @@ const STATUS = {
   PENDING_CHAIRMAN_72: { label:'รอประธานฯ ลงนามมอบหมาย (ส่งคณะอนุกลั่นกรองฯ)',   cls:'st-pending', owner:'chairman' },
   IN_SCREENING_72:     { label:'อยู่คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง',      cls:'st-review',  owner:'subcommittee' },
   SCREENING_MORE_INFO_72: { label:'อนุกลั่นกรองฯ ขอข้อมูลเพิ่มเติม (วินิจฉัยชี้มูล)', cls:'st-review', owner:'subcommittee' },
+  PENDING_SIGN_AGENDA_72: { label:'รอประธานฯ ลงนามสั่งบรรจุวาระ (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'chairman' },
   PENDING_INVITE_72:   { label:'รอจัดทำหนังสือเชิญประชุม',                       cls:'st-pending', owner:'board_sec' },
   IN_MEETING_72:       { label:'อยู่ระหว่างประชุมบอร์ด (วินิจฉัยชี้มูล)',         cls:'st-review',  owner:'board_sec' },
   RESOLVED_PENDING_72: { label:'มีมติแล้ว รอจัดทำรายงานวินิจฉัยชี้มูล',          cls:'st-pending', owner:'affairs' },
@@ -212,7 +213,7 @@ const STATUS_CODE = {
   IN_SCREENING_72:'108', PENDING_INVITE_72:'109', IN_MEETING_72:'110', RESOLVED_PENDING_72:'111',
   PENDING_SIGN_RULING_72:'112', PENDING_AREA_NOTICE_72:'113', DISPATCHING_NACC_72:'114',
   PENDING_DISPATCH_GUILTY_72:'115', CLOSED_72:'116', SCREENING_MORE_INFO_72:'117',
-  PENDING_CHAIRMAN_72:'118'
+  PENDING_CHAIRMAN_72:'118', PENDING_SIGN_AGENDA_72:'119'
 };
 const CODE_STATUS = Object.fromEntries(Object.entries(STATUS_CODE).map(([k, v]) => [v, k]));
 
@@ -335,10 +336,14 @@ const TRANSITIONS = [
     ref:'ประธานฯ ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข',
     note:'ส่งคืนเจ้าของสำนวน (RETURNED_72 owner=owner) — แก้ไขแล้วเสนอกลับตามสาย' },
 
-  { from:'IN_SCREENING_72', to:'PENDING_INVITE_72', event:'SCREEN_DONE_72', actor:'subcommittee',
-    ref:'กลั่นกรองและบรรจุวาระ',
+  { from:'IN_SCREENING_72', to:'PENDING_SIGN_AGENDA_72', event:'SCREEN_DONE_72', actor:'subcommittee',
+    ref:'กลั่นกรองแล้วเสร็จ — เสนอประธานฯ ลงนามสั่งบรรจุวาระ',
     guard:k => !k.subOutcome || (SUB_OUTCOME_MAP[k.subOutcome] || {}).localStatus === 'DONE',
     note:'อนุญาตเมื่อ subOutcome เป็นกลุ่ม DONE (ชี้มูล / ไม่ชี้มูล / ตกไป) — "ทำเพิ่มเติม" ต้องใช้ SCREENING_RETURN_72' },
+  { from:'PENDING_SIGN_AGENDA_72', to:'PENDING_INVITE_72', event:'SIGN_AGENDA_72', actor:'chairman',
+    ref:'ประธานฯ ลงนามสั่งบรรจุระเบียบวาระการประชุมคณะกรรมการ ป.ป.ท. (วาระที่ ๕)' },
+  { from:'PENDING_SIGN_AGENDA_72', to:'IN_SCREENING_72', event:'CHAIRMAN_RETURN_SCREENING_72', actor:'chairman',
+    ref:'ประธานฯ ตีกลับให้คณะอนุกลั่นกรองฯ ทบทวนความเห็น' },
   { from:'IN_SCREENING_72', to:'SCREENING_MORE_INFO_72', event:'REQUEST_MORE_INFO_72', actor:'subcommittee',
     ref:'ขอข้อมูล/เอกสารเพิ่มเติมจากเจ้าของสำนวน', note:'หยุดนับ SLA จนกว่าเจ้าของสำนวนส่งข้อมูลกลับ' },
   { from:'SCREENING_MORE_INFO_72', to:'IN_SCREENING_72', event:'MORE_INFO_SUPPLIED_72', actor:'subcommittee',
@@ -642,6 +647,7 @@ const PAGE_FOR_72 = {
   IN_SUPPORT_SUB_72:'support-subcommittee.html',
   PENDING_URGENT_72:'urgent-agenda.html', PENDING_CHAIRMAN_URGENT_72:'urgent-agenda.html',
   PENDING_CHAIRMAN_72:'chairman-agenda.html',
+  PENDING_SIGN_AGENDA_72:'chairman-agenda.html',
   IN_SCREENING_72:'subcommittee-screening.html',
   SCREENING_MORE_INFO_72:'subcommittee-screening.html',
   PENDING_INVITE_72:'agenda-registry.html',
@@ -913,7 +919,7 @@ const ACT7_STATUSES_72 = [
 ];
 const ACT7_STAGE_72 = {
   PENDING_SECTION_72:0, PENDING_DIRECTOR_72:0, PENDING_DEPUTY_72:0, RETURNED_72:0, PENDING_SECGEN_72:0,
-  IN_SUPPORT_SUB_72:1, PENDING_URGENT_72:1, PENDING_CHAIRMAN_URGENT_72:1, PENDING_CHAIRMAN_72:1, IN_SCREENING_72:1, PENDING_INVITE_72:1,
+  IN_SUPPORT_SUB_72:1, PENDING_URGENT_72:1, PENDING_CHAIRMAN_URGENT_72:1, PENDING_CHAIRMAN_72:1, IN_SCREENING_72:1, PENDING_SIGN_AGENDA_72:1, PENDING_INVITE_72:1,
   IN_MEETING_72:2,
   RESOLVED_PENDING_72:3, PENDING_SIGN_RULING_72:3,
   PENDING_AREA_NOTICE_72:4, DISPATCHING_NACC_72:4, PENDING_DISPATCH_GUILTY_72:4,
@@ -2718,7 +2724,7 @@ const STATUS_STEP_73 = {
 const STATUS_STEP_72 = {
   PENDING_SECTION_72:'secgen72', PENDING_DIRECTOR_72:'secgen72', PENDING_DEPUTY_72:'secgen72', RETURNED_72:'secgen72',
   PENDING_SECGEN_72:'secgen72',
-  IN_SUPPORT_SUB_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', PENDING_CHAIRMAN_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72',
+  IN_SUPPORT_SUB_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', PENDING_CHAIRMAN_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72', PENDING_SIGN_AGENDA_72:'agenda72',
   PENDING_INVITE_72:'meeting72', IN_MEETING_72:'meeting72',
   RESOLVED_PENDING_72:'ruling72', PENDING_SIGN_RULING_72:'ruling72',
   PENDING_AREA_NOTICE_72:'dispatch72', DISPATCHING_NACC_72:'dispatch72', PENDING_DISPATCH_GUILTY_72:'dispatch72',

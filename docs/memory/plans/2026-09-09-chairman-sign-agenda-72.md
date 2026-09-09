@@ -155,6 +155,12 @@ function isDocketSignStep(){ return kase.status === 'PENDING_SIGN_AGENDA_72'; }
 ### Task 7 — Sync + Docs
 `npm run sync` (chairman-agenda.html, inbox.html, subcommittee-screening.html → `res/`) · อัปเดต `CLAUDE.md` ถ้าจำเป็น
 
+### Task 8 — DB Migration (⚠️ ต้องรันแยกโดยผู้มีสิทธิ์ DDL)
+ไฟล์: `sql/add_chairman_sign_statuses.sql` (commit `e7ecbb9`) — DROP/ADD `tbl_res_request_trr_status_check`
+เพิ่มรหัส `020/021/117/118/119`. รันที่ **Supabase Dashboard → SQL Editor → Run** (หรือผู้ถือ `service_role` key).
+anon publishable key ที่ demo ใช้รัน `ALTER` ไม่ได้ — ถ้ายังไม่รัน เคส 7.2 ที่ต่อ Supabase จะค้างที่สถานะก่อน 118/119
+(บันทึกที่ Obsidian `Activity_7_DB_History_2026-09-09.md`)
+
 ### 4.1 ร่างเอกสาร (อนุมัติแล้ว)
 ```
 บันทึกข้อความ

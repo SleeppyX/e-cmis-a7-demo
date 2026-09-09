@@ -619,19 +619,17 @@
     ];
 
     /* ── คีย์ลัดเติมข้อความฐานความผิดตามเลขมาตรา ───────────────────────
-       พิมพ์ "มาตรา ๑๔๗" (ไทยหรืออารบิก) ในช่องข้อความ → แสดงข้อความต่อ
-       เป็น ghost (selection) แล้วกด Tab เพื่อเติม. key = เลขอารบิก string.
-       ข้อความเก็บตามที่ผู้ใช้ส่ง (verbatim) — ใช้กับงาน demo */
+       พิมพ์ "มาตรา ๑๔๗" (ไทยหรืออารบิก) ท้ายข้อความในช่องเขียนอิสระ →
+       ป้ายคำใบ้ลอยใต้ช่อง → กด Tab แทรกข้อความ canonical
+       "มาตรา ๑๔๗ <ฐานความผิด>" ลงในช่องจริง. ไม่แตะ el.value จนกว่าจะกด Tab
+       (เดิมใช้ native-selection ghost ซึ่งชนกับ persistForm/renderDoc ที่รัน
+       ทุก input event ทำให้ ghost ถูกล้างทันที) — ใช้กับงาน demo */
     const MATRA_CONTINUATION = {
       '147': 'ฐานเป็นเจ้าพนักงาน มีหน้าที่จัดการหรือดูแลกิจการใด เข้ามีส่วนได้เสียเพื่อประโยชน์สำหรับ หรือผู้อื่นเนื่องด้วยกิจการนั้น',
       '152': 'ฐานเป็นเจ้าพนักงาน ปฏิบัติหรือละเว้นการปฏิบัติหน้าที่โดยมิชอบ เพื่อให้เกิดความเสียหายแก่ผู้หนึ่งผู้ใด หรือปฏิบัติหรือละเว้นการปฏิบัติหน้าที่โดยทุจริต',
       '157': 'ฐานเป็นเจ้าพนักงาน มีหน้าที่ทำเอกสาร กรอกข้อความลงในเอกสารหรือดูแลรักษาเอกสาร กระทำการปลอมเอกสาร โดยอาศัยโอกาสที่ตนมีหน้าที่นั้น',
       '264': 'ฐานปลอมเอกสารสิทธิหรือเอกสารราชการ'
     };
-
-    /* tracker ของ ghost ที่กำลังแสดง — ต้องประกาศก่อน persistForm/renderDoc ถูกเรียก */
-    const MATRA_GHOST = { el: null, start: 0, end: 0, text: '' };
-    let _matraHintEl = null;
 
     const SUPABASE_URL = 'https://ljhabbwjxnoucrcrsoii.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_2Bps-dWMZHz_7cs3BppF6A_ul1_A_xd';
@@ -1533,7 +1531,6 @@
     }
 
     function persistForm() {
-      clearActiveGhost();
       const patch = currentRulingFormPatch();
       ECMIS.Model.CaseStore.update(kase.id, patch);
       ECMIS.saveCases();
@@ -1558,7 +1555,6 @@
     }
 
     function renderDoc() {
-      clearActiveGhost();
       const M = ECMIS.mergeField;
       const meetNo = document.getElementById('meetNo').value.trim();
       const agendaNo = document.getElementById('agendaNo').value.trim();
@@ -2299,115 +2295,93 @@
       return String(s).replace(/[0-9]/g, d => '๐๑๒๓๔๕๖๗๘๙'[+d]);
     }
 
+    /* state ของป้ายคำใบ้ที่กำลังแสดง — ไม่แตะ el.value เลย */
+    let _matraHintEl = null;
+    let _matraHint = null; /* { el, tokenStart, num } */
+
     function _matraHideHint() {
       if (_matraHintEl) { _matraHintEl.remove(); _matraHintEl = null; }
-    }
-    function _matraShowHint(el, thaiNum) {
-      _matraHideHint();
-      const t = document.createElement('div');
-      t.className = 'matra-ghost-hint';
-      t.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i>กด <kbd>Tab</kbd> เพื่อเติมข้อความ มาตรา ' + thaiNum;
-      document.body.appendChild(t);
-      const r = el.getBoundingClientRect();
-      t.style.top = (window.scrollY + r.bottom + 4) + 'px';
-      t.style.left = (window.scrollX + r.left) + 'px';
-      _matraHintEl = t;
+      _matraHint = null;
     }
 
-    /* หมายเหตุ (ข้อจำกัดที่ทราบ): กลไก ghost เขียน el.value ตรง ๆ ทั้งตอนแทรกและตอนลบ
-       → undo stack ของ textarea นั้นถูกล้าง (Ctrl+Z ย้อนข้อความก่อนหน้าไม่ได้หลัง ghost ทำงาน)
-       เป็น tradeoff ของวิธี native selection-range ที่เลือกไว้ */
-    let _matraSuppressNext = false;
-
-    /* ลบ ghost เฉพาะเมื่อยังอยู่ครบและผู้ใช้ไม่ได้แก้ — ไม่งั้น bail ไม่แตะข้อความ */
-    function clearActiveGhost() {
-      const g = MATRA_GHOST;
-      _matraHideHint();
-      if (!g.el) return;
-      const el = g.el;
-      if (el.value.slice(g.start, g.end) === g.text) {
-        const caret = g.start;
-        el.value = el.value.slice(0, g.start) + el.value.slice(g.end);
-        try { el.setSelectionRange(caret, caret); } catch (e) { /* noop */ }
-      }
-      g.el = null; g.text = '';
-    }
-
-    function _matraTryGhost(el) {
-      if (!el || MATRA_GHOST.el) return;
-      if (el.tagName !== 'TEXTAREA' || el.hasAttribute('data-no-suggestions') || el.disabled || el.readOnly) return;
-      if (!document.contains(el) || document.activeElement !== el) return;
+    /* หา token "มาตรา <เลข>" ที่ปลายเคอร์เซอร์ — คืน null ถ้าไม่เข้าเงื่อนไข */
+    function _matraMatchAt(el) {
+      if (!el || el.tagName !== 'TEXTAREA' || el.hasAttribute('data-no-suggestions') || el.disabled || el.readOnly) return null;
+      if (!document.contains(el) || document.activeElement !== el) return null;
       const pos = el.selectionStart;
-      if (pos !== el.selectionEnd) return;
+      if (pos !== el.selectionEnd) return null;
       const nextCh = el.value.charAt(pos);
-      if (nextCh && !/\s/.test(nextCh)) return;
-      const m = el.value.slice(0, pos).match(/มาตรา[  \t]*([๐-๙0-9]+)$/);
-      if (!m) return;
+      if (nextCh && !/\s/.test(nextCh)) return null;
+      const m = el.value.slice(0, pos).match(/มาตรา[\s]*([๐-๙0-9]+)$/);
+      if (!m) return null;
       const num = _matraDigitsToArabic(m[1]);
-      const clause = MATRA_CONTINUATION[num];
-      if (!clause) return;
-      const ghost = ' ' + clause;
-      el.value = el.value.slice(0, pos) + ghost + el.value.slice(pos);
-      MATRA_GHOST.el = el;
-      MATRA_GHOST.start = pos;
-      MATRA_GHOST.end = pos + ghost.length;
-      MATRA_GHOST.text = ghost;
-      try { el.setSelectionRange(pos, pos + ghost.length); } catch (e) { /* noop */ }
-      _matraShowHint(el, _matraDigitsToThai(num));
+      if (!MATRA_CONTINUATION[num]) return null;
+      return { el, tokenStart: pos - m[0].length, num };
     }
 
-    /* Tab: เขียนทับ token "มาตรา<sp>เลข" + ghost เป็น canonical ครั้งเดียว */
-    function _matraCommitGhost() {
-      const g = MATRA_GHOST;
-      if (!g.el) return false;
-      const el = g.el;
-      if (el.value.slice(g.start, g.end) !== g.text) { g.el = null; g.text = ''; return false; }
-      const before = el.value.slice(0, g.start);
-      const m = before.match(/มาตรา[  \t]*[๐-๙0-9]+[  \t]*$/);
-      const tokenStart = m ? before.length - m[0].length : g.start;
-      const numArabic = _matraDigitsToArabic((m ? m[0] : '').replace(/[^๐-๙0-9]/g, ''));
-      const clause = MATRA_CONTINUATION[numArabic] || g.text.trim();
-      const canonical = 'มาตรา ' + _matraDigitsToThai(numArabic) + ' ' + clause;
-      el.value = el.value.slice(0, tokenStart) + canonical + el.value.slice(g.end);
-      const caret = tokenStart + canonical.length;
-      g.el = null; g.text = '';
+    function _matraPlaceHint() {
+      if (!_matraHintEl || !_matraHint) return;
+      const r = _matraHint.el.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > window.innerHeight) { _matraHideHint(); return; }
+      _matraHintEl.style.top = (window.scrollY + r.bottom + 4) + 'px';
+      _matraHintEl.style.left = (window.scrollX + r.left) + 'px';
+    }
+
+    function _matraSync(el) {
+      const hit = _matraMatchAt(el);
+      if (!hit) { _matraHideHint(); return; }
+      _matraHint = hit;
+      if (!_matraHintEl) {
+        _matraHintEl = document.createElement('div');
+        _matraHintEl.className = 'matra-ghost-hint';
+        document.body.appendChild(_matraHintEl);
+      }
+      _matraHintEl.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i>กด <kbd>Tab</kbd> เพื่อเติมข้อความ มาตรา ' + _matraDigitsToThai(hit.num);
+      _matraPlaceHint();
+    }
+
+    /* Tab: แทรก canonical "มาตรา <เลขไทย> <ฐานความผิด>" ทับ token ในช่องจริง
+       แล้วยิง input event เดียวให้ persistForm/renderDoc เก็บค่าตามปกติ */
+    function _matraCommit() {
+      if (!_matraHint) return false;
+      const el = _matraHint.el;
+      /* re-verify — ค่า/เคอร์เซอร์อาจเปลี่ยนหลังตั้ง hint */
+      const hit = _matraMatchAt(el);
+      if (!hit || hit.tokenStart !== _matraHint.tokenStart || hit.num !== _matraHint.num) { _matraHideHint(); return false; }
+      const pos = el.selectionStart;
+      const canonical = 'มาตรา ' + _matraDigitsToThai(hit.num) + ' ' + MATRA_CONTINUATION[hit.num];
+      el.value = el.value.slice(0, hit.tokenStart) + canonical + el.value.slice(pos);
+      const caret = hit.tokenStart + canonical.length;
       _matraHideHint();
       try { el.setSelectionRange(caret, caret); } catch (e) { /* noop */ }
-      /* กัน cascade: ถ้า clause ที่เพิ่งเติมลงท้ายด้วย "มาตรา <เลข>" ที่มีใน map
-         อย่าให้ input event ที่ dispatch นี้ auto-trigger ghost อันที่สองทันที */
-      _matraSuppressNext = true;
       el.dispatchEvent(new Event('input', { bubbles: true }));
       return true;
     }
 
     function initMatraAutocomplete() {
-      /* capture: ทำงานก่อน input listener ของหน้า → ล้าง ghost เก่าให้ค่า .value สะอาด
-         แล้วค่อยลอง ghost ใหม่ใน microtask (หลัง persistForm/renderDoc ของหน้า) */
       document.addEventListener('input', (e) => {
-        const el = e.target;
-        if (!el || el.tagName !== 'TEXTAREA') return;
-        clearActiveGhost();
-        if (_matraSuppressNext) { _matraSuppressNext = false; return; }
-        if (el.hasAttribute('data-no-suggestions')) return;
-        queueMicrotask(() => _matraTryGhost(el));
-      }, true);
-
+        if (e.target && e.target.tagName === 'TEXTAREA') _matraSync(e.target);
+      });
+      document.addEventListener('keyup', (e) => {
+        /* ลูกศร/Home/End ขยับเคอร์เซอร์โดยไม่มี input event */
+        if (e.target && e.target.tagName === 'TEXTAREA' &&
+            ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+          _matraSync(e.target);
+        }
+      });
       document.addEventListener('keydown', (e) => {
-        if (!MATRA_GHOST.el || e.target !== MATRA_GHOST.el) return;
-        if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); _matraCommitGhost(); return; }
-        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); clearActiveGhost(); return; }
-        if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) return;
-        /* ปุ่มอื่น (ลูกศร/ตัวอักษร/Backspace) → ยกเลิก ghost ก่อน ปล่อยให้ทำงานปกติ */
-        clearActiveGhost();
+        if (!_matraHint || e.target !== _matraHint.el) return;
+        if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); _matraCommit(); return; }
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); _matraHideHint(); }
       }, true);
-
       document.addEventListener('pointerdown', (e) => {
-        if (MATRA_GHOST.el && e.target !== MATRA_GHOST.el) clearActiveGhost();
+        if (_matraHint && e.target !== _matraHint.el) _matraHideHint();
       }, true);
-      document.addEventListener('blur', (e) => {
-        if (MATRA_GHOST.el && e.target === MATRA_GHOST.el) clearActiveGhost();
+      document.addEventListener('focusout', (e) => {
+        if (_matraHint && e.target === _matraHint.el) _matraHideHint();
       }, true);
-      window.addEventListener('scroll', () => { if (MATRA_GHOST.el) clearActiveGhost(); }, true);
+      window.addEventListener('scroll', _matraPlaceHint, true);
+      window.addEventListener('resize', _matraPlaceHint);
     }
     initMatraAutocomplete();
 

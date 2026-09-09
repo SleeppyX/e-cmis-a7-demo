@@ -184,6 +184,7 @@ const STATUS = {
   IN_SUPPORT_SUB_72:   { label:'ส่งคณะอนุสนับสนุนเลขาธิการฯ พิจารณาแล้ว',        cls:'st-review',  owner:'support_sub' },
   PENDING_URGENT_72:   { label:'รอ ผอ.กบค. รับรองเหตุผลเร่งด่วน',                cls:'st-urgent',  owner:'dir_case' },
   PENDING_CHAIRMAN_URGENT_72: { label:'รอประธานฯ ลงนามมอบหมาย / บรรจุวาระด่วน',  cls:'st-pending', owner:'chairman' },
+  PENDING_CHAIRMAN_72: { label:'รอประธานฯ ลงนามมอบหมาย (ส่งคณะอนุกลั่นกรองฯ)',   cls:'st-pending', owner:'chairman' },
   IN_SCREENING_72:     { label:'อยู่คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง',      cls:'st-review',  owner:'subcommittee' },
   SCREENING_MORE_INFO_72: { label:'อนุกลั่นกรองฯ ขอข้อมูลเพิ่มเติม (วินิจฉัยชี้มูล)', cls:'st-review', owner:'subcommittee' },
   PENDING_INVITE_72:   { label:'รอจัดทำหนังสือเชิญประชุม',                       cls:'st-pending', owner:'board_sec' },
@@ -210,7 +211,8 @@ const STATUS_CODE = {
   PENDING_SECGEN_72:'104', IN_SUPPORT_SUB_72:'105', PENDING_URGENT_72:'106', PENDING_CHAIRMAN_URGENT_72:'107',
   IN_SCREENING_72:'108', PENDING_INVITE_72:'109', IN_MEETING_72:'110', RESOLVED_PENDING_72:'111',
   PENDING_SIGN_RULING_72:'112', PENDING_AREA_NOTICE_72:'113', DISPATCHING_NACC_72:'114',
-  PENDING_DISPATCH_GUILTY_72:'115', CLOSED_72:'116', SCREENING_MORE_INFO_72:'117'
+  PENDING_DISPATCH_GUILTY_72:'115', CLOSED_72:'116', SCREENING_MORE_INFO_72:'117',
+  PENDING_CHAIRMAN_72:'118'
 };
 const CODE_STATUS = Object.fromEntries(Object.entries(STATUS_CODE).map(([k, v]) => [v, k]));
 
@@ -308,12 +310,12 @@ const TRANSITIONS = [
     note:'สำนวนมีประเด็นซับซ้อนยุ่งยาก — เข้าคณะอนุกรรมการสนับสนุนเลขาธิการฯ ก่อน' },
   { from:'PENDING_SECGEN_72', to:'PENDING_URGENT_72', event:'SIGN_URGENT_72', actor:'secgen',
     ref:'เสนอขอเพิ่มวาระด่วน', guard:k => !k.complex72 && !!k.urgent72 },
-  { from:'PENDING_SECGEN_72', to:'IN_SCREENING_72', event:'SIGN_NORMAL_72', actor:'secgen',
-    ref:'เสนอเข้าการกลั่นกรองปกติ', guard:k => !k.complex72 && !k.urgent72 },
+  { from:'PENDING_SECGEN_72', to:'PENDING_CHAIRMAN_72', event:'SIGN_NORMAL_72', actor:'secgen',
+    ref:'เสนอประธานฯ ลงนามมอบหมายก่อนส่งกลั่นกรอง', guard:k => !k.complex72 && !k.urgent72 },
   { from:'IN_SUPPORT_SUB_72', to:'PENDING_URGENT_72', event:'SUPPORT_DONE_URGENT_72', actor:'support_sub',
     ref:'เห็นชอบวาระด่วน', guard:k => !!k.urgent72 },
-  { from:'IN_SUPPORT_SUB_72', to:'IN_SCREENING_72', event:'SUPPORT_DONE_72', actor:'support_sub',
-    ref:'เห็นชอบวาระปกติ', guard:k => !k.urgent72 },
+  { from:'IN_SUPPORT_SUB_72', to:'PENDING_CHAIRMAN_72', event:'SUPPORT_DONE_72', actor:'support_sub',
+    ref:'เห็นชอบวาระปกติ — เสนอประธานฯ ลงนามมอบหมาย', guard:k => !k.urgent72 },
 
   { from:'PENDING_URGENT_72', to:'PENDING_CHAIRMAN_URGENT_72', event:'URGENT_CERTIFY_72', actor:'dir_case',
     ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. รับรองเหตุผลเร่งด่วน' },
@@ -323,6 +325,13 @@ const TRANSITIONS = [
     ref:'ประธานฯ เห็นว่ายังไม่ด่วนจริง — ส่งเข้าคณะอนุกลั่นกรองฯ',
     note:'ไม่บรรจุวาระด่วน — เข้าเส้นทางกลั่นกรองปกติ (กบค. กระจายเข้าคณะที่ ๑–๘)' },
   { from:'PENDING_CHAIRMAN_URGENT_72', to:'RETURNED_72', event:'URGENT_RETURN_OWNER_72', actor:'chairman',
+    ref:'ประธานฯ ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข',
+    note:'ส่งคืนเจ้าของสำนวน (RETURNED_72 owner=owner) — แก้ไขแล้วเสนอกลับตามสาย' },
+
+  { from:'PENDING_CHAIRMAN_72', to:'IN_SCREENING_72', event:'ORDER_SCREENING_72', actor:'chairman',
+    ref:'ประธานฯ ลงนามมอบหมาย — ส่งคณะอนุกลั่นกรองฯ (กบค. กระจายเข้าคณะที่ ๑–๘)',
+    note:'เคสไม่ด่วน 7.2 — ประธานฯ ลงนามในบันทึกมอบหมายก่อนเข้าชั้นกลั่นกรอง' },
+  { from:'PENDING_CHAIRMAN_72', to:'RETURNED_72', event:'CHAIRMAN_RETURN_72', actor:'chairman',
     ref:'ประธานฯ ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข',
     note:'ส่งคืนเจ้าของสำนวน (RETURNED_72 owner=owner) — แก้ไขแล้วเสนอกลับตามสาย' },
 
@@ -632,6 +641,7 @@ const PAGE_FOR_72 = {
   PENDING_SECGEN_72:'approval-review.html',
   IN_SUPPORT_SUB_72:'support-subcommittee.html',
   PENDING_URGENT_72:'urgent-agenda.html', PENDING_CHAIRMAN_URGENT_72:'urgent-agenda.html',
+  PENDING_CHAIRMAN_72:'chairman-agenda.html',
   IN_SCREENING_72:'subcommittee-screening.html',
   SCREENING_MORE_INFO_72:'subcommittee-screening.html',
   PENDING_INVITE_72:'agenda-registry.html',
@@ -903,7 +913,7 @@ const ACT7_STATUSES_72 = [
 ];
 const ACT7_STAGE_72 = {
   PENDING_SECTION_72:0, PENDING_DIRECTOR_72:0, PENDING_DEPUTY_72:0, RETURNED_72:0, PENDING_SECGEN_72:0,
-  IN_SUPPORT_SUB_72:1, PENDING_URGENT_72:1, PENDING_CHAIRMAN_URGENT_72:1, IN_SCREENING_72:1, PENDING_INVITE_72:1,
+  IN_SUPPORT_SUB_72:1, PENDING_URGENT_72:1, PENDING_CHAIRMAN_URGENT_72:1, PENDING_CHAIRMAN_72:1, IN_SCREENING_72:1, PENDING_INVITE_72:1,
   IN_MEETING_72:2,
   RESOLVED_PENDING_72:3, PENDING_SIGN_RULING_72:3,
   PENDING_AREA_NOTICE_72:4, DISPATCHING_NACC_72:4, PENDING_DISPATCH_GUILTY_72:4,
@@ -2093,7 +2103,7 @@ const CASES = [
     id:'1155/2566',
     subject:'รายงานการไต่สวนข้อเท็จจริงเพื่อวินิจฉัยชี้มูล กรณีเจ้าหน้าที่ศูนย์พัฒนาฝีมือแรงงานทุจริตเบิกจ่ายเงินเบี้ยเลี้ยงโครงการฝึกอบรมอาชีพ',
     legalBase:'ม.24 วรรคท้าย',
-    status:'PENDING_SECGEN_72',
+    status:'PENDING_CHAIRMAN_72',
     procType:'7.2',
     owner:'นางสาวปรียา ตั้งมั่น (นักสืบสวนสอบสวนชำนาญการ)',
     ownerOrg:'กองปราบปรามการทุจริตในภาครัฐ 2',
@@ -2104,8 +2114,8 @@ const CASES = [
     allegation:'จัดทำรายชื่อผู้เข้ารับการอบรมอันเป็นเท็จเพื่อเบิกจ่ายเงินเบี้ยเลี้ยงและค่าอาหารว่างโครงการฝึกอบรมอาชีพ เสียหายแก่ราชการ 450,000 บาท',
     receivedDate:'2569-05-16', deadline60:'2569-07-15', deadline2y:'2571-05-16', prescription:'2574-01-10',
     docRef:'ปป 0021/0770 ลงวันที่ 16 พฤษภาคม 2569',
-    urgent:false, complex:false, dupWarning:false,
-    slaDays:2, slaLimit:15, subCommittee:'คณะที่ 8',
+    urgent:false, complex:false, complex72:false, urgent72:false, dupWarning:false,
+    slaDays:2, slaLimit:15, subCommittee:'',
     docType:'RULING', signPhase:'IN_PROGRESS',
     chainOpinions:[
       { roleId:'section_head', type:'ACCEPT', note:'ตรวจสอบหลักฐานการเบิกจ่ายเปรียบเทียบกับพยานบุคคลแล้วมีมูลตามข้อกล่าวหา', date:'2569-05-18' },
@@ -2708,7 +2718,7 @@ const STATUS_STEP_73 = {
 const STATUS_STEP_72 = {
   PENDING_SECTION_72:'secgen72', PENDING_DIRECTOR_72:'secgen72', PENDING_DEPUTY_72:'secgen72', RETURNED_72:'secgen72',
   PENDING_SECGEN_72:'secgen72',
-  IN_SUPPORT_SUB_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72',
+  IN_SUPPORT_SUB_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', PENDING_CHAIRMAN_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72',
   PENDING_INVITE_72:'meeting72', IN_MEETING_72:'meeting72',
   RESOLVED_PENDING_72:'ruling72', PENDING_SIGN_RULING_72:'ruling72',
   PENDING_AREA_NOTICE_72:'dispatch72', DISPATCHING_NACC_72:'dispatch72', PENDING_DISPATCH_GUILTY_72:'dispatch72',

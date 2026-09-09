@@ -231,6 +231,7 @@ async function loadCasesFromSupabase() {
    ล็อกไม่มีปุ่มลงนามให้ — ตัดออกให้ตรงกับ state machine จริง) */
 function isChairActionable(c) {
   return c.status === 'PENDING_CHAIRMAN' ||
+         c.status === 'PENDING_CHAIRMAN_72' ||
          c.status === 'PENDING_CHAIRMAN_URGENT_72' ||
          c.status === 'PENDING_SIGN_RULING_72' ||
          c.status === 'PENDING_SIGN_ORDER_CHAIRMAN';
@@ -418,7 +419,7 @@ function renderKPICards() {
     /* เคส 7.1 ด่วน: ผอ.กบค. รับรองใบด่วนแล้ว state จะ merge กลับเป็น PENDING_CHAIRMAN
        (ไม่มีสถานะ urgent แยกเหมือนสาย 7.2) — จัดเข้าการ์ด "วาระด่วน" ด้วย c.urgent
        และตัดออกจาก "รอสั่งการวาระปกติ" ให้สองการ์ดแยกขาดจากกัน */
-    const pendingNormalCount = allCasesCombined.filter(c => c.status === 'PENDING_CHAIRMAN' && !c.urgent).length;
+    const pendingNormalCount = allCasesCombined.filter(c => (c.status === 'PENDING_CHAIRMAN' && !c.urgent) || c.status === 'PENDING_CHAIRMAN_72').length;
     const pendingUrgentCount = allCasesCombined.filter(c => c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent)).length;
     const pendingRulingCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_RULING_72').length;
     const pendingOrderCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_ORDER_CHAIRMAN').length;
@@ -645,6 +646,7 @@ function row(c){
     } else if (c.status === 'PENDING_CHAIRMAN_URGENT_72') {
       chairTarget = `urgent-agenda.html?case=${encodeURIComponent(c.id)}`;
     } else {
+      /* PENDING_CHAIRMAN (7.1) และ PENDING_CHAIRMAN_72 (7.2 ไม่ด่วน) — ขั้นลงนามมอบหมายส่งกลั่นกรอง */
       chairTarget = `chairman-agenda.html?case=${encodeURIComponent(c.id)}`;
     }
 
@@ -830,7 +832,7 @@ function applyFilters() {
     let matchSt = true;
     if (role.id === 'chairman') {
       if (st !== 'ALL') {
-        if (st === 'PENDING_NORMAL') matchSt = (c.status === 'PENDING_CHAIRMAN' && !c.urgent);
+        if (st === 'PENDING_NORMAL') matchSt = ((c.status === 'PENDING_CHAIRMAN' && !c.urgent) || c.status === 'PENDING_CHAIRMAN_72');
         else if (st === 'PENDING_URGENT') matchSt = (c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent));
         else if (st === 'PENDING_RULING') matchSt = (c.status === 'PENDING_SIGN_RULING_72');
         else if (st === 'PENDING_ORDER') matchSt = (c.status === 'PENDING_SIGN_ORDER_CHAIRMAN');

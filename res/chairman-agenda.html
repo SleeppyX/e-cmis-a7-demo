@@ -321,6 +321,13 @@
             renderActionButtons();
         }
 
+        /* ขั้น "ลงนามมอบหมายส่งคณะอนุกลั่นกรองฯ" (เคสไม่ด่วน 7.1 + 7.2) — ก่อนชั้นกลั่นกรอง
+           ประธานฯ ลงนามในบันทึกมอบหมายให้ กบค. ส่งสำนวนเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘
+           เคส 7.1 ที่ urgentCertified แล้ว ยังใช้เส้นทางเดิม (ลงนาม ปปท.๕-๐๒ → บรรจุวาระด่วน) */
+        function isAssignStep() {
+            return (kase.status === 'PENDING_CHAIRMAN' || kase.status === 'PENDING_CHAIRMAN_72') && !kase.urgentCertified;
+        }
+
         /* ---------- Live A4 Document Rendering ---------- */
         function renderDoc() {
             const M = ECMIS.mergeField;
@@ -366,6 +373,52 @@
                             <div class="fw-bold text-dark h6 mb-0" style="margin-top:4px">นายอภิชาติ สุจริตกุล</div>
                             <div class="small text-muted">เลขาธิการคณะกรรมการ ป.ป.ท.</div>
                             <div class="small text-success mt-1"><i class="fa-solid fa-shield-check me-1"></i>Digital Certificate Verified · ${kase.secgenSignedAt || '04 ส.ค. 2569'}</div>
+                        </div>
+                    </div>`;
+            } else if (isAssignStep()) {
+                // บันทึกมอบหมายให้กองบริหารคดีส่งสำนวนเข้าคณะอนุกรรมการกลั่นกรองฯ (house-style บันทึกข้อความ)
+                docPaperEl.innerHTML = `
+                    <div class="doc-paper a4-paper active-page" id="docPaperPage">
+                        <div class="text-center mb-2">
+                            <img src="../assets/doc_logo.jpg" alt="ตราครุฑ" style="width:62px; height:auto;">
+                        </div>
+                        <div class="doc-secret">ลับ</div>
+                        <div class="doc-title" style="font-size:20pt;font-weight:700;text-align:center;line-height:1.3;margin-top:4px;">บันทึกข้อความ</div>
+
+                        <div style="margin-top:12px;font-size:16pt;line-height:1.5;">
+                            <div><strong>ส่วนราชการ</strong>&nbsp; สำนักงาน ป.ป.ท. &nbsp; กลุ่มงานประชุมและประสานมติ</div>
+                            <div style="display:flex;gap:2.5em;flex-wrap:wrap;">
+                                <div><strong>ที่</strong>&nbsp; ปปท ๐๐๐๔/${M('')}</div>
+                                <div><strong>วันที่</strong>&nbsp; ${M(ECMIS.thaiDate(new Date().toISOString()))}</div>
+                            </div>
+                            <div><strong>เรื่อง</strong>&nbsp; มอบหมายให้กองบริหารคดีส่งสำนวนเข้าคณะอนุกรรมการกลั่นกรองเรื่องกล่าวหาฯ พิจารณา</div>
+                        </div>
+
+                        <div style="margin-top:12px;font-size:16pt;">เรียน&nbsp; ผู้อำนวยการกองบริหารคดี</div>
+
+                        <div class="doc-indent" style="margin-top:12px;font-size:16pt;line-height:1.4;text-indent:2.5em;">
+                            ตามที่สำนักงาน ป.ป.ท. ได้รับเรื่องกล่าวหา เรื่องเสร็จที่ <strong>${M(kase.id)}</strong>
+                            เรื่อง ${M(kase.subject)} ซึ่งมี ${M(kase.owner || '')} ${M(kase.ownerOrg || '')}
+                            เป็นผู้รับผิดชอบสำนวน นั้น
+                        </div>
+
+                        <div class="doc-indent" style="margin-top:10px;font-size:16pt;line-height:1.4;text-indent:2.5em;">
+                            คณะกรรมการ ป.ป.ท. โดยประธานกรรมการ ป.ป.ท. พิจารณาแล้ว เห็นควรมอบหมายให้กองบริหารคดี
+                            ดำเนินการส่งสำนวนดังกล่าวเข้าสู่การพิจารณาของคณะอนุกรรมการกลั่นกรองเรื่องกล่าวหาเจ้าหน้าที่ของรัฐ
+                            คณะที่ ๑ – ๘ ตามหลักเกณฑ์การกระจายสำนวน เพื่อกลั่นกรองและเสนอความเห็นต่อคณะกรรมการ ป.ป.ท. ต่อไป
+                            ทั้งนี้ ตามมาตรา ๑๘/๑ และมาตรา ๒๓ แห่งพระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑
+                        </div>
+
+                        <div class="doc-indent" style="margin-top:10px;font-size:16pt;line-height:1.4;text-indent:2.5em;">
+                            จึงเรียนมาเพื่อโปรดดำเนินการ
+                        </div>
+
+                        <div style="margin-top:28px; width:60%; margin-left:auto; text-align:center; font-size:16pt; line-height:1.4;">
+                            ${signed && pendingSigData && pendingSigData.sig ? `<img class="doc-sig-img" src="${pendingSigData.sig}" alt="ลายมือชื่อ" style="max-height:56px;margin:0 auto 4px;"><br>` : ''}
+                            <div>(ลงชื่อ)...................................................................</div>
+                            <div style="margin-top:4px;">(${SIGNER_NAME})</div>
+                            <div style="font-weight:600;">${SIGNER_TITLE}</div>
+                            ${signed ? `<div style="font-size:0.8rem; color:#16A34A; margin-top:4px;"><i class="fa-solid fa-certificate me-1"></i>Digital Signature Verified (${pendingSigData?.certCode || SIGNER_CERT})</div>` : ''}
                         </div>
                     </div>`;
             } else {
@@ -483,6 +536,12 @@
         }
 
         function buildButtons() {
+            if (isAssignStep()) {
+                return [
+                    { act: 'return', label: 'ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข', icon: 'fa-arrow-left-long', cls: 'btn-outline-danger' },
+                    { act: 'assign_screening', label: 'ลงนามมอบหมาย → ส่งคณะอนุกลั่นกรองฯ', icon: 'fa-signature', cls: 'btn-gold' }
+                ];
+            }
             if (signed) {
                 return [
                     { act: 'edit_sign', label: 'แก้ไข / ลงนามใหม่', icon: 'fa-pen-to-square', cls: 'btn-outline-warning' },
@@ -534,12 +593,80 @@
                     confirmText: 'ยืนยันตีกลับ'
                 }).then(r => {
                     if (r.isConfirmed) {
-                        kase.status = 'RETURNED';
+                        const is72 = ECMIS.isCase72(kase);
+                        const fromStatus = kase.status;
+                        const retStatus = is72 ? 'RETURNED_72' : 'RETURNED';
+                        ECMIS.pushCaseHistory(kase, {
+                            from: fromStatus, to: retStatus,
+                            event: is72 ? 'CHAIRMAN_RETURN_72' : 'CHAIRMAN_RETURN',
+                            actor: 'chairman',
+                            note: document.getElementById('swal-note')?.value?.trim() || ''
+                        });
+                        kase.status = retStatus;
                         ECMIS.saveCases();
                         ECMIS.toastOk('ตีกลับสำนวนเรียบร้อยแล้ว');
                         setTimeout(() => location.href = ECMIS.homeHref(role.id), 1200);
                     }
                 });
+                return;
+            }
+            if (act === 'assign_screening') {
+                // เคสไม่ด่วน 7.1 + 7.2 — ประธานฯ ลงนามมอบหมาย (คลิกเดียว) → ส่ง กบค. กระจายเข้าคณะอนุกลั่นกรองฯ
+                const is72 = ECMIS.isCase72(kase);
+                const nextStatus = is72 ? 'IN_SCREENING_72' : 'IN_SCREENING';
+                const event = is72 ? 'ORDER_SCREENING_72' : 'ORDER_SCREENING';
+                const nextTarget = ECMIS.resolvePage ? ECMIS.resolvePage('inbox.html') : 'inbox.html';
+                const docType = 'บันทึกมอบหมายส่งคณะอนุกลั่นกรองฯ';
+                const fromStatus = kase.status;
+
+                ECMIS.signDialog(`บันทึกมอบหมายส่งคณะอนุกลั่นกรองฯ — เรื่องที่ ${kase.id}`,
+                    `${SIGNER_NAME} — ${SIGNER_TITLE}`)
+                    .then(res => {
+                        if (!res.isConfirmed) return;
+                        signed = true;
+                        pendingSigData = res.value;
+                        kase.signedByChair = true;
+                        kase.chairSignedAt = new Date().toISOString();
+
+                        if (ECMIS.Model && ECMIS.Model.SignatureStore) {
+                            ECMIS.Model.SignatureStore.create({
+                                caseId: kase.id,
+                                docType,
+                                signerRole: 'chairman',
+                                signerName: `${SIGNER_NAME} — ${SIGNER_TITLE}`,
+                                method: pendingSigData?.mode || 'cert',
+                                signedAt: new Date().toISOString()
+                            });
+                        }
+                        ECMIS.pushCaseHistory(kase, {
+                            from: fromStatus, to: nextStatus, event, actor: 'chairman',
+                            note: 'ประธานฯ ลงนามมอบหมาย — ส่งกองบริหารคดีกระจายเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘'
+                        });
+
+                        (async () => {
+                            await ECMIS.updateCaseStatus(kase, nextStatus, sb);
+                            if (kase.trr_id && sb) {
+                                ECMIS.logRequestEvent(kase.trr_id, fromStatus, nextStatus, {
+                                    type: 'SIGNED', actorRole: 'chairman',
+                                    data: { docType, signerName: SIGNER_NAME, signerTitle: SIGNER_TITLE, method: pendingSigData?.mode || 'cert' }
+                                });
+                            }
+                            await Swal.fire({
+                                icon: 'success',
+                                title: 'ลงนามมอบหมายสำเร็จ',
+                                html: `<div class="text-start">
+                                          สำนวนเรื่องที่ <strong>${kase.id}</strong><br>
+                                          สถานะใหม่: <strong>${ECMIS.STATUS[nextStatus]?.label || nextStatus}</strong><br><br>
+                                          <span style="font-size:.9rem;color:#475569">
+                                              <i class="fa-solid fa-arrow-right me-1 text-primary"></i>ส่งกองบริหารคดีเพื่อกระจายสำนวนเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘ ต่อไป
+                                          </span>
+                                       </div>`,
+                                confirmButtonColor: '#0F2A62',
+                                confirmButtonText: 'ตกลง (กลับหน้ารายการสั่งการ)'
+                            });
+                            location.href = nextTarget;
+                        })();
+                    });
                 return;
             }
             if (act === 'sign') {

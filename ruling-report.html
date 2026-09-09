@@ -240,6 +240,30 @@
     .textarea-helper-bar {
       display: none !important;
     }
+
+    /* คีย์ลัดเติมข้อความมาตรา — tooltip ขณะมี ghost รอกด Tab */
+    .matra-ghost-hint {
+      position: absolute;
+      z-index: 1080;
+      background: #0F2A62;
+      color: #fff;
+      font-size: .78rem;
+      line-height: 1.4;
+      padding: 3px 9px;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(9, 26, 62, .22);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .matra-ghost-hint kbd {
+      background: #fff;
+      color: #0F2A62;
+      padding: 0 4px;
+      border-radius: 3px;
+      font-size: .72rem;
+      font-weight: 700;
+    }
   </style>
 </head>
 
@@ -593,6 +617,21 @@
       { n: 'นายกมล สกลเดชา', r: 'กรรมการ ป.ป.ท.' },
       { n: 'นายสุรพงษ์ อินทรถาวร', r: 'กรรมการ ป.ป.ท.' }
     ];
+
+    /* ── คีย์ลัดเติมข้อความฐานความผิดตามเลขมาตรา ───────────────────────
+       พิมพ์ "มาตรา ๑๔๗" (ไทยหรืออารบิก) ในช่องข้อความ → แสดงข้อความต่อ
+       เป็น ghost (selection) แล้วกด Tab เพื่อเติม. key = เลขอารบิก string.
+       ข้อความเก็บตามที่ผู้ใช้ส่ง (verbatim) — ใช้กับงาน demo */
+    const MATRA_CONTINUATION = {
+      '147': 'ฐานเป็นเจ้าพนักงาน มีหน้าที่จัดการหรือดูแลกิจการใด เข้ามีส่วนได้เสียเพื่อประโยชน์สำหรับ หรือผู้อื่นเนื่องด้วยกิจการนั้น',
+      '152': 'ฐานเป็นเจ้าพนักงาน ปฏิบัติหรือละเว้นการปฏิบัติหน้าที่โดยมิชอบ เพื่อให้เกิดความเสียหายแก่ผู้หนึ่งผู้ใด หรือปฏิบัติหรือละเว้นการปฏิบัติหน้าที่โดยทุจริต',
+      '157': 'ฐานเป็นเจ้าพนักงาน มีหน้าที่ทำเอกสาร กรอกข้อความลงในเอกสารหรือดูแลรักษาเอกสาร กระทำการปลอมเอกสาร โดยอาศัยโอกาสที่ตนมีหน้าที่นั้น',
+      '264': 'ฐานปลอมเอกสารสิทธิหรือเอกสารราชการ'
+    };
+
+    /* tracker ของ ghost ที่กำลังแสดง — ต้องประกาศก่อน persistForm/renderDoc ถูกเรียก */
+    const MATRA_GHOST = { el: null, start: 0, end: 0, text: '' };
+    let _matraHintEl = null;
 
     const SUPABASE_URL = 'https://ljhabbwjxnoucrcrsoii.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_2Bps-dWMZHz_7cs3BppF6A_ul1_A_xd';
@@ -1494,6 +1533,7 @@
     }
 
     function persistForm() {
+      clearActiveGhost();
       const patch = currentRulingFormPatch();
       ECMIS.Model.CaseStore.update(kase.id, patch);
       ECMIS.saveCases();
@@ -1518,6 +1558,7 @@
     }
 
     function renderDoc() {
+      clearActiveGhost();
       const M = ECMIS.mergeField;
       const meetNo = document.getElementById('meetNo').value.trim();
       const agendaNo = document.getElementById('agendaNo').value.trim();
@@ -2250,6 +2291,125 @@
     renderDoc();
     renderActions();
     applyZoom();
+
+    function _matraDigitsToArabic(s) {
+      return String(s).replace(/[๐-๙]/g, d => String('๐๑๒๓๔๕๖๗๘๙'.indexOf(d)));
+    }
+    function _matraDigitsToThai(s) {
+      return String(s).replace(/[0-9]/g, d => '๐๑๒๓๔๕๖๗๘๙'[+d]);
+    }
+
+    function _matraHideHint() {
+      if (_matraHintEl) { _matraHintEl.remove(); _matraHintEl = null; }
+    }
+    function _matraShowHint(el, thaiNum) {
+      _matraHideHint();
+      const t = document.createElement('div');
+      t.className = 'matra-ghost-hint';
+      t.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i>กด <kbd>Tab</kbd> เพื่อเติมข้อความ มาตรา ' + thaiNum;
+      document.body.appendChild(t);
+      const r = el.getBoundingClientRect();
+      t.style.top = (window.scrollY + r.bottom + 4) + 'px';
+      t.style.left = (window.scrollX + r.left) + 'px';
+      _matraHintEl = t;
+    }
+
+    /* หมายเหตุ (ข้อจำกัดที่ทราบ): กลไก ghost เขียน el.value ตรง ๆ ทั้งตอนแทรกและตอนลบ
+       → undo stack ของ textarea นั้นถูกล้าง (Ctrl+Z ย้อนข้อความก่อนหน้าไม่ได้หลัง ghost ทำงาน)
+       เป็น tradeoff ของวิธี native selection-range ที่เลือกไว้ */
+    let _matraSuppressNext = false;
+
+    /* ลบ ghost เฉพาะเมื่อยังอยู่ครบและผู้ใช้ไม่ได้แก้ — ไม่งั้น bail ไม่แตะข้อความ */
+    function clearActiveGhost() {
+      const g = MATRA_GHOST;
+      _matraHideHint();
+      if (!g.el) return;
+      const el = g.el;
+      if (el.value.slice(g.start, g.end) === g.text) {
+        const caret = g.start;
+        el.value = el.value.slice(0, g.start) + el.value.slice(g.end);
+        try { el.setSelectionRange(caret, caret); } catch (e) { /* noop */ }
+      }
+      g.el = null; g.text = '';
+    }
+
+    function _matraTryGhost(el) {
+      if (!el || MATRA_GHOST.el) return;
+      if (el.tagName !== 'TEXTAREA' || el.hasAttribute('data-no-suggestions') || el.disabled || el.readOnly) return;
+      if (!document.contains(el) || document.activeElement !== el) return;
+      const pos = el.selectionStart;
+      if (pos !== el.selectionEnd) return;
+      const nextCh = el.value.charAt(pos);
+      if (nextCh && !/\s/.test(nextCh)) return;
+      const m = el.value.slice(0, pos).match(/มาตรา[  \t]*([๐-๙0-9]+)$/);
+      if (!m) return;
+      const num = _matraDigitsToArabic(m[1]);
+      const clause = MATRA_CONTINUATION[num];
+      if (!clause) return;
+      const ghost = ' ' + clause;
+      el.value = el.value.slice(0, pos) + ghost + el.value.slice(pos);
+      MATRA_GHOST.el = el;
+      MATRA_GHOST.start = pos;
+      MATRA_GHOST.end = pos + ghost.length;
+      MATRA_GHOST.text = ghost;
+      try { el.setSelectionRange(pos, pos + ghost.length); } catch (e) { /* noop */ }
+      _matraShowHint(el, _matraDigitsToThai(num));
+    }
+
+    /* Tab: เขียนทับ token "มาตรา<sp>เลข" + ghost เป็น canonical ครั้งเดียว */
+    function _matraCommitGhost() {
+      const g = MATRA_GHOST;
+      if (!g.el) return false;
+      const el = g.el;
+      if (el.value.slice(g.start, g.end) !== g.text) { g.el = null; g.text = ''; return false; }
+      const before = el.value.slice(0, g.start);
+      const m = before.match(/มาตรา[  \t]*[๐-๙0-9]+[  \t]*$/);
+      const tokenStart = m ? before.length - m[0].length : g.start;
+      const numArabic = _matraDigitsToArabic((m ? m[0] : '').replace(/[^๐-๙0-9]/g, ''));
+      const clause = MATRA_CONTINUATION[numArabic] || g.text.trim();
+      const canonical = 'มาตรา ' + _matraDigitsToThai(numArabic) + ' ' + clause;
+      el.value = el.value.slice(0, tokenStart) + canonical + el.value.slice(g.end);
+      const caret = tokenStart + canonical.length;
+      g.el = null; g.text = '';
+      _matraHideHint();
+      try { el.setSelectionRange(caret, caret); } catch (e) { /* noop */ }
+      /* กัน cascade: ถ้า clause ที่เพิ่งเติมลงท้ายด้วย "มาตรา <เลข>" ที่มีใน map
+         อย่าให้ input event ที่ dispatch นี้ auto-trigger ghost อันที่สองทันที */
+      _matraSuppressNext = true;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    }
+
+    function initMatraAutocomplete() {
+      /* capture: ทำงานก่อน input listener ของหน้า → ล้าง ghost เก่าให้ค่า .value สะอาด
+         แล้วค่อยลอง ghost ใหม่ใน microtask (หลัง persistForm/renderDoc ของหน้า) */
+      document.addEventListener('input', (e) => {
+        const el = e.target;
+        if (!el || el.tagName !== 'TEXTAREA') return;
+        clearActiveGhost();
+        if (_matraSuppressNext) { _matraSuppressNext = false; return; }
+        if (el.hasAttribute('data-no-suggestions')) return;
+        queueMicrotask(() => _matraTryGhost(el));
+      }, true);
+
+      document.addEventListener('keydown', (e) => {
+        if (!MATRA_GHOST.el || e.target !== MATRA_GHOST.el) return;
+        if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); _matraCommitGhost(); return; }
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); clearActiveGhost(); return; }
+        if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) return;
+        /* ปุ่มอื่น (ลูกศร/ตัวอักษร/Backspace) → ยกเลิก ghost ก่อน ปล่อยให้ทำงานปกติ */
+        clearActiveGhost();
+      }, true);
+
+      document.addEventListener('pointerdown', (e) => {
+        if (MATRA_GHOST.el && e.target !== MATRA_GHOST.el) clearActiveGhost();
+      }, true);
+      document.addEventListener('blur', (e) => {
+        if (MATRA_GHOST.el && e.target === MATRA_GHOST.el) clearActiveGhost();
+      }, true);
+      window.addEventListener('scroll', () => { if (MATRA_GHOST.el) clearActiveGhost(); }, true);
+    }
+    initMatraAutocomplete();
 
     (async function initOffenseBasis() {
       await caseDataReady;

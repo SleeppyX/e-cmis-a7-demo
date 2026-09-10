@@ -3884,6 +3884,64 @@ function mergeField(value, placeholder){
   return `<span class="mergefield filled" title="Auto-fill จากฟอร์ม/ฐานข้อมูลกลาง E-CMIS">${escapeHtml(toThaiDigits(value))}</span>`;
 }
 
+/* จุดไข่ปลาแบบเดิมกระจายอยู่ในเทมเพลตเอกสารหลายชุด ทั้งข้อความคงที่และ
+   fallback ที่สร้างภายหลัง จึงกรองที่ขอบเขต Preview กลางแทนการไล่แก้ทีละหน้า
+   (ไม่กระทบ placeholder ของ input/textarea ฝั่งฟอร์ม) */
+const DOCUMENT_PREVIEW_SELECTOR = '.doc-paper, .a5-paper';
+const DOCUMENT_ELLIPSIS_RE = /(?:…+|\.{3,})/g;
+
+function removePreviewEllipses(root){
+  if (typeof document === 'undefined') return;
+  const scope = root || document;
+  const papers = [];
+  if (scope.nodeType === 1 && scope.matches && scope.matches(DOCUMENT_PREVIEW_SELECTOR)) papers.push(scope);
+  if (scope.querySelectorAll) papers.push(...scope.querySelectorAll(DOCUMENT_PREVIEW_SELECTOR));
+
+  papers.forEach(paper => {
+    const walker = document.createTreeWalker(paper, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    textNodes.forEach(node => {
+      if (DOCUMENT_ELLIPSIS_RE.test(node.nodeValue)) {
+        node.nodeValue = node.nodeValue.replace(DOCUMENT_ELLIPSIS_RE, '');
+      }
+      DOCUMENT_ELLIPSIS_RE.lastIndex = 0;
+    });
+  });
+}
+
+function initDocumentPreviewSanitizer(){
+  removePreviewEllipses(document);
+  if (typeof MutationObserver === 'undefined' || !document.body) return;
+  const observer = new MutationObserver(mutations => {
+    mutations.forEach(mutation => {
+      if (mutation.type === 'characterData' && mutation.target.parentElement && mutation.target.parentElement.closest(DOCUMENT_PREVIEW_SELECTOR)) {
+        if (DOCUMENT_ELLIPSIS_RE.test(mutation.target.nodeValue)) {
+          mutation.target.nodeValue = mutation.target.nodeValue.replace(DOCUMENT_ELLIPSIS_RE, '');
+        }
+        DOCUMENT_ELLIPSIS_RE.lastIndex = 0;
+      }
+      mutation.addedNodes.forEach(node => {
+        if (node.nodeType === 1) {
+          const containingPaper = node.closest(DOCUMENT_PREVIEW_SELECTOR);
+          removePreviewEllipses(containingPaper || node);
+        } else if (node.nodeType === 3 && node.parentElement && node.parentElement.closest(DOCUMENT_PREVIEW_SELECTOR)) {
+          if (DOCUMENT_ELLIPSIS_RE.test(node.nodeValue)) {
+            node.nodeValue = node.nodeValue.replace(DOCUMENT_ELLIPSIS_RE, '');
+          }
+          DOCUMENT_ELLIPSIS_RE.lastIndex = 0;
+        }
+      });
+    });
+  });
+  observer.observe(document.body, { childList:true, characterData:true, subtree:true });
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initDocumentPreviewSanitizer);
+  else initDocumentPreviewSanitizer();
+}
+
 /* -------------------------------------------- PAGINATION (มติการประชุม / เอกสาร .doc-resolution)
    เอกสารมติจริงยาวเกิน 1 หน้าเสมอ (ผู้ถูกร้องหลายคน/ความเห็นยาว) และหน้า 2 เป็นต้นไปต้องมี
    หัวกระดาษวิ่ง + เลขหน้าซ้ำ (ขนาดอักษรในเอกสารมติ.xlsx ข้อ 7-8) — เดิมใช้เทคนิค <table><thead>
@@ -7052,7 +7110,7 @@ if (typeof localStorage !== 'undefined') {
   isAuthed, currentUsername, logout,
   renderShell, stepperHtml, statusBadge, typeBadge, slaBadge, actionBar,
   markNotifRead, getReadNotifIds, formatNotifReadAt, loadNotifReadReceipts, handleNotifLinkClick,
-  mergeField, escapeHtml, fakeTodayIso, daysUntilFakeIso, paginateDoc, paginateResolutionDoc, exportDocToDocx, exportDocToPdf, printDoc, confirmAction, toastOk, toastWarn, signDialog, sequentialSignDialog,
+  mergeField, removePreviewEllipses, escapeHtml, fakeTodayIso, daysUntilFakeIso, paginateDoc, paginateResolutionDoc, exportDocToDocx, exportDocToPdf, printDoc, confirmAction, toastOk, toastWarn, signDialog, sequentialSignDialog,
 
   ACT7_SECTIONS, ACT7_STATUSES, getAct7Status, act7Badge,
   ACT7_STATUSES_72, getAct7Status72,

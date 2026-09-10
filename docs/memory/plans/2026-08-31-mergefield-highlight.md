@@ -70,3 +70,9 @@
   (Python `SimpleHTTPServer` dev server ไม่ส่ง cache-control header ทำให้ Chrome ใช้ heuristic caching)
   แม้ `location.reload(true)` ก็ไม่ช่วย ต้องบังคับเปลี่ยน query string ของ `<link>` เพื่อล้างแคชถึงเห็นผลจริง —
   ไม่ใช่บั๊กของโค้ด ยืนยันด้วย `fetch(..., {cache:'no-store'})` ว่า server ส่งไฟล์ใหม่ถูกต้องตลอด
+
+### Follow-up 2026-09-10 — Coverage ทั้งระบบ
+- เพิ่ม `removePreviewEllipses()` และ `MutationObserver` กลางใน `assets/ecmis-app.js` เพื่อเอาจุดไข่ปลา
+  ที่ยังเขียนตรงอยู่ในเทมเพลตเก่าออกจาก `.doc-paper` และ `.a5-paper` ทั้งตอนโหลดและทุกครั้งที่ render ใหม่
+- จำกัดขอบเขตไว้เฉพาะกระดาษ Preview จึงไม่ลบ `...` ใน placeholder ของ input/textarea ฝั่งฟอร์ม
+- ปรับ highlight เป็นสีเขียว `#dcfce7` และรองรับข้อความที่ตัดหลายบรรทัดด้วย `box-decoration-break: clone`

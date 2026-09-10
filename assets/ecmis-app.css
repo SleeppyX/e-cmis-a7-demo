@@ -534,7 +534,14 @@ body.sidebar-collapsed .sidebar-user-chip-text{ display:none; }
 
 .mergefield{ border-bottom:none; color:inherit; }
 /* Auto-fill highlight — บอก user ว่าช่องไหนถูกกรอกมาแล้วบ้าง เฉพาะจอ (ไม่ติดไปตอนพิมพ์/PDF/DOCX) */
-.mergefield.filled{ background:#ECFDF5; border-radius:3px; padding:0 3px; color:inherit; }
+.mergefield.filled{
+  background:#dcfce7;
+  box-decoration-break:clone;
+  -webkit-box-decoration-break:clone;
+  border-radius:3px;
+  padding:0 3px;
+  color:inherit;
+}
 @media print{
   .mergefield.filled{ background:transparent !important; padding:0 !important; border-radius:0 !important; }
 }

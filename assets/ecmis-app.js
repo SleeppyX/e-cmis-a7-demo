@@ -32,9 +32,9 @@ const ROLES = [
     name:'นางสาวศิริพร กิจการ', org:'กองบริหารคดี', lane:'L7', flow:'S7 / S11', act:'7.1, 7.2, 7.3',
     perms:['view.all','download','EDIT.MASTER','doc.generate','order24.draft','secrecy.set'] }
   ,
-  { id:'case_admin', login:'Napat.S', row:4, group:'กองบริหารคดี (กลุ่มงานบริหารคดีและบริหารทั่วไป)',
+  { id:'case_admin', login:'Kannika.W', row:4, group:'กองบริหารคดี (กลุ่มงานบริหารคดีและบริหารทั่วไป)',
     title:'ผู้อำนวยการกองบริหารคดี ปฏิบัติหน้าที่เลขานุการคณะกรรมการ ป.ป.ท.',
-    name:'นางสาวณพัสตร์ ศรีสมเกียรติ', org:'กองบริหารคดี', lane:'L7', flow:'S7 / S11', act:'7.1, 7.2, 7.3',
+    name:'นางสาวกรรณิกา วงศ์ศิริ', org:'กองบริหารคดี', lane:'L7', flow:'S7 / S11', act:'7.1, 7.2, 7.3',
     perms:['view.all','download','create.agenda','create.invite','record.minutes','doc.generate','dispatch.resolution','urgent.endorse'] }
 ];
 

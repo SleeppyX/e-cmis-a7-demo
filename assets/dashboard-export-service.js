@@ -930,7 +930,7 @@
               <span>ผู้ตรวจรายงาน</span>
             </div>
             <div>
-              <strong>(นางสาวณพัสตร์ ศรีสมเกียรติ)</strong><br>
+              <strong>(นางสาวกรรณิกา วงศ์ศิริ)</strong><br>
               <span>ผู้อำนวยการกองบริหารคดี</span><br>
               <span class="small text-muted">สำนักงาน ป.ป.ท.</span>
             </div>

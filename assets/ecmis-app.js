@@ -1374,6 +1374,98 @@ const CASES = [
     slaDays:11, slaLimit:15, subCommittee:null,
     meetingNo:null, agendaNo:null
   },
+
+  /* ── ชุดเคสทดสอบเริ่มต้นที่เลขาธิการฯ (5 combo ครบสาย 7.1/7.2 ด่วน-ไม่ด่วน/7.3)
+     เพิ่มเพื่อให้เล่น flow ต่อเนื่องจากขั้นเลขาธิการฯ ไปจนจบได้ครบทุกเส้นทาง —
+     ตั้งใจไม่ตั้งค่า subCommittee ล่วงหน้า (ต่างจากเคส seed เดิมบางตัว) เพื่อให้
+     กองบริหารคดีเป็นผู้กำหนดตอนถึงชั้นกลั่นกรองจริงตาม flow */
+  {
+    id:'9201/2569',
+    subject:'กล่าวหาเจ้าหน้าที่องค์การบริหารส่วนตำบลแห่งหนึ่ง เรียกรับผลประโยชน์จากผู้ประกอบการก่อนอนุมัติใบอนุญาต',
+    legalBase:'ม.18/4',
+    status:'PENDING_SECGEN',
+    procType:'7.1',
+    owner:'นายสมชาย ใจซื่อ', ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 1',
+    complainant:'ผู้ประกอบการในพื้นที่ (ผู้ร้อง)',
+    accused:[ { no:1, name:'นายประดิษฐ์ มากเงิน', pos:'ปลัดองค์การบริหารส่วนตำบล', idcard:'3-1010-0xxxx-xx-x', agency:'องค์การบริหารส่วนตำบลแห่งหนึ่ง' } ],
+    allegation:'เรียกรับเงินจากผู้ประกอบการเป็นการตอบแทนการอนุมัติใบอนุญาตประกอบกิจการ รวม 3 ราย',
+    receivedDate:'2569-08-01', deadline60:'2569-09-30', deadline2y:'2571-08-01', prescription:'2572-12-01',
+    docRef:'ปป 0021/9201 ลงวันที่ 1 สิงหาคม 2569',
+    urgent:false, complex:false, dupWarning:false,
+    docType:'644', signPhase:'WAIT',
+    slaDays:0, slaLimit:15, subCommittee:null,
+    meetingNo:null, agendaNo:null
+  },
+  {
+    id:'9202/2569',
+    subject:'กล่าวหาเจ้าหน้าที่กรมทางหลวงชนบทแห่งหนึ่ง เร่งรัดเบิกจ่ายเงินงบประมาณก่อสร้างถนนก่อนตรวจรับงานจริง ใกล้ขาดอายุความ',
+    legalBase:'ม.18/4',
+    status:'PENDING_SECGEN',
+    procType:'7.1',
+    owner:'นางสาวปรียา ตั้งมั่น', ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 2',
+    complainant:'ผู้ตรวจสอบภายในหน่วยงาน (ผู้ร้อง)',
+    accused:[ { no:1, name:'นายวิรัตน์ เร่งรัด', pos:'ผู้อำนวยการแขวงทางหลวงชนบท', idcard:'3-1020-0xxxx-xx-x', agency:'กรมทางหลวงชนบทแห่งหนึ่ง' } ],
+    allegation:'อนุมัติเบิกจ่ายเงินงบประมาณโครงการก่อสร้างถนนทั้งที่งานยังไม่แล้วเสร็จตามสัญญา คดีใกล้ครบกำหนดอายุความ',
+    receivedDate:'2569-06-01', deadline60:'2569-07-31', deadline2y:'2571-06-01', prescription:'2569-10-15',
+    docRef:'ปป 0021/9202 ลงวันที่ 1 มิถุนายน 2569',
+    urgent:true, urgentReason:'คดีใกล้ครบกำหนดอายุความภายใน 34 วัน เห็นควรเสนอเร่งรัดพิจารณา',
+    complex:false, dupWarning:false,
+    docType:'644', signPhase:'WAIT',
+    slaDays:0, slaLimit:15, subCommittee:null,
+    meetingNo:null, agendaNo:null
+  },
+  {
+    id:'9203/2569',
+    subject:'รายงานการไต่สวนข้อเท็จจริงเพื่อวินิจฉัยชี้มูล กรณีกล่าวหาเจ้าหน้าที่สำนักงานที่ดินจังหวัดแห่งหนึ่ง ออกโฉนดทับที่สาธารณประโยชน์',
+    legalBase:'ม.24 วรรคท้าย',
+    status:'PENDING_SECGEN_72',
+    procType:'7.2',
+    owner:'นายอภิสิทธิ์ สุจริตกร (นิติกรปฏิบัติการ)', ownerOrg:'กองปราบปรามการทุจริตในภาครัฐ 4',
+    complainant:'ราษฎรในพื้นที่ (ผู้ร้อง)',
+    accused:[ { no:1, name:'นายบุญมี ออกโฉนด', pos:'เจ้าพนักงานที่ดินจังหวัด', idcard:'3-1030-0xxxx-xx-x', agency:'สำนักงานที่ดินจังหวัดแห่งหนึ่ง' } ],
+    allegation:'ออกโฉนดที่ดินทับที่สาธารณประโยชน์โดยมิชอบ เอื้อประโยชน์ให้เอกชนรายหนึ่งเข้าครอบครองพื้นที่',
+    receivedDate:'2569-04-10', deadline60:'2569-06-09', deadline2y:'2571-04-10', prescription:'2573-04-10',
+    docRef:'ปป 0021/9203 ลงวันที่ 10 เมษายน 2569',
+    urgent:false, urgent72:false, complex:false, complex72:false, dupWarning:false,
+    slaDays:0, slaLimit:15, subCommittee:null,
+    docType:'RULING', signPhase:'WAIT'
+  },
+  {
+    id:'9204/2569',
+    subject:'รายงานการไต่สวนข้อเท็จจริงเพื่อวินิจฉัยชี้มูล กรณีเจ้าหน้าที่คลังจังหวัดแห่งหนึ่ง ยักยอกเงินภาษี ใกล้ขาดอายุความ',
+    legalBase:'ม.24 วรรคท้าย',
+    status:'PENDING_SECGEN_72',
+    procType:'7.2',
+    owner:'นายวรพล ตรวจสอบ (เจ้าพนักงานป้องกันการทุจริตชำนาญการ)', ownerOrg:'กองปราบปรามการทุจริตในภาครัฐ 2',
+    complainant:'สำนักงานคลังจังหวัด (ผู้ร้อง)',
+    accused:[ { no:1, name:'นางสาวจิราพร เก็บเงิน', pos:'เจ้าพนักงานการเงินและบัญชีชำนาญงาน', idcard:'3-1040-0xxxx-xx-x', agency:'สำนักงานคลังจังหวัดแห่งหนึ่ง' } ],
+    allegation:'ยักยอกเงินภาษีที่จัดเก็บได้ไปใช้ประโยชน์ส่วนตัวต่อเนื่องหลายเดือน คดีใกล้ครบกำหนดอายุความ',
+    receivedDate:'2569-03-05', deadline60:'2569-05-04', deadline2y:'2571-03-05', prescription:'2569-10-20',
+    docRef:'ปป 0021/9204 ลงวันที่ 5 มีนาคม 2569',
+    urgent:true, urgent72:true, urgentReason:'คดีใกล้ครบกำหนดอายุความภายใน 39 วัน เห็นควรเสนอบรรจุวาระด่วน',
+    complex:false, complex72:false, dupWarning:false,
+    slaDays:0, slaLimit:15, subCommittee:null,
+    docType:'RULING', signPhase:'WAIT'
+  },
+  {
+    id:'กจ.201/2569',
+    subject:'ขออนุมัติแต่งตั้งคณะทำงานเฉพาะกิจตรวจสอบข้อเท็จจริงกรณีร้องเรียนหน่วยงานภาครัฐจัดซื้อจัดจ้างล่าช้าผิดปกติ (กิจกรรม 7.3)',
+    legalBase:'ระเบียบฯ',
+    status:'PENDING_SECGEN',
+    procType:'7.3',
+    generalType:'SPECIAL_TASK_73',
+    owner:'กลุ่มงานกิจการคณะกรรมการ',
+    ownerOrg:'กองบริหารคดี',
+    complainant:'-',
+    accused:[],
+    allegation:'พบความล่าช้าผิดปกติในการจัดซื้อจัดจ้างหลายหน่วยงานภาครัฐในช่วงเวลาใกล้เคียงกัน จึงเห็นควรแต่งตั้งคณะทำงานเฉพาะกิจตรวจสอบข้อเท็จจริงเบื้องต้นก่อนพิจารณาดำเนินการต่อไป',
+    receivedDate:'2569-08-05', deadline60:'2569-10-04', deadline2y:'2571-08-05', prescription:'-',
+    docRef:'กจ 0001/0201 ลงวันที่ 5 สิงหาคม 2569',
+    urgent:false, complex:false, dupWarning:false,
+    slaDays:0, slaLimit:5, subCommittee:null,
+    docType:'GENERAL', signPhase:'WAIT'
+  },
+
   {
     id:'0921/2569',
     subject:'กล่าวหาเจ้าหน้าที่สหกรณ์ออมทรัพย์แห่งหนึ่ง ยักยอกเงินฝากสมาชิกโดยทุจริต',

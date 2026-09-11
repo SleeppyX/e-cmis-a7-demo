@@ -14,16 +14,6 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <style>
-    .ca-stepper { display: flex; flex-wrap: wrap; gap: .4rem; }
-    .ca-step { flex: 1 1 150px; min-width: 140px; border: 1px solid var(--border-divider); border-radius: 10px;
-      padding: .55rem .6rem; background: var(--bg-surface); text-align: center; }
-    .ca-step .n { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
-      border-radius: 50%; font-size: .72rem; font-weight: 700; background: #E2E8F0; color: #475569; }
-    .ca-step .l { display: block; margin-top: .3rem; font-size: .74rem; font-weight: 600; color: var(--ecmis-muted); }
-    .ca-step.done .n { background: #15803D; color: #fff; }
-    .ca-step.current { border-color: #0F2A62; border-width: 2px; box-shadow: 0 0 0 2px rgba(15, 42, 98, .08); }
-    .ca-step.current .n { background: #0F2A62; color: #fff; }
-    .ca-step.current .l { color: var(--ecmis-navy); }
     .kv { display: grid; grid-template-columns: 150px 1fr; gap: .3rem .8rem; font-size: .86rem; }
     .kv dt { color: var(--ecmis-muted); font-weight: 600; }
     .kv dd { margin: 0; }
@@ -66,7 +56,8 @@
       <div class="card card-ecmis mb-3">
         <div class="card-header"><i class="fa-solid fa-timeline text-primary"></i> <span class="fw-bold">ขั้นตอนด่านรับ (กลุ่มงานบริหารคดีและบริหารทั่วไป)</span></div>
         <div class="card-body">
-          <div class="ca-stepper mb-3" id="caStepper"></div>
+          <div class="mb-3" id="caStepper"></div>
+          <div id="caStageNote" class="small text-muted mb-3"></div>
           <div id="caHistoryBox"></div>
         </div>
       </div>
@@ -115,6 +106,22 @@
 
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
+    /* สถานะขั้นด่านรับของ กบค. เทียบกับสำนวน — ต้องแยก 3 กรณีให้ถูก เพราะ
+       "ไม่ได้อยู่ในคิวกลั่นกรองตอนนี้และยังไม่มีคณะ" มีได้ทั้ง "ยังไม่ถึงคิวเลย"
+       (เช่น ยังรออนุมัติชั้นเลขาธิการฯ ก่อนเข้าชั้นกลั่นกรอง) และ "ผ่านคิวไปนานแล้ว" */
+    function caseAdminStage(k) {
+      if (ECMIS.caseAdminRouted(k)) return 'done';
+      if (ECMIS.isCaseAdminQueue(k)) return 'current';
+      const is72 = ECMIS.isCase72(k);
+      const stepMap = is72 ? ECMIS.STATUS_STEP_72 : ECMIS.STATUS_STEP;
+      const stepsArr = is72 ? ECMIS.FLOW_STEPS_72 : ECMIS.FLOW_STEPS;
+      const screenKey = is72 ? 'agenda72' : 'screening';
+      const curIdx = stepsArr.findIndex(s => s.key === stepMap[k.status]);
+      const screenIdx = stepsArr.findIndex(s => s.key === screenKey);
+      if (curIdx === -1) return 'done';
+      return curIdx < screenIdx ? 'not-arrived' : 'done';
+    }
+
     function renderDetail() {
       const k = kase;
       document.getElementById('pageTitle').textContent = 'รายละเอียดคดี ' + k.id;
@@ -135,26 +142,35 @@
         <dt>คณะที่มอบหมาย</dt><dd>${teamTxt}</dd>`;
 
       // actions
+      const stage = caseAdminStage(k);
       const acts = document.getElementById('headActions');
-      if (ECMIS.isCaseAdminQueue(k)) {
+      if (stage === 'current') {
         acts.innerHTML = `<button id="btnRoute" class="btn btn-navy btn-sm px-3"><i class="fa-solid fa-share-from-square me-1"></i>ส่งเข้าคณะอนุกลั่นกรองฯ</button>
           <span class="small text-muted">— กระจายสำนวนเข้าคณะที่ ๑–๘ เพื่อพิจารณาให้ความเห็นก่อนบรรจุวาระ</span>`;
         document.getElementById('btnRoute').addEventListener('click', openRouteModal);
       } else if (ECMIS.caseAdminRouted(k)) {
         acts.innerHTML = `<a href="subcommittee-screening.html?case=${encodeURIComponent(k.id)}" class="btn btn-outline-secondary btn-sm px-3"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>ดูความคืบหน้าที่คณะฯ</a>
           <span class="small text-muted">— สำนวนอยู่ที่ ${esc(k.subCommittee)} · งานด่านรับของกองบริหารคดีเสร็จสิ้นแล้ว</span>`;
+      } else if (stage === 'not-arrived') {
+        acts.innerHTML = `<span class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>สำนวนนี้ยังไม่ถึงคิวด่านรับของกองบริหารคดี — อยู่ระหว่างขั้นตอนก่อนหน้า (${esc(k.status)})</span>`;
       } else {
         acts.innerHTML = `<span class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>สำนวนนี้พ้นชั้นด่านรับ/ชั้นกลั่นกรองแล้ว — อยู่ในความรับผิดชอบของกลุ่มงานอื่น</span>`;
       }
 
-      // stepper 4 ขั้น
+      // stepper 4 ขั้น — ใช้ flow-stepper กลางของระบบ (เหมือน board-resolution.html/chairman-agenda.html)
       const steps = ECMIS.CASE_ADMIN_INTAKE;
-      const routed = ECMIS.caseAdminRouted(k);
-      document.getElementById('caStepper').innerHTML = steps.map((s, i) => {
-        const isLast = i === steps.length - 1;
-        const cls = !isLast ? 'done' : (routed ? 'done' : 'current');
-        return `<div class="ca-step ${cls}"><span class="n"><i class="fa-solid ${s.icon}"></i></span><span class="l">${i + 1}. ${s.label}</span></div>`;
-      }).join('');
+      const lastIdx = steps.length - 1;
+      document.getElementById('caStepper').innerHTML = `<div class="flow-stepper">` + steps.map((s, i) => {
+        let cls = '';
+        if (stage === 'current') cls = i < lastIdx ? 'done' : 'active';
+        else if (stage === 'done') cls = 'done';
+        const mark = cls === 'done' ? '<i class="fa-solid fa-check"></i>' : (i + 1);
+        return `<div class="fstep ${cls}"><div class="dot">${mark}</div><div class="lbl">${i + 1}. ${s.label}</div></div>`;
+      }).join('') + `</div>`;
+
+      document.getElementById('caStageNote').textContent = stage === 'not-arrived'
+        ? 'ยังไม่ถึงคิวด่านรับ — จะแสดงความคืบหน้าเมื่อสำนวนถึงชั้นกลั่นกรอง'
+        : '';
 
       const hist = Array.isArray(k.history) ? k.history.slice().reverse() : [];
       document.getElementById('caHistoryBox').innerHTML = hist.length

@@ -367,12 +367,16 @@
           const c = ECMIS.supabaseRowToCase(row);
           if (!c || !c.id || c.id.startsWith('TEST-')) return;
 
+          /* คณะอนุกรรมการสนับสนุนเลขาธิการฯ ที่เลขาธิการฯ มอบหมายไว้ — เก็บใน resolutionData.subCommittee
+             (ไม่ใช้ c.subCommittee ตรงๆ เพราะ field นั้นเป็นของคณะอนุกลั่นกรองฯ 1-8 ที่กองบริหารคดีเป็นคนตั้งค่า
+             คนละความหมายกัน แต่เคยใช้ชื่อ field ชนกัน) */
+          const supportTeam = c.supportSubTeam || (c.resolutionData && c.resolutionData.supportSubTeam) || '';
           const isSubStatus = (
             c.status === 'IN_SUPPORT_SUB' || c.status === 'IN_SUPPORT_SUB_72' ||
             c.status === 'RETURNED' || c.status === 'RETURNED_72' ||
             c.status === 'PENDING_CHAIRMAN' || c.status === 'PENDING_INVITE_72' ||
             c.status === 'PENDING_URGENT' || c.status === 'PENDING_URGENT_72' ||
-            c.status === 'AGENDA_SET' || c.status === 'PENDING_SUBCOMMITTEE' || c.subCommittee
+            c.status === 'AGENDA_SET' || c.status === 'PENDING_SUBCOMMITTEE' || supportTeam
           );
           if (!isSubStatus) return;
 
@@ -390,12 +394,12 @@
             statusText = 'กลั่นกรองแล้วเสร็จ (ส่งคืนเลขาฯ แล้ว)';
           }
 
-          const isGroup2 = (c.subCommittee && c.subCommittee.includes('2')) ? true : ((c.subCommittee && c.subCommittee.includes('1')) ? false : (idx % 2 === 1));
+          const isGroup2 = supportTeam.includes('2') ? true : (supportTeam.includes('1') ? false : (idx % 2 === 1));
           const assignedGroup = isGroup2 ? 'group2' : 'group1';
           const team = isGroup2 ? 'TEAM2' : 'TEAM1';
           const teamLabel = isGroup2 ? 'คณะที่ 2' : 'คณะที่ 1';
 
-          const isComplex = c.isComplex || (c.subCommittee && c.subCommittee.length > 0) || (c.resolutionData && c.resolutionData.code === 'ACCEPT_S24P3');
+          const isComplex = c.isComplex || supportTeam.length > 0 || (c.resolutionData && c.resolutionData.code === 'ACCEPT_S24P3');
           const triggerType = (statusCat === 'RETURNED') ? 'RETURN' : (statusCat === 'DONE' ? 'DONE' : (isComplex ? 'COMPLEX' : 'DIFFER'));
           const triggerBadgeText = (statusCat === 'RETURNED') ? 'ส่งคืนสายงานต้นทาง' : (statusCat === 'DONE' ? 'กลั่นกรองแล้วเสร็จ' : (isComplex ? 'ประเด็นซับซ้อน' : 'ความเห็นแย้งในสายงาน'));
           const triggerText = (statusCat === 'RETURNED') ? 'ส่งคืนสายงานต้นทาง (กจ.5) ดำเนินการใหม่' : (statusCat === 'DONE' ? 'กลั่นกรองแล้วเสร็จ (ส่งต่อแล้ว)' : (isComplex ? 'สำนวนซับซ้อนตาม ม.24 วรรคสาม' : 'ความเห็นแย้งในสายงานต้นทาง กจ.5'));

@@ -1042,10 +1042,12 @@
             try {
               await persistCase(kase, {
                 status: 'IN_SUPPORT_SUB',
-                subCommittee: chosenSub,
                 complex: true,
                 resolutionData: {
-                  subCommittee: chosenSub,
+                  /* supportSubTeam ไม่ใช่ subCommittee — ชื่อ field ต้องไม่ชนกับ kase.subCommittee
+                     (คณะอนุกลั่นกรองฯ 1-8 ที่กองบริหารคดีตั้งค่า) เพราะ resolutionData จะถูก
+                     Object.assign ทับ kase ตรงๆ ตอนโหลดจาก Supabase (ดู supabaseRowToCase) */
+                  supportSubTeam: chosenSub,
                   assignedBy: 'secgen',
                   assignedAtIso: new Date().toISOString()
                 }

@@ -1428,7 +1428,7 @@ const CASES = [
     docRef:'ปป 0021/9203 ลงวันที่ 10 เมษายน 2569',
     urgent:false, urgent72:false, complex:false, complex72:false, dupWarning:false,
     slaDays:0, slaLimit:15, subCommittee:null,
-    docType:'RULING', signPhase:'WAIT'
+    docType:'644', signPhase:'WAIT'
   },
   {
     id:'9204/2569',
@@ -1445,7 +1445,7 @@ const CASES = [
     urgent:true, urgent72:true, urgentReason:'คดีใกล้ครบกำหนดอายุความภายใน 39 วัน เห็นควรเสนอบรรจุวาระด่วน',
     complex:false, complex72:false, dupWarning:false,
     slaDays:0, slaLimit:15, subCommittee:null,
-    docType:'RULING', signPhase:'WAIT'
+    docType:'644', signPhase:'WAIT'
   },
   {
     id:'กจ.201/2569',

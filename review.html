@@ -62,6 +62,13 @@
           <div class="card-header"><i class="fa-solid fa-paperclip"></i> ไฟล์แนบสำนวน</div>
           <div class="card-body">
             <div id="attachmentList" class="small text-muted">กำลังโหลด...</div>
+            <div id="urgentAttachRequired" class="alert alert-warning py-2 px-3 mt-2 mb-2 d-none" style="font-size:.82rem">
+              <i class="fa-solid fa-triangle-exclamation me-1"></i>สำนวนนี้เป็นกรณีเร่งด่วน — ต้องแนบไฟล์ใบด่วนก่อนจึงจะบันทึก/ลงนามได้
+            </div>
+            <div class="d-flex gap-2 mt-2">
+              <input type="file" id="urgentFileInput" class="form-control form-control-sm">
+              <button type="button" id="urgentFileBtn" class="btn btn-outline-primary btn-sm text-nowrap"><i class="fa-solid fa-upload me-1"></i>แนบไฟล์</button>
+            </div>
           </div>
         </div>
 
@@ -337,6 +344,7 @@
       return path;
     }
 
+    let attachmentCount = 0;
     async function renderAttachments(tccId) {
       const el = document.getElementById('attachmentList');
       if (!tccId) { el.textContent = 'ไม่พบเลขที่อ้างอิงสำนวนสำหรับไฟล์แนบ'; return; }
@@ -344,6 +352,7 @@
         .select('*').eq('tcc_id', tccId).eq('is_deleted', false)
         .order('created_datetime', { ascending: false });
       if (error) { el.textContent = 'โหลดรายการไฟล์แนบไม่สำเร็จ'; console.error('โหลดไฟล์แนบไม่สำเร็จ:', error); return; }
+      attachmentCount = data ? data.length : 0;
       if (!data || !data.length) { el.textContent = 'ยังไม่มีไฟล์แนบสำหรับสำนวนนี้'; return; }
       const rows = await Promise.all(data.map(async a => {
         const { data: signed } = await sb.storage.from('case-documents').createSignedUrl(a.trat_storage_path, 3600);
@@ -356,6 +365,25 @@
         </div>`;
       }));
       el.innerHTML = rows.join('');
+    }
+
+    function wireAttachmentUploader() {
+      const input = document.getElementById('urgentFileInput');
+      const btn = document.getElementById('urgentFileBtn');
+      if (!input || !btn) return;
+      btn.addEventListener('click', async () => {
+        const file = input.files[0];
+        if (!file) { ECMIS.toastWarn('กรุณาเลือกไฟล์ใบด่วนก่อน'); return; }
+        try {
+          await uploadAttachment(kase.tcc_id, file, role.id);
+          await renderAttachments(kase.tcc_id);
+          input.value = '';
+          ECMIS.toastOk('แนบไฟล์ใบด่วนเรียบร้อย');
+        } catch (err) {
+          console.error('แนบไฟล์ไม่สำเร็จ:', err);
+          ECMIS.toastWarn('แนบไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
+        }
+      });
     }
 
     let kase, docType, isRuling, secgenPendingStatus, alreadySigned, signed, g1;
@@ -388,6 +416,7 @@
       g1 = ECMIS.g1Triggers(kase);
 
       renderAttachments(kase.tcc_id);
+      wireAttachmentUploader();
       if (isRuling) { initRulingScreen(); } else { initReport213Screen(); }
       updatePaginationUI();
       applyZoom();
@@ -527,23 +556,24 @@
 
         /* ช่อง "เป็นกรณีเร่งด่วนหรือไม่?" — เดิมมีแค่ในหน้าจอ RULING (initRulingScreen)
            แต่เคสทั้งสาย 7.1 และ 7.2 ที่ยังอยู่ขั้นรายงาน 644/213 ก็ต้องเลือกด่วน/ไม่ด่วนได้
-           เช่นกัน (inbox.html ไม่ได้ตั้งค่านี้ไว้ล่วงหน้าให้ทุกเคส) — default ไม่เร่งด่วน */
+           เช่นกัน (inbox.html ไม่ได้ตั้งค่านี้ไว้ล่วงหน้าให้ทุกเคส) — default ไม่เร่งด่วน
+           ส่วนเคสที่ตั้งต้นเป็นด่วนมาแล้ว (มี badge "ด่วน" ใน inbox.html) ไม่ต้องให้เลือกซ้ำ
+           แต่บังคับแนบไฟล์ใบด่วนก่อนบันทึก/ลงนามแทน */
         const urgentBox = document.getElementById('urgentBox72');
+        const preFlaggedUrgent = !!kase.urgent;
         if (urgentBox) {
-          urgentBox.classList.remove('d-none');
-          const noEl = document.getElementById('urgentNo72');
-          const yesEl = document.getElementById('urgentYes72');
-          if (noEl && yesEl) {
-            yesEl.checked = !!kase.urgent;
-            noEl.checked = !kase.urgent;
+          urgentBox.classList.toggle('d-none', preFlaggedUrgent);
+          if (!preFlaggedUrgent) {
+            const noEl = document.getElementById('urgentNo72');
+            const yesEl = document.getElementById('urgentYes72');
+            if (noEl && yesEl) { yesEl.checked = false; noEl.checked = true; }
+            document.getElementById('urgentReasonBox72')?.classList.add('d-none');
+            document.querySelectorAll('[name="urgent72toggle"]').forEach(r => r.addEventListener('change', () => {
+              document.getElementById('urgentReasonBox72')?.classList.toggle('d-none', !urgentYes());
+            }));
           }
-          const reasonEl = document.getElementById('urgentReason72');
-          if (reasonEl && kase.urgent && kase.urgentReason) reasonEl.value = kase.urgentReason;
-          document.getElementById('urgentReasonBox72')?.classList.toggle('d-none', !kase.urgent);
-          document.querySelectorAll('[name="urgent72toggle"]').forEach(r => r.addEventListener('change', () => {
-            document.getElementById('urgentReasonBox72')?.classList.toggle('d-none', !urgentYes());
-          }));
         }
+        document.getElementById('urgentAttachRequired')?.classList.toggle('d-none', !preFlaggedUrgent);
       }
       if (role.id === 'support_sub') document.getElementById('g2Box').classList.remove('d-none');
 
@@ -1040,7 +1070,7 @@
             path = g1.diverged
               ? 'เรื่องมีความเห็นไม่ตรงกันในสายบังคับบัญชา จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ'
               : 'เลขาธิการฯ เห็นว่าเรื่องซับซ้อน จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ';
-          } else if (urgentYes()) {
+          } else if (kase.urgent || urgentYes()) {
             targetStatus = 'PENDING_URGENT';
             dest = 'ผู้อำนวยการกองบริหารคดี เพื่อรับรองเหตุผลเร่งด่วน';
             path = 'สำนวนเร่งด่วน: รับรองเหตุผลเร่งด่วนก่อนเสนอประธานฯ';
@@ -1050,20 +1080,25 @@
             path = 'สำนวนปกติ: เสนอประธานฯ พิจารณาสั่งการ';
           }
 
+          if (kase.urgent && attachmentCount === 0) {
+            ECMIS.toastWarn('สำนวนนี้เป็นกรณีเร่งด่วน — กรุณาแนบไฟล์ใบด่วนก่อนบันทึก/ลงนาม');
+            return;
+          }
           const urgentReasonEl = document.getElementById('urgentReason72');
-          if (urgentYes() && (!urgentReasonEl || !urgentReasonEl.value.trim())) {
+          if (!kase.urgent && urgentYes() && (!urgentReasonEl || !urgentReasonEl.value.trim())) {
             ECMIS.toastWarn('กรุณาระบุเหตุผลที่ถือเป็นกรณีเร่งด่วน');
             return;
           }
 
           try {
-            const urgentNow = urgentYes();
+            const urgentNow = kase.urgent || urgentYes();
+            const urgentReasonNow = kase.urgent ? (kase.urgentReason || '') : (urgentNow ? urgentReasonEl.value.trim() : '');
             await persistCase(kase, {
               status: targetStatus,
               signedBySecgen: true,
               secgenSignedAt: new Date().toLocaleString('th-TH'),
               urgent: urgentNow,
-              resolutionData: { urgentReason: urgentNow ? urgentReasonEl.value.trim() : '' }
+              resolutionData: { urgentReason: urgentReasonNow }
             });
           } catch (err) {
             console.error('บันทึกสถานะไม่สำเร็จ:', err);

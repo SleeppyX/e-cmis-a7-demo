@@ -271,7 +271,7 @@
     ECMIS.renderShell('resolution-72.html');
 
     const params = new URLSearchParams(location.search);
-    const kase = ECMIS.requireCase(params.get('case') || '2015/2569');
+    const kase = ECMIS.requireCase(params.get('case') || '2016/2569');
     if (!kase) throw new Error('ECMIS_CASE_NOT_FOUND');
     const role = ECMIS.currentRole();
 
@@ -1072,7 +1072,7 @@
       if (!sb) return;
       let live;
       try {
-        live = await loadCaseFromSupabase(params.get('case') || '2015/2569');
+        live = await loadCaseFromSupabase(params.get('case') || '2016/2569');
       } catch (err) {
         console.warn('โหลดข้อมูลจากฐานข้อมูลไม่สำเร็จ ใช้ข้อมูลจำลองต่อไป:', err);
         return;

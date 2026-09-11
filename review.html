@@ -378,7 +378,11 @@
 
       docType = ECMIS.DOC_TYPES[kase.docType];
       isRuling = docType.code === 'RULING';
-      secgenPendingStatus = isRuling ? 'PENDING_SECGEN_72' : 'PENDING_SECGEN';
+      /* secgenPendingStatus ต้องอิงว่าเคสอยู่สาย 7.1/7.2 (ECMIS.isCase72) ไม่ใช่อิงจาก isRuling —
+         เคส 7.2 ที่ขั้นเลขาธิการฯ พิจารณายังตรวจ "รายงานการไต่สวนข้อเท็จจริง" (docType 644,
+         isRuling=false) อยู่เป็นปกติ (รายงานวินิจฉัยชี้มูล/RULING เกิดทีหลังตอนหลังบอร์ดลงมติ)
+         เดิมใช้ isRuling ทำให้เคส 7.2+docType 644 โดนตีความว่า "ลงนามไปแล้ว" ทั้งที่ยังไม่ได้ลงนาม */
+      secgenPendingStatus = ECMIS.isCase72(kase) ? 'PENDING_SECGEN_72' : 'PENDING_SECGEN';
       alreadySigned = kase.status !== secgenPendingStatus && !ECMIS.isUpstreamCase(kase);
       signed = alreadySigned;
       g1 = ECMIS.g1Triggers(kase);
@@ -520,6 +524,26 @@
         document.getElementById('m28Card').classList.remove('d-none');
         document.getElementById('g1Box').classList.remove('d-none');
         document.getElementById('signCard').classList.remove('d-none');
+
+        /* ช่อง "เป็นกรณีเร่งด่วนหรือไม่?" — เดิมมีแค่ในหน้าจอ RULING (initRulingScreen)
+           แต่เคสทั้งสาย 7.1 และ 7.2 ที่ยังอยู่ขั้นรายงาน 644/213 ก็ต้องเลือกด่วน/ไม่ด่วนได้
+           เช่นกัน (inbox.html ไม่ได้ตั้งค่านี้ไว้ล่วงหน้าให้ทุกเคส) — default ไม่เร่งด่วน */
+        const urgentBox = document.getElementById('urgentBox72');
+        if (urgentBox) {
+          urgentBox.classList.remove('d-none');
+          const noEl = document.getElementById('urgentNo72');
+          const yesEl = document.getElementById('urgentYes72');
+          if (noEl && yesEl) {
+            yesEl.checked = !!kase.urgent;
+            noEl.checked = !kase.urgent;
+          }
+          const reasonEl = document.getElementById('urgentReason72');
+          if (reasonEl && kase.urgent && kase.urgentReason) reasonEl.value = kase.urgentReason;
+          document.getElementById('urgentReasonBox72')?.classList.toggle('d-none', !kase.urgent);
+          document.querySelectorAll('[name="urgent72toggle"]').forEach(r => r.addEventListener('change', () => {
+            document.getElementById('urgentReasonBox72')?.classList.toggle('d-none', !urgentYes());
+          }));
+        }
       }
       if (role.id === 'support_sub') document.getElementById('g2Box').classList.remove('d-none');
 
@@ -580,6 +604,11 @@
       function g1Yes() {
         const g1yes = document.getElementById('g1yes');
         return g1yes ? g1yes.checked : false;
+      }
+
+      function urgentYes() {
+        const el = document.getElementById('urgentYes72');
+        return el ? el.checked : false;
       }
 
       /* ---- G3: สถานะใบด่วนของสำนวน ---- */
@@ -1011,7 +1040,7 @@
             path = g1.diverged
               ? 'เรื่องมีความเห็นไม่ตรงกันในสายบังคับบัญชา จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ'
               : 'เลขาธิการฯ เห็นว่าเรื่องซับซ้อน จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ';
-          } else if (kase.urgent) {
+          } else if (urgentYes()) {
             targetStatus = 'PENDING_URGENT';
             dest = 'ผู้อำนวยการกองบริหารคดี เพื่อรับรองเหตุผลเร่งด่วน';
             path = 'สำนวนเร่งด่วน: รับรองเหตุผลเร่งด่วนก่อนเสนอประธานฯ';
@@ -1021,11 +1050,20 @@
             path = 'สำนวนปกติ: เสนอประธานฯ พิจารณาสั่งการ';
           }
 
+          const urgentReasonEl = document.getElementById('urgentReason72');
+          if (urgentYes() && (!urgentReasonEl || !urgentReasonEl.value.trim())) {
+            ECMIS.toastWarn('กรุณาระบุเหตุผลที่ถือเป็นกรณีเร่งด่วน');
+            return;
+          }
+
           try {
+            const urgentNow = urgentYes();
             await persistCase(kase, {
               status: targetStatus,
               signedBySecgen: true,
-              secgenSignedAt: new Date().toLocaleString('th-TH')
+              secgenSignedAt: new Date().toLocaleString('th-TH'),
+              urgent: urgentNow,
+              resolutionData: { urgentReason: urgentNow ? urgentReasonEl.value.trim() : '' }
             });
           } catch (err) {
             console.error('บันทึกสถานะไม่สำเร็จ:', err);

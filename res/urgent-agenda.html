@@ -198,7 +198,12 @@
         document.getElementById('stepCardTitle').textContent = 'ลงนามมอบหมาย/บรรจุวาระด่วน (ประธานฯ)';
         document.getElementById('stepCardBody').innerHTML = `
       <label class="form-label">เหตุผลความเร่งด่วนที่ ${dirCase.title} รับรองไว้</label>
-      <textarea class="form-control" rows="5" readonly>${kase.urgentReason || ''}</textarea>`;
+      <textarea class="form-control" rows="4" readonly>${kase.urgentReason || ''}</textarea>
+      <label class="form-label mt-3">ความเห็น/เหตุผลของประธานฯ
+        <span class="text-muted">(บังคับกรอกเมื่อ "ส่งเข้าคณะอนุกลั่นกรองฯ" หรือ "ตีกลับให้แก้ไข")</span></label>
+      <textarea class="form-control" id="chairUrgentNote" rows="3"
+        placeholder="ระบุเหตุผล เช่น ยังไม่เร่งด่วนจริง มีประเด็นต้องตรวจสอบเพิ่มเติม / สำนวนยังไม่สมบูรณ์...">${kase.urgentRejectNote || kase.urgentReturnNote || ''}</textarea>
+      <div class="val-msg val-err" data-for="chairUrgentNote">กรุณาระบุเหตุผลของประธานฯ ก่อนดำเนินการ</div>`;
       } else {
         document.getElementById('stepCardTitle').textContent = 'ไม่อยู่ในขั้นตอนคำร้องขอบรรจุวาระด่วน';
         document.getElementById('stepCardBody').innerHTML = `
@@ -276,7 +281,11 @@
         return [{ act: 'certify', label: 'รับรองและส่งประธานฯ', icon: 'fa-check', cls: 'btn-navy' }];
       }
       if (isSignStep) {
-        return [{ act: 'sign', label: 'ลงนามมอบหมาย/บรรจุวาระด่วน', icon: 'fa-signature', cls: 'btn-gold' }];
+        return [
+          { act: 'sign', label: 'ลงนามมอบหมาย/บรรจุวาระด่วน', icon: 'fa-signature', cls: 'btn-gold' },
+          { act: 'sendScreening', label: 'ส่งเข้าคณะอนุกลั่นกรองฯ (ยังไม่ด่วนจริง)', icon: 'fa-people-arrows', cls: 'btn-navy' },
+          { act: 'returnOwner', label: 'ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข', icon: 'fa-rotate-left', cls: 'btn-outline-danger' }
+        ];
       }
       return [];
     }
@@ -345,6 +354,77 @@
             ECMIS.toastOk('ลงนามมอบหมาย/บรรจุวาระด่วนเรียบร้อย');
             setTimeout(() => location.href = 'agenda.html?case=' + encodeURIComponent(kase.id), 1400);
           });
+      }
+
+      if (act === 'sendScreening' || act === 'returnOwner') {
+        const ta = document.getElementById('chairUrgentNote');
+        const msg = document.querySelector('.val-msg[data-for="chairUrgentNote"]');
+        const reason = ta ? ta.value.trim() : '';
+        if (!reason) {
+          if (ta) ta.classList.add('is-invalid-ecmis');
+          if (msg) msg.classList.add('show');
+          ECMIS.toastWarn('กรุณาระบุเหตุผลของประธานฯ ก่อนดำเนินการ');
+          return;
+        }
+        if (ta) ta.classList.remove('is-invalid-ecmis');
+        if (msg) msg.classList.remove('show');
+        const today = new Date().toISOString().slice(0, 10);
+
+        if (act === 'sendScreening') {
+          ECMIS.confirmAction({
+            title: 'ส่งเข้าคณะอนุกลั่นกรองฯ',
+            html: `<p>สำนวน <strong>${kase.id}</strong> จะ<strong>ไม่บรรจุวาระด่วน</strong> และถูกส่งให้กองบริหารคดีกระจายเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘ ตามขั้นตอนปกติ</p>`,
+            confirmText: 'ยืนยันส่งกลั่นกรอง'
+          }).then(async res => {
+            if (!res.isConfirmed) return;
+            ECMIS.pushCaseHistory(kase, {
+              from: kase.status, to: 'IN_SCREENING_72', event: 'URGENT_REJECT_72',
+              actor: 'chairman', note: reason
+            });
+            try {
+              await persistCase(kase, {
+                status: 'IN_SCREENING_72',
+                urgentRejectNote: reason,
+                urgentRejectedDate72: today,
+                history: kase.history
+              });
+            } catch (err) {
+              console.error('ส่งเข้าคณะอนุกลั่นกรองฯ ไม่สำเร็จ:', err);
+              ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+              return;
+            }
+            ECMIS.toastOk('ส่งเข้าคณะอนุกลั่นกรองฯ แล้ว — รอกองบริหารคดีกระจายสำนวน');
+            setTimeout(() => location.reload(), 1400);
+          });
+          return;
+        }
+
+        ECMIS.confirmAction({
+          title: 'ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข',
+          html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งคืนผู้รับผิดชอบสำนวนเพื่อแก้ไขให้สมบูรณ์ แล้วเสนอกลับตามลำดับชั้น</p>`,
+          confirmText: 'ยืนยันตีกลับ'
+        }).then(async res => {
+          if (!res.isConfirmed) return;
+          ECMIS.pushCaseHistory(kase, {
+            from: kase.status, to: 'RETURNED_72', event: 'URGENT_RETURN_OWNER_72',
+            actor: 'chairman', note: reason
+          });
+          try {
+            await persistCase(kase, {
+              status: 'RETURNED_72',
+              urgentReturnNote: reason,
+              urgentReturnedDate72: today,
+              history: kase.history
+            });
+          } catch (err) {
+            console.error('ตีกลับให้แก้ไขไม่สำเร็จ:', err);
+            ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+            return;
+          }
+          ECMIS.toastOk('ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไขแล้ว');
+          setTimeout(() => location.reload(), 1400);
+        });
+        return;
       }
     }
     }

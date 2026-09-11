@@ -184,8 +184,10 @@ const STATUS = {
   IN_SUPPORT_SUB_72:   { label:'ส่งคณะอนุสนับสนุนเลขาธิการฯ พิจารณาแล้ว',        cls:'st-review',  owner:'support_sub' },
   PENDING_URGENT_72:   { label:'รอ ผอ.กบค. รับรองเหตุผลเร่งด่วน',                cls:'st-urgent',  owner:'dir_case' },
   PENDING_CHAIRMAN_URGENT_72: { label:'รอประธานฯ ลงนามมอบหมาย / บรรจุวาระด่วน',  cls:'st-pending', owner:'chairman' },
+  PENDING_CHAIRMAN_72: { label:'รอประธานฯ ลงนามมอบหมาย (ส่งคณะอนุกลั่นกรองฯ)',   cls:'st-pending', owner:'chairman' },
   IN_SCREENING_72:     { label:'อยู่คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง',      cls:'st-review',  owner:'subcommittee' },
   SCREENING_MORE_INFO_72: { label:'อนุกลั่นกรองฯ ขอข้อมูลเพิ่มเติม (วินิจฉัยชี้มูล)', cls:'st-review', owner:'subcommittee' },
+  PENDING_SIGN_AGENDA_72: { label:'รอประธานฯ ลงนามสั่งบรรจุวาระ (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'chairman' },
   PENDING_INVITE_72:   { label:'รอจัดทำหนังสือเชิญประชุม',                       cls:'st-pending', owner:'board_sec' },
   IN_MEETING_72:       { label:'อยู่ระหว่างประชุมบอร์ด (วินิจฉัยชี้มูล)',         cls:'st-review',  owner:'board_sec' },
   RESOLVED_PENDING_72: { label:'มีมติแล้ว รอจัดทำรายงานวินิจฉัยชี้มูล',          cls:'st-pending', owner:'affairs' },
@@ -210,7 +212,8 @@ const STATUS_CODE = {
   PENDING_SECGEN_72:'104', IN_SUPPORT_SUB_72:'105', PENDING_URGENT_72:'106', PENDING_CHAIRMAN_URGENT_72:'107',
   IN_SCREENING_72:'108', PENDING_INVITE_72:'109', IN_MEETING_72:'110', RESOLVED_PENDING_72:'111',
   PENDING_SIGN_RULING_72:'112', PENDING_AREA_NOTICE_72:'113', DISPATCHING_NACC_72:'114',
-  PENDING_DISPATCH_GUILTY_72:'115', CLOSED_72:'116', SCREENING_MORE_INFO_72:'117'
+  PENDING_DISPATCH_GUILTY_72:'115', CLOSED_72:'116', SCREENING_MORE_INFO_72:'117',
+  PENDING_CHAIRMAN_72:'118', PENDING_SIGN_AGENDA_72:'119'
 };
 const CODE_STATUS = Object.fromEntries(Object.entries(STATUS_CODE).map(([k, v]) => [v, k]));
 
@@ -308,22 +311,39 @@ const TRANSITIONS = [
     note:'สำนวนมีประเด็นซับซ้อนยุ่งยาก — เข้าคณะอนุกรรมการสนับสนุนเลขาธิการฯ ก่อน' },
   { from:'PENDING_SECGEN_72', to:'PENDING_URGENT_72', event:'SIGN_URGENT_72', actor:'secgen',
     ref:'เสนอขอเพิ่มวาระด่วน', guard:k => !k.complex72 && !!k.urgent72 },
-  { from:'PENDING_SECGEN_72', to:'IN_SCREENING_72', event:'SIGN_NORMAL_72', actor:'secgen',
-    ref:'เสนอเข้าการกลั่นกรองปกติ', guard:k => !k.complex72 && !k.urgent72 },
+  { from:'PENDING_SECGEN_72', to:'PENDING_CHAIRMAN_72', event:'SIGN_NORMAL_72', actor:'secgen',
+    ref:'เสนอประธานฯ ลงนามมอบหมายก่อนส่งกลั่นกรอง', guard:k => !k.complex72 && !k.urgent72 },
   { from:'IN_SUPPORT_SUB_72', to:'PENDING_URGENT_72', event:'SUPPORT_DONE_URGENT_72', actor:'support_sub',
     ref:'เห็นชอบวาระด่วน', guard:k => !!k.urgent72 },
-  { from:'IN_SUPPORT_SUB_72', to:'IN_SCREENING_72', event:'SUPPORT_DONE_72', actor:'support_sub',
-    ref:'เห็นชอบวาระปกติ', guard:k => !k.urgent72 },
+  { from:'IN_SUPPORT_SUB_72', to:'PENDING_CHAIRMAN_72', event:'SUPPORT_DONE_72', actor:'support_sub',
+    ref:'เห็นชอบวาระปกติ — เสนอประธานฯ ลงนามมอบหมาย', guard:k => !k.urgent72 },
 
   { from:'PENDING_URGENT_72', to:'PENDING_CHAIRMAN_URGENT_72', event:'URGENT_CERTIFY_72', actor:'dir_case',
     ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. รับรองเหตุผลเร่งด่วน' },
   { from:'PENDING_CHAIRMAN_URGENT_72', to:'PENDING_INVITE_72', event:'AGENDA_URGENT_72', actor:'chairman',
     ref:'ลงนามบรรจุวาระด่วน', note:'ประธานฯ ลงนามมอบหมาย/บรรจุวาระด่วน — ข้ามขั้นตอนการกลั่นกรอง' },
+  { from:'PENDING_CHAIRMAN_URGENT_72', to:'IN_SCREENING_72', event:'URGENT_REJECT_72', actor:'chairman',
+    ref:'ประธานฯ เห็นว่ายังไม่ด่วนจริง — ส่งเข้าคณะอนุกลั่นกรองฯ',
+    note:'ไม่บรรจุวาระด่วน — เข้าเส้นทางกลั่นกรองปกติ (กบค. กระจายเข้าคณะที่ ๑–๘)' },
+  { from:'PENDING_CHAIRMAN_URGENT_72', to:'RETURNED_72', event:'URGENT_RETURN_OWNER_72', actor:'chairman',
+    ref:'ประธานฯ ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข',
+    note:'ส่งคืนเจ้าของสำนวน (RETURNED_72 owner=owner) — แก้ไขแล้วเสนอกลับตามสาย' },
 
-  { from:'IN_SCREENING_72', to:'PENDING_INVITE_72', event:'SCREEN_DONE_72', actor:'subcommittee',
-    ref:'กลั่นกรองและบรรจุวาระ',
+  { from:'PENDING_CHAIRMAN_72', to:'IN_SCREENING_72', event:'ORDER_SCREENING_72', actor:'chairman',
+    ref:'ประธานฯ ลงนามมอบหมาย — ส่งคณะอนุกลั่นกรองฯ (กบค. กระจายเข้าคณะที่ ๑–๘)',
+    note:'เคสไม่ด่วน 7.2 — ประธานฯ ลงนามในบันทึกมอบหมายก่อนเข้าชั้นกลั่นกรอง' },
+  { from:'PENDING_CHAIRMAN_72', to:'RETURNED_72', event:'CHAIRMAN_RETURN_72', actor:'chairman',
+    ref:'ประธานฯ ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข',
+    note:'ส่งคืนเจ้าของสำนวน (RETURNED_72 owner=owner) — แก้ไขแล้วเสนอกลับตามสาย' },
+
+  { from:'IN_SCREENING_72', to:'PENDING_SIGN_AGENDA_72', event:'SCREEN_DONE_72', actor:'subcommittee',
+    ref:'กลั่นกรองแล้วเสร็จ — เสนอประธานฯ ลงนามสั่งบรรจุวาระ',
     guard:k => !k.subOutcome || (SUB_OUTCOME_MAP[k.subOutcome] || {}).localStatus === 'DONE',
     note:'อนุญาตเมื่อ subOutcome เป็นกลุ่ม DONE (ชี้มูล / ไม่ชี้มูล / ตกไป) — "ทำเพิ่มเติม" ต้องใช้ SCREENING_RETURN_72' },
+  { from:'PENDING_SIGN_AGENDA_72', to:'PENDING_INVITE_72', event:'SIGN_AGENDA_72', actor:'chairman',
+    ref:'ประธานฯ ลงนามสั่งบรรจุระเบียบวาระการประชุมคณะกรรมการ ป.ป.ท. (วาระที่ ๕)' },
+  { from:'PENDING_SIGN_AGENDA_72', to:'IN_SCREENING_72', event:'CHAIRMAN_RETURN_SCREENING_72', actor:'chairman',
+    ref:'ประธานฯ ตีกลับให้คณะอนุกลั่นกรองฯ ทบทวนความเห็น' },
   { from:'IN_SCREENING_72', to:'SCREENING_MORE_INFO_72', event:'REQUEST_MORE_INFO_72', actor:'subcommittee',
     ref:'ขอข้อมูล/เอกสารเพิ่มเติมจากเจ้าของสำนวน', note:'หยุดนับ SLA จนกว่าเจ้าของสำนวนส่งข้อมูลกลับ' },
   { from:'SCREENING_MORE_INFO_72', to:'IN_SCREENING_72', event:'MORE_INFO_SUPPLIED_72', actor:'subcommittee',
@@ -481,15 +501,32 @@ function caseAdminIntakeStep(kase){
   return caseAdminRouted(kase) ? 'DONE' : 'ROUTED';
 }
 
-/* โควตาคณะอนุกลั่นกรองฯ ๑–๘ (ชุดเดียวกับการ์ด Auto-Routing ใน screening.html) */
-const SUBCOMMITTEE_QUOTA = [
-  { n:1, used:40 }, { n:2, used:38 }, { n:3, used:22 }, { n:4, used:31 },
-  { n:5, used:40 }, { n:6, used:19 }, { n:7, used:27 }, { n:8, used:35 }
-];
-/* คณะถัดไปแบบ round-robin — เลือกคณะที่ใช้ไปน้อยสุดที่ยังไม่เต็ม (used < 40) */
-function nextSubcommitteeTeam(){
-  const avail = SUBCOMMITTEE_QUOTA.filter(q => q.used < 40).sort((a, b) => a.used - b.used);
-  return 'คณะที่ ' + (avail.length ? avail[0].n : 1);
+/* สถานะที่ถือว่าสำนวน "ยังค้างอยู่ระหว่างการกลั่นกรอง" ของคณะอนุกลั่นกรองฯ
+   (ชุดเดียวกับ ACTIVE_SCREEN ใน subcommittee-inbox.html เพื่อให้ตัวเลขตรงกัน) */
+const SUBCOMMITTEE_ACTIVE_STATUSES = ['IN_SCREENING', 'IN_SCREENING_72', 'SCREENING_MORE_INFO', 'SCREENING_MORE_INFO_72'];
+
+/* นับจำนวนสำนวนที่ยังค้างอยู่ระหว่างกลั่นกรองของแต่ละคณะ ๑–๘ จากข้อมูลจริง
+   (ค่าเริ่มต้นอ่านจาก CASES ในโมดูล — หน้าที่โหลด Supabase เองให้ส่ง array สดเข้ามา)
+   คืน { 'คณะที่ 1': n, ..., 'คณะที่ 8': n } */
+function subcommitteeActiveLoad(cases){
+  const list = Array.isArray(cases) ? cases : CASES;
+  const load = {};
+  SUBCOMMITTEE_TEAMS.forEach(t => { load[t] = 0; });
+  (list || []).forEach(c => {
+    if (c && c.subCommittee && Object.prototype.hasOwnProperty.call(load, c.subCommittee)
+        && SUBCOMMITTEE_ACTIVE_STATUSES.includes(c.status)) {
+      load[c.subCommittee]++;
+    }
+  });
+  return load;
+}
+/* คณะถัดไปแบบ round-robin — เลือกคณะที่มีสำนวนค้างจริงน้อยที่สุด
+   (เสมอกัน → เลขคณะน้อยกว่ามาก่อน) */
+function nextSubcommitteeTeam(cases){
+  const load = subcommitteeActiveLoad(cases);
+  return SUBCOMMITTEE_TEAMS.slice().sort((a, b) =>
+    (load[a] - load[b]) || (SUBCOMMITTEE_TEAMS.indexOf(a) - SUBCOMMITTEE_TEAMS.indexOf(b))
+  )[0];
 }
 
 /* ฐานอำนาจ / กฎหมายที่เกี่ยวข้อง (law box) — เฉพาะงาน "ด่านรับ" ของ กบค. อ้าง law_pacc_68.pdf */
@@ -609,6 +646,8 @@ const PAGE_FOR_72 = {
   PENDING_SECGEN_72:'approval-review.html',
   IN_SUPPORT_SUB_72:'support-subcommittee.html',
   PENDING_URGENT_72:'urgent-agenda.html', PENDING_CHAIRMAN_URGENT_72:'urgent-agenda.html',
+  PENDING_CHAIRMAN_72:'chairman-agenda.html',
+  PENDING_SIGN_AGENDA_72:'chairman-agenda.html',
   IN_SCREENING_72:'subcommittee-screening.html',
   SCREENING_MORE_INFO_72:'subcommittee-screening.html',
   PENDING_INVITE_72:'agenda-registry.html',
@@ -880,7 +919,7 @@ const ACT7_STATUSES_72 = [
 ];
 const ACT7_STAGE_72 = {
   PENDING_SECTION_72:0, PENDING_DIRECTOR_72:0, PENDING_DEPUTY_72:0, RETURNED_72:0, PENDING_SECGEN_72:0,
-  IN_SUPPORT_SUB_72:1, PENDING_URGENT_72:1, PENDING_CHAIRMAN_URGENT_72:1, IN_SCREENING_72:1, PENDING_INVITE_72:1,
+  IN_SUPPORT_SUB_72:1, PENDING_URGENT_72:1, PENDING_CHAIRMAN_URGENT_72:1, PENDING_CHAIRMAN_72:1, IN_SCREENING_72:1, PENDING_SIGN_AGENDA_72:1, PENDING_INVITE_72:1,
   IN_MEETING_72:2,
   RESOLVED_PENDING_72:3, PENDING_SIGN_RULING_72:3,
   PENDING_AREA_NOTICE_72:4, DISPATCHING_NACC_72:4, PENDING_DISPATCH_GUILTY_72:4,
@@ -2070,7 +2109,7 @@ const CASES = [
     id:'1155/2566',
     subject:'รายงานการไต่สวนข้อเท็จจริงเพื่อวินิจฉัยชี้มูล กรณีเจ้าหน้าที่ศูนย์พัฒนาฝีมือแรงงานทุจริตเบิกจ่ายเงินเบี้ยเลี้ยงโครงการฝึกอบรมอาชีพ',
     legalBase:'ม.24 วรรคท้าย',
-    status:'PENDING_SECGEN_72',
+    status:'PENDING_CHAIRMAN_72',
     procType:'7.2',
     owner:'นางสาวปรียา ตั้งมั่น (นักสืบสวนสอบสวนชำนาญการ)',
     ownerOrg:'กองปราบปรามการทุจริตในภาครัฐ 2',
@@ -2081,8 +2120,8 @@ const CASES = [
     allegation:'จัดทำรายชื่อผู้เข้ารับการอบรมอันเป็นเท็จเพื่อเบิกจ่ายเงินเบี้ยเลี้ยงและค่าอาหารว่างโครงการฝึกอบรมอาชีพ เสียหายแก่ราชการ 450,000 บาท',
     receivedDate:'2569-05-16', deadline60:'2569-07-15', deadline2y:'2571-05-16', prescription:'2574-01-10',
     docRef:'ปป 0021/0770 ลงวันที่ 16 พฤษภาคม 2569',
-    urgent:false, complex:false, dupWarning:false,
-    slaDays:2, slaLimit:15, subCommittee:'คณะที่ 8',
+    urgent:false, complex:false, complex72:false, urgent72:false, dupWarning:false,
+    slaDays:2, slaLimit:15, subCommittee:'',
     docType:'RULING', signPhase:'IN_PROGRESS',
     chainOpinions:[
       { roleId:'section_head', type:'ACCEPT', note:'ตรวจสอบหลักฐานการเบิกจ่ายเปรียบเทียบกับพยานบุคคลแล้วมีมูลตามข้อกล่าวหา', date:'2569-05-18' },
@@ -2685,7 +2724,7 @@ const STATUS_STEP_73 = {
 const STATUS_STEP_72 = {
   PENDING_SECTION_72:'secgen72', PENDING_DIRECTOR_72:'secgen72', PENDING_DEPUTY_72:'secgen72', RETURNED_72:'secgen72',
   PENDING_SECGEN_72:'secgen72',
-  IN_SUPPORT_SUB_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72',
+  IN_SUPPORT_SUB_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', PENDING_CHAIRMAN_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72', PENDING_SIGN_AGENDA_72:'agenda72',
   PENDING_INVITE_72:'meeting72', IN_MEETING_72:'meeting72',
   RESOLVED_PENDING_72:'ruling72', PENDING_SIGN_RULING_72:'ruling72',
   PENDING_AREA_NOTICE_72:'dispatch72', DISPATCHING_NACC_72:'dispatch72', PENDING_DISPATCH_GUILTY_72:'dispatch72',
@@ -7095,7 +7134,7 @@ if (typeof localStorage !== 'undefined') {
   SUB_OUTCOME_MAP, SUB_SCREENING_STATUS, subOutcomeOptions, mapSubOutcome,
   subScreeningStatus, slaEffectiveDays, slaIsOnHold, isScreeningLocked, pushCaseHistory,
   CASE_ADMIN_INTAKE, CASE_ADMIN_SCREEN_STATUSES, isCaseAdminQueue, caseAdminRouted,
-  caseAdminIntakeStep, SUBCOMMITTEE_QUOTA, nextSubcommitteeTeam, CASE_ADMIN_LAW, caseAdminLaw,
+  caseAdminIntakeStep, SUBCOMMITTEE_ACTIVE_STATUSES, subcommitteeActiveLoad, nextSubcommitteeTeam, CASE_ADMIN_LAW, caseAdminLaw,
   BOARD_MIN_IN_OFFICE, boardQuorum,
   M24P1_MIN_PANEL, M24P1_STAFF_FREE, panelComposition,
   CONFIG, RETURN_SCOPES, MATERIAL_FIELDS, daysUntil,

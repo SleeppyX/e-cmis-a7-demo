@@ -980,7 +980,7 @@
           }).then(async res => {
             if (res.isConfirmed) {
               try {
-                await persistCase(kase, { status: 'RETURNED' });
+                await persistCase(kase, { status: ECMIS.isCase72(kase) ? 'RETURNED_72' : 'RETURNED' });
                 if (res.value.f) {
                   await uploadAttachment(kase.tcc_id, res.value.f, role.id);
                   renderAttachments(kase.tcc_id);
@@ -1041,7 +1041,7 @@
             // Change status to IN_SUPPORT_SUB directly without signing
             try {
               await persistCase(kase, {
-                status: 'IN_SUPPORT_SUB',
+                status: ECMIS.isCase72(kase) ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB',
                 complex: true,
                 resolutionData: {
                   /* supportSubTeam ไม่ใช่ subCommittee — ชื่อ field ต้องไม่ชนกับ kase.subCommittee
@@ -1052,10 +1052,10 @@
                   assignedAtIso: new Date().toISOString()
                 }
               });
-              await ECMIS.logRequestEvent(kase.trr_id, kase.status, 'IN_SUPPORT_SUB', {
+              await ECMIS.logRequestEvent(kase.trr_id, kase.status, kase.status, {
                 type: 'ASSIGN_SUPPORT_SUB',
                 actorRole: 'secgen',
-                data: { subCommittee: chosenSub }
+                data: { supportSubTeam: chosenSub }
               });
             } catch (err) {
               console.error('มอบหมายไม่สำเร็จ:', err);
@@ -1085,26 +1085,27 @@
           const m28 = m28Selected();
           const complex = g1Yes();
           const hasSupportOpinion = !!(kase.supportOpinion || kase.supportOpinion72 || kase.supportDecision);
+          const is72 = ECMIS.isCase72(kase);
           let dest, path, targetStatus;
 
           if (m28 !== 'ACCEPT') {
             const lawSel = document.getElementById('m28Law');
             const order = ECMIS.m28Order(m28);
-            targetStatus = 'CLOSED';
+            targetStatus = is72 ? 'CLOSED_72' : 'CLOSED';
             dest = order.label;
             path = `ม.28 — ${order.label} (${order.lawRef} มาตรา ${lawSel ? lawSel.value : ''})`;
           } else if (complex && !hasSupportOpinion) {
-            targetStatus = 'IN_SUPPORT_SUB';
+            targetStatus = is72 ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB';
             dest = 'คณะอนุกรรมการสนับสนุนเลขาธิการฯ';
             path = g1.diverged
               ? 'เรื่องมีความเห็นไม่ตรงกันในสายบังคับบัญชา จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ'
               : 'เลขาธิการฯ เห็นว่าเรื่องซับซ้อน จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ';
           } else if (kase.urgent) {
-            targetStatus = 'PENDING_URGENT';
+            targetStatus = is72 ? 'PENDING_URGENT_72' : 'PENDING_URGENT';
             dest = 'ผู้อำนวยการกองบริหารคดี เพื่อรับรองเหตุผลเร่งด่วน';
             path = 'สำนวนเร่งด่วน: รับรองเหตุผลเร่งด่วนก่อนเสนอประธานฯ';
           } else {
-            targetStatus = 'PENDING_CHAIRMAN';
+            targetStatus = is72 ? 'PENDING_CHAIRMAN_72' : 'PENDING_CHAIRMAN';
             dest = 'ประธานกรรมการ ป.ป.ท.';
             path = hasSupportOpinion
               ? 'ผ่านการกลั่นกรองโดยคณะอนุสนับสนุนฯ แล้ว — เสนอประธานฯ เพื่อพิจารณาสั่งการบรรจุวาระการประชุม'

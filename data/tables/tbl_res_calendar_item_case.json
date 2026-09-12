@@ -1,0 +1,308 @@
+[
+  {
+    "trcic_id": 1,
+    "trci_id": 33,
+    "trr_id": 4,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 2,
+    "trci_id": 34,
+    "trr_id": 6,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 6,
+    "trci_id": 39,
+    "trr_id": 23,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 7,
+    "trci_id": 1,
+    "trr_id": 33,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 8,
+    "trci_id": 2,
+    "trr_id": 3,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 9,
+    "trci_id": 3,
+    "trr_id": 5,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 10,
+    "trci_id": 33,
+    "trr_id": 32,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 11,
+    "trci_id": 34,
+    "trr_id": 34,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 14,
+    "trci_id": 39,
+    "trr_id": 30,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 15,
+    "trci_id": 4,
+    "trr_id": 2,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 16,
+    "trci_id": 5,
+    "trr_id": 31,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 17,
+    "trci_id": 37,
+    "trr_id": 6,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 18,
+    "trci_id": 40,
+    "trr_id": 20,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 19,
+    "trci_id": 41,
+    "trr_id": 68,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 4,
+    "trci_id": 36,
+    "trr_id": 1,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "เห็นควรรับไว้ไต่สวนเบื้องต้น"
+  },
+  {
+    "trcic_id": 12,
+    "trci_id": 36,
+    "trr_id": 4,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "เห็นควรรับไว้ไต่สวนเบื้องต้น"
+  },
+  {
+    "trcic_id": 5,
+    "trci_id": 38,
+    "trr_id": 18,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "อนุกรรมการกลั่นกรองมีความเห็นแย้ง ไม่รับไว้ไต่สวน"
+  },
+  {
+    "trcic_id": 13,
+    "trci_id": 38,
+    "trr_id": 1,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "อนุกรรมการกลั่นกรองมีความเห็นแย้ง ไม่รับไว้ไต่สวน"
+  },
+  {
+    "trcic_id": 20,
+    "trci_id": 43,
+    "trr_id": 71,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 21,
+    "trci_id": 44,
+    "trr_id": 72,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 22,
+    "trci_id": 45,
+    "trr_id": 73,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 23,
+    "trci_id": 46,
+    "trr_id": 74,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 24,
+    "trci_id": 47,
+    "trr_id": 75,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 25,
+    "trci_id": 48,
+    "trr_id": 76,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 26,
+    "trci_id": 49,
+    "trr_id": 77,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 27,
+    "trci_id": 50,
+    "trr_id": 85,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 28,
+    "trci_id": 50,
+    "trr_id": 86,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 29,
+    "trci_id": 53,
+    "trr_id": 87,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 30,
+    "trci_id": 55,
+    "trr_id": 50,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 31,
+    "trci_id": 57,
+    "trr_id": 78,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 32,
+    "trci_id": 57,
+    "trr_id": 79,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 33,
+    "trci_id": 57,
+    "trr_id": 80,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 34,
+    "trci_id": 58,
+    "trr_id": 55,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  },
+  {
+    "trcic_id": 35,
+    "trci_id": 61,
+    "trr_id": 41,
+    "is_deleted": false,
+    "created_datetime": null,
+    "created_by": null,
+    "trcic_remark": "—"
+  }
+]

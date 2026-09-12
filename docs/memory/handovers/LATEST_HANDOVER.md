@@ -5,12 +5,18 @@
 
 ---
 
-## 📌 งานล่าสุดจาก Antigravity (2026-09-12 12:28 — grill-me: Export Supabase Mockup DB to JSON)
-**ขอบเขตงาน:** Export ข้อมูล Mockup Database จาก Supabase ครบทั้ง 16 ตารางเป็น All-in-one JSON
-1. **Tooling:** สร้างสคริปต์ `scripts/export-supabase-mockup.js` พร้อม pagination loop รองรับตารางขนาดใหญ่ และผูกคำสั่ง `"export:mockup": "node scripts/export-supabase-mockup.js"` ใน `package.json`
-2. **Data Filtering:** กรองเฉพาะข้อมูลที่ใช้งานจริง (`is_deleted = false`) เพื่อตัดเคสทดสอบอัตโนมัติ (`TEST-INTEGRATION-*`, `TEST-E2E-*`) ทำให้ได้ข้อมูลสำนวนคดี Mockup สะอาด (116 สำนวน)
-3. **Artifact File:** บันทึกที่ `data/supabase-mockup.json` (~0.93 MB, รวม 16 ตาราง, 1,315 แถว พร้อม `_metadata`)
-4. **CI Verification:** `npm test` ผ่าน 5/5 layers สะอาด 100%
+## 📌 งานล่าสุดจาก Antigravity (2026-09-12 14:06 — DrawDB ERD & Mockup Export 21 Tables Supabase Live)
+**ขอบเขตงาน:** สร้างไฟล์ DrawDB ERD Diagram JSON อิงตามสเปก `8.1_V1.1 (1).json` และ Export ข้อมูล Mockup จาก Supabase ครบทั้ง 21 ตาราง (ตรงกับฐานข้อมูลจริง 100%)
+1. **DrawDB ERD Diagram (`7_V1.1.json`):** 
+   - ปรับปรุงสคริปต์ `scripts/generate-drawdb-erd.js` และคำสั่ง `"export:erd"`
+   - แปลงโครงสร้างฐานข้อมูลกิจกรรมที่ 7 ทั้งหมดเป็นฟอร์แมต DrawDB (`tables`, `relations`, `platform: "postgresql"`)
+   - ครบทั้ง 21 ตารางที่มีใน Supabase Live Instance (16 ตาราง active + 4 ตาราง shadow/history + 1 ตาราง system read receipt) พร้อม 18 Foreign Key Relations
+   - จัดวางพิกัด x, y แยกกลุ่มสี และมีคำอธิบายฟิลด์ภาษาไทยครบถ้วน
+   - บันทึกไฟล์พร้อมนำเข้าที่ `C:\Users\Toon\OneDrive\Documents\7_V1.1.json`, `data/7_V1.1.json`, และ `D:\Samart-W\กจ.7\7_V1.1.json`
+2. **Mockup Data Exporter (`data/supabase-mockup.json`):**
+   - ปรับปรุง `scripts/export-supabase-mockup.js` ให้ดึงข้อมูลครบทั้ง 21 ตาราง (1,326 แถว)
+   - กรองเฉพาะ `is_deleted = false` สำหรับตารางที่มี soft-delete
+3. **CI Verification:** `npm test` ผ่านครบ 5/5 layers 100%
 
 ---
 

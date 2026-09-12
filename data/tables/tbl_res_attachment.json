@@ -1,0 +1,14 @@
+[
+  {
+    "trat_id": 1,
+    "tcc_id": 803,
+    "trr_id": null,
+    "trat_filename": "urgent-memo-test.txt",
+    "trat_storage_path": "803/1789120794614_urgent-memo-test.txt",
+    "trat_mime_type": "text/plain",
+    "trat_size_bytes": 24,
+    "trat_uploaded_by_role": "secgen",
+    "is_deleted": false,
+    "created_datetime": "2026-09-11T09:59:54.696136"
+  }
+]

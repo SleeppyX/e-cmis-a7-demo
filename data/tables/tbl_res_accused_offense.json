@@ -1,0 +1,72 @@
+[
+  {
+    "trao_id": 57,
+    "tcca_id": 7,
+    "trob_id": 2,
+    "is_deleted": false,
+    "created_datetime": "2026-09-08T06:45:05.900418"
+  },
+  {
+    "trao_id": 58,
+    "tcca_id": 7,
+    "trob_id": 6,
+    "is_deleted": false,
+    "created_datetime": "2026-09-08T06:45:08.231136"
+  },
+  {
+    "trao_id": 59,
+    "tcca_id": 7,
+    "trob_id": 14,
+    "is_deleted": false,
+    "created_datetime": "2026-09-08T06:45:09.537714"
+  },
+  {
+    "trao_id": 60,
+    "tcca_id": 71,
+    "trob_id": 2,
+    "is_deleted": false,
+    "created_datetime": "2026-09-09T10:44:59.224984"
+  },
+  {
+    "trao_id": 61,
+    "tcca_id": 6,
+    "trob_id": 7,
+    "is_deleted": false,
+    "created_datetime": "2026-09-09T10:56:12.450146"
+  },
+  {
+    "trao_id": 62,
+    "tcca_id": 71,
+    "trob_id": 10,
+    "is_deleted": false,
+    "created_datetime": "2026-09-09T11:00:55.660477"
+  },
+  {
+    "trao_id": 63,
+    "tcca_id": 71,
+    "trob_id": 6,
+    "is_deleted": false,
+    "created_datetime": "2026-09-09T11:00:58.54207"
+  },
+  {
+    "trao_id": 43,
+    "tcca_id": 67,
+    "trob_id": 39,
+    "is_deleted": false,
+    "created_datetime": "2026-08-27T10:16:18.00496"
+  },
+  {
+    "trao_id": 44,
+    "tcca_id": 67,
+    "trob_id": 40,
+    "is_deleted": false,
+    "created_datetime": "2026-08-27T10:16:31.515111"
+  },
+  {
+    "trao_id": 55,
+    "tcca_id": 6,
+    "trob_id": 3,
+    "is_deleted": false,
+    "created_datetime": "2026-09-08T06:44:51.233448"
+  }
+]

@@ -1370,7 +1370,7 @@ const CASES = [
     receivedDate:'2568-12-08', deadline60:'2569-02-06', deadline2y:'2570-12-08', prescription:'2572-05-30',
     docRef:'ปป 0021/1131 ลงวันที่ 26 พฤษภาคม 2569',
     urgent:false, complex:false, dupWarning:false,
-    docType:'644', signPhase:'WAIT',
+    docType:'213', signPhase:'WAIT',
     slaDays:11, slaLimit:15, subCommittee:null,
     meetingNo:null, agendaNo:null
   },
@@ -1392,7 +1392,7 @@ const CASES = [
     receivedDate:'2569-08-01', deadline60:'2569-09-30', deadline2y:'2571-08-01', prescription:'2572-12-01',
     docRef:'ปป 0021/9201 ลงวันที่ 1 สิงหาคม 2569',
     urgent:false, complex:false, dupWarning:false,
-    docType:'644', signPhase:'WAIT',
+    docType:'213', signPhase:'WAIT',
     slaDays:0, slaLimit:15, subCommittee:null,
     meetingNo:null, agendaNo:null
   },
@@ -1410,7 +1410,7 @@ const CASES = [
     docRef:'ปป 0021/9202 ลงวันที่ 1 มิถุนายน 2569',
     urgent:true, urgentReason:'คดีใกล้ครบกำหนดอายุความภายใน 34 วัน เห็นควรเสนอเร่งรัดพิจารณา',
     complex:false, dupWarning:false,
-    docType:'644', signPhase:'WAIT',
+    docType:'213', signPhase:'WAIT',
     slaDays:0, slaLimit:15, subCommittee:null,
     meetingNo:null, agendaNo:null
   },

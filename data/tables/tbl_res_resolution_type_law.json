@@ -1,0 +1,122 @@
+[
+  {
+    "trrtl_id": 1,
+    "trrt_id": 1,
+    "tla_id": 7,
+    "trrtl_note": "วรรคหนึ่ง — องค์คณะพนักงาน ป.ป.ท.",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 2,
+    "trrt_id": 2,
+    "tla_id": 7,
+    "trrtl_note": "วรรคสาม — คณะอนุกรรมการไต่สวน",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 3,
+    "trrt_id": 3,
+    "tla_id": 8,
+    "trrtl_note": "เหตุห้ามรับเรื่องไว้พิจารณาโดยเด็ดขาด (5 กรณี)",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 4,
+    "trrt_id": 3,
+    "tla_id": 9,
+    "trrtl_note": "เหตุไม่รับเรื่องไว้พิจารณาโดยดุลพินิจ",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 5,
+    "trrt_id": 4,
+    "tla_id": 9,
+    "trrtl_note": "เหตุจำหน่ายเรื่องโดยดุลพินิจ",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 6,
+    "trrt_id": 4,
+    "tla_id": 10,
+    "trrtl_note": "ประกอบการรายงานเลขาธิการฯ ทุก 15 วัน",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 7,
+    "trrt_id": 5,
+    "tla_id": 11,
+    "trrtl_note": "แจ้งผลไม่ช้ากว่า 15 วันนับแต่วันที่มีมติ",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 8,
+    "trrt_id": 6,
+    "tla_id": 7,
+    "trrtl_note": "วรรคสี่ — สั่งไต่สวนเพิ่มเติมหรือไต่สวนเองใหม่",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 9,
+    "trrt_id": 8,
+    "tla_id": 4,
+    "trrtl_note": "ส่งเรื่องคืน ป.ป.ช. ภายใน 15 วันนับแต่วันที่ทราบว่านอกอำนาจ",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 10,
+    "trrt_id": 9,
+    "tla_id": 7,
+    "trrtl_note": "วรรคสี่ — สั่งไต่สวนเพิ่มเติมหรือไต่สวนเองใหม่",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 11,
+    "trrt_id": 10,
+    "tla_id": 11,
+    "trrtl_note": "แจ้งผลไม่ช้ากว่า 15 วันนับแต่วันที่มีมติ",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 12,
+    "trrt_id": 11,
+    "tla_id": 1,
+    "trrtl_note": "(3)(4) — ไต่สวนและวินิจฉัยชี้มูล",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 13,
+    "trrt_id": 11,
+    "tla_id": 12,
+    "trrtl_note": "ส่งเรื่องดำเนินการทางวินัย",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 14,
+    "trrt_id": 11,
+    "tla_id": 14,
+    "trrtl_note": "ส่งเรื่องดำเนินคดีอาญา",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  },
+  {
+    "trrtl_id": 15,
+    "trrt_id": 14,
+    "tla_id": 14,
+    "trrtl_note": "กรณีอัยการเห็นควรสั่งไม่ฟ้องแต่บอร์ดยืนยันให้ฟ้อง ส่งอัยการสูงสุดวินิจฉัยเป็นที่สุด",
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T08:33:57.492967"
+  }
+]

@@ -1,0 +1,30 @@
+[
+  {
+    "trciq_id": 1,
+    "trci_id": 36,
+    "trqf_id": 2,
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T21:29:50.602122"
+  },
+  {
+    "trciq_id": 2,
+    "trci_id": 36,
+    "trqf_id": 3,
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T21:29:50.602122"
+  },
+  {
+    "trciq_id": 3,
+    "trci_id": 38,
+    "trqf_id": 4,
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T21:29:57.039136"
+  },
+  {
+    "trciq_id": 4,
+    "trci_id": 38,
+    "trqf_id": 6,
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T21:29:57.039136"
+  }
+]

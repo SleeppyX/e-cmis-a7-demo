@@ -1,0 +1,65 @@
+[
+  {
+    "trqf_id": 1,
+    "trqf_code": "ACCEPT_M18_4",
+    "trqf_group": "nature",
+    "trqf_label": "กรณีรับเรื่องตามมาตรา ๑๘/๔",
+    "trqf_sort_order": 1,
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T10:13:50.653558"
+  },
+  {
+    "trqf_id": 2,
+    "trqf_code": "MISCONDUCT_CASE",
+    "trqf_group": "nature",
+    "trqf_label": "คดีประพฤติมิชอบ",
+    "trqf_sort_order": 2,
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T10:13:50.653558"
+  },
+  {
+    "trqf_id": 3,
+    "trqf_code": "SUBCMT_AGREE",
+    "trqf_group": "subcommittee_stance",
+    "trqf_label": "กรณีคณะอนุกรรมการกลั่นกรองมีความเห็นสอดคล้อง",
+    "trqf_sort_order": 3,
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T10:13:50.653558"
+  },
+  {
+    "trqf_id": 4,
+    "trqf_code": "SUBCMT_DISSENT",
+    "trqf_group": "subcommittee_stance",
+    "trqf_label": "กรณีคณะอนุกรรมการกลั่นกรองมีความเห็นแย้ง",
+    "trqf_sort_order": 4,
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T10:13:50.653558"
+  },
+  {
+    "trqf_id": 5,
+    "trqf_code": "SUBCMT_MORE_INQUIRY",
+    "trqf_group": "subcommittee_stance",
+    "trqf_label": "กรณีคณะอนุกรรมการกลั่นกรองมีความเห็นให้ไต่สวนเบื้องต้นเพิ่มเติม",
+    "trqf_sort_order": 5,
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T10:13:50.653558"
+  },
+  {
+    "trqf_id": 6,
+    "trqf_code": "NOT_ACCEPTED",
+    "trqf_group": "routing",
+    "trqf_label": "กรณีไม่รับไว้ไต่สวน",
+    "trqf_sort_order": 6,
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T10:13:50.653558"
+  },
+  {
+    "trqf_id": 7,
+    "trqf_code": "FORWARD_NACC",
+    "trqf_group": "routing",
+    "trqf_label": "กรณีส่งเรื่องให้คณะกรรมการ ป.ป.ช.",
+    "trqf_sort_order": 7,
+    "is_deleted": false,
+    "created_datetime": "2026-08-25T10:13:50.653558"
+  }
+]

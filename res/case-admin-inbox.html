@@ -250,7 +250,7 @@
           : `<a href="case-admin-detail.html?case=${encodeURIComponent(c.id)}" class="btn btn-sm btn-outline-secondary px-3"><i class="fa-solid fa-eye me-1"></i>ดูรายละเอียด</a>`;
         return `<tr>
           <td class="case-no">${c.id}</td>
-          <td>${ECMIS.typeBadge(c)}</td>
+          <td>${ECMIS.typeBadge(c)}<br><span class="mt-1 d-inline-block">${ECMIS.caseOriginBadge(c)}</span></td>
           <td style="max-width:360px">
             <div class="text-truncate fw-medium" title="${c.subject || ''}">${c.subject || ''}</div>
             <small class="text-muted d-block text-truncate" style="font-size:0.75rem">${c.owner ? c.owner + ' · ' : ''}${c.ownerOrg || ''}</small>

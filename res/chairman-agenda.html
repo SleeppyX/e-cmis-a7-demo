@@ -595,10 +595,18 @@
                 ];
             }
             if (isAssignStep()) {
-                return [
-                    { act: 'return', label: 'ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข', icon: 'fa-arrow-left-long', cls: 'btn-outline-danger' },
-                    { act: 'assign_screening', label: 'ลงนามมอบหมาย → ส่งคณะอนุกลั่นกรองฯ', icon: 'fa-signature', cls: 'btn-gold' }
-                ];
+                const btns = [{ act: 'return', label: 'ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข', icon: 'fa-arrow-left-long', cls: 'btn-outline-danger' }];
+                /* 644 (7.2) ตาม spec กจ7-workflow (E3/E6) มี 2 เส้นทางให้ประธานฯ เลือก:
+                   (1) สำนวนซับซ้อนยุ่งยาก → ส่งกองบริหารคดีกระจายเข้าคณะอนุกลั่นกรองฯ (เดิม)
+                   (2) ปกติ → ส่งกลุ่มกิจ (กบค.กลุ่มงานกิจการคณะกรรมการ) ให้ความเห็นก่อน แล้วประธานฯ
+                       ลงนามบรรจุเข้าวาระต่อได้เลย โดยไม่ต้องผ่านอนุกลั่นกรองฯ — สาย 213 ไม่มีเส้นทางนี้ */
+                if (ECMIS.isCase72(kase)) {
+                    btns.push({ act: 'send_affairs_opinion', label: 'ส่งกลุ่มกิจให้ความเห็นก่อนบรรจุวาระ', icon: 'fa-people-arrows', cls: 'btn-navy' });
+                    btns.push({ act: 'assign_screening', label: 'สำนวนซับซ้อน — ส่งคณะอนุกลั่นกรองฯ', icon: 'fa-signature', cls: 'btn-gold' });
+                } else {
+                    btns.push({ act: 'assign_screening', label: 'ลงนามมอบหมาย → ส่งคณะอนุกลั่นกรองฯ', icon: 'fa-signature', cls: 'btn-gold' });
+                }
+                return btns;
             }
             if (signed) {
                 return [
@@ -670,14 +678,17 @@
             }
             if (act === 'assign_screening') {
                 // เคสไม่ด่วน 7.1 + 7.2 — ประธานฯ ลงนามมอบหมาย (คลิกเดียว) → ส่ง กบค. กระจายเข้าคณะอนุกลั่นกรองฯ
+                // สำนวนปราบ (7.1, จาก กจ.5 ตรง) ตาม spec กจ7-workflow (E3) เอกสารนี้เรียกว่า
+                // "ใบบันทึกปราบ" แยกจาก "บันทึกมอบหมายส่งคณะอนุกลั่นกรองฯ" ทั่วไปของสำนวนเขต/644
                 const is72 = ECMIS.isCase72(kase);
+                const isCentral71 = !is72 && ECMIS.caseOriginType(kase) === 'central';
                 const nextStatus = is72 ? 'IN_SCREENING_72' : 'IN_SCREENING';
                 const event = is72 ? 'ORDER_SCREENING_72' : 'ORDER_SCREENING';
                 const nextTarget = ECMIS.resolvePage ? ECMIS.resolvePage('inbox.html') : 'inbox.html';
-                const docType = 'บันทึกมอบหมายส่งคณะอนุกลั่นกรองฯ';
+                const docType = isCentral71 ? 'ใบบันทึกปราบ' : 'บันทึกมอบหมายส่งคณะอนุกลั่นกรองฯ';
                 const fromStatus = kase.status;
 
-                ECMIS.signDialog(`บันทึกมอบหมายส่งคณะอนุกลั่นกรองฯ — เรื่องที่ ${kase.id}`,
+                ECMIS.signDialog(`${docType} — เรื่องที่ ${kase.id}`,
                     `${SIGNER_NAME} — ${SIGNER_TITLE}`)
                     .then(res => {
                         if (!res.isConfirmed) return;
@@ -717,6 +728,64 @@
                                           สถานะใหม่: <strong>${ECMIS.STATUS[nextStatus]?.label || nextStatus}</strong><br><br>
                                           <span style="font-size:.9rem;color:#475569">
                                               <i class="fa-solid fa-arrow-right me-1 text-primary"></i>ส่งกองบริหารคดีเพื่อกระจายสำนวนเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘ ต่อไป
+                                          </span>
+                                       </div>`,
+                                confirmButtonColor: '#0F2A62',
+                                confirmButtonText: 'ตกลง (กลับหน้ารายการสั่งการ)'
+                            });
+                            location.href = nextTarget;
+                        })();
+                    });
+                return;
+            }
+            if (act === 'send_affairs_opinion') {
+                // 7.2 เส้นทางปกติ (ไม่ซับซ้อน) — ประธานฯ ลงนาม 644 ส่งกลุ่มกิจให้ความเห็นก่อน
+                // (ตาม spec กจ7-workflow E3/E6) — ข้ามขั้นอนุกลั่นกรองฯ ไปเลย
+                const nextStatus = 'PENDING_AFFAIRS_OPINION_72';
+                const nextTarget = ECMIS.resolvePage ? ECMIS.resolvePage('inbox.html') : 'inbox.html';
+                const docType = 'บันทึกส่งกลุ่มงานกิจการคณะกรรมการให้ความเห็น';
+                const fromStatus = kase.status;
+
+                ECMIS.signDialog(`${docType} — เรื่องที่ ${kase.id}`,
+                    `${SIGNER_NAME} — ${SIGNER_TITLE}`)
+                    .then(res => {
+                        if (!res.isConfirmed) return;
+                        signed = true;
+                        pendingSigData = res.value;
+                        kase.signedByChair = true;
+                        kase.chairSignedAt = new Date().toISOString();
+
+                        if (ECMIS.Model && ECMIS.Model.SignatureStore) {
+                            ECMIS.Model.SignatureStore.create({
+                                caseId: kase.id,
+                                docType,
+                                signerRole: 'chairman',
+                                signerName: `${SIGNER_NAME} — ${SIGNER_TITLE}`,
+                                method: pendingSigData?.mode || 'cert',
+                                signedAt: new Date().toISOString()
+                            });
+                        }
+                        ECMIS.pushCaseHistory(kase, {
+                            from: fromStatus, to: nextStatus, event: 'SEND_AFFAIRS_OPINION_72', actor: 'chairman',
+                            note: 'ประธานฯ ลงนามส่งกลุ่มงานกิจการคณะกรรมการให้ความเห็นก่อนบรรจุวาระ'
+                        });
+
+                        (async () => {
+                            await ECMIS.updateCaseStatus(kase, nextStatus, sb);
+                            if (kase.trr_id && sb) {
+                                ECMIS.logRequestEvent(kase.trr_id, fromStatus, nextStatus, {
+                                    type: 'SIGNED', actorRole: 'chairman',
+                                    data: { docType, signerName: SIGNER_NAME, signerTitle: SIGNER_TITLE, method: pendingSigData?.mode || 'cert' }
+                                });
+                            }
+                            await Swal.fire({
+                                icon: 'success',
+                                title: 'ลงนามส่งกลุ่มกิจสำเร็จ',
+                                html: `<div class="text-start">
+                                          สำนวนเรื่องที่ <strong>${kase.id}</strong><br>
+                                          สถานะใหม่: <strong>${ECMIS.STATUS[nextStatus]?.label || nextStatus}</strong><br><br>
+                                          <span style="font-size:.9rem;color:#475569">
+                                              <i class="fa-solid fa-arrow-right me-1 text-primary"></i>ส่งกลุ่มงานกิจการคณะกรรมการลงความเห็นก่อนกลับมาบรรจุวาระ
                                           </span>
                                        </div>`,
                                 confirmButtonColor: '#0F2A62',

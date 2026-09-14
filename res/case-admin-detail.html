@@ -126,7 +126,7 @@
     function renderDetail() {
       const k = kase;
       document.getElementById('pageTitle').textContent = 'รายละเอียดคดี ' + k.id;
-      document.getElementById('headBadges').innerHTML = ECMIS.typeBadge(k) + ' ' + ECMIS.statusBadge(k.status) + ' ' + ECMIS.slaBadge(k);
+      document.getElementById('headBadges').innerHTML = ECMIS.typeBadge(k) + ' ' + ECMIS.caseOriginBadge(k) + ' ' + ECMIS.statusBadge(k.status) + ' ' + ECMIS.slaBadge(k);
 
       const accused = (k.accused || []).map(a => `${esc(a.name || '')}${a.pos ? ' — ' + esc(a.pos) : ''}`).join('<br>') || '—';
       const teamTxt = k.subCommittee

@@ -128,7 +128,7 @@
     }
 
     const params = new URLSearchParams(location.search);
-    let kase = null, is72 = false, isCertifyStep = false;
+    let kase = null, is72 = false, is73 = false, isCertifyStep = false;
 
     (async function main() {
       const caseParam = params.get('case') || '';
@@ -144,6 +144,7 @@
 
     function renderPage() {
       is72 = ECMIS.isCase72(kase);
+      is73 = ECMIS.isCase73(kase);
       isCertifyStep = kase.status === 'PENDING_URGENT' || kase.status === 'PENDING_URGENT_72';
 
       document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
@@ -217,10 +218,14 @@
 
     function buildButtons() {
       if (!isCertifyStep) return [];
-      return [
-        { act: 'reject', label: 'ไม่รับรอง — ส่งเข้ากลั่นกรองปกติ', icon: 'fa-xmark', cls: 'btn-outline-danger' },
-        { act: 'certify', label: 'รับรองและส่งประธานฯ', icon: 'fa-check', cls: 'btn-navy' }
-      ];
+      /* 7.3 (ใบมติเรื่องทั่วไป) ไม่มีขั้นอนุกลั่นกรองฯ เลย (ดู STATUS_STEP_73 / FLOW_STEPS_73) จึง
+         ไม่มีปลายทาง "ส่งเข้ากลั่นกรองปกติ" ให้ไม่รับรองได้ — เหลือแค่ปุ่มรับรองอย่างเดียว */
+      const btns = [];
+      if (!is72 && !is73) {
+        btns.push({ act: 'reject', label: 'ไม่รับรอง — ส่งเข้ากลั่นกรองปกติ', icon: 'fa-xmark', cls: 'btn-outline-danger' });
+      }
+      btns.push({ act: 'certify', label: 'รับรองและส่งประธานฯ', icon: 'fa-check', cls: 'btn-navy' });
+      return btns;
     }
 
     function renderActionButtons() {

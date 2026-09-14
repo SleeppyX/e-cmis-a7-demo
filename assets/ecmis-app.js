@@ -191,6 +191,7 @@ const STATUS = {
   PENDING_URGENT_72:   { label:'รอ ผอ.กบค. รับรองเหตุผลเร่งด่วน',                cls:'st-urgent',  owner:'dir_case' },
   PENDING_CHAIRMAN_URGENT_72: { label:'รอประธานฯ ลงนามมอบหมาย / บรรจุวาระด่วน',  cls:'st-pending', owner:'chairman' },
   PENDING_CHAIRMAN_72: { label:'รอประธานฯ ลงนามมอบหมาย (ส่งคณะอนุกลั่นกรองฯ)',   cls:'st-pending', owner:'chairman' },
+  PENDING_AFFAIRS_OPINION_72: { label:'รอกลุ่มงานกิจการคณะกรรมการลงความเห็น (ก่อนบรรจุวาระ)', cls:'st-review', owner:'affairs' },
   IN_SCREENING_72:     { label:'อยู่คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง',      cls:'st-review',  owner:'subcommittee' },
   SCREENING_MORE_INFO_72: { label:'อนุกลั่นกรองฯ ขอข้อมูลเพิ่มเติม (วินิจฉัยชี้มูล)', cls:'st-review', owner:'subcommittee' },
   PENDING_SIGN_AGENDA_72: { label:'รอประธานฯ ลงนามสั่งบรรจุวาระ (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'chairman' },
@@ -219,7 +220,8 @@ const STATUS_CODE = {
   IN_SCREENING_72:'108', PENDING_INVITE_72:'109', IN_MEETING_72:'110', RESOLVED_PENDING_72:'111',
   PENDING_SIGN_RULING_72:'112', PENDING_AREA_NOTICE_72:'113', DISPATCHING_NACC_72:'114',
   PENDING_DISPATCH_GUILTY_72:'115', CLOSED_72:'116', SCREENING_MORE_INFO_72:'117',
-  PENDING_CHAIRMAN_72:'118', PENDING_SIGN_AGENDA_72:'119', PENDING_SUPPORT_ASSIGN_72:'120'
+  PENDING_CHAIRMAN_72:'118', PENDING_SIGN_AGENDA_72:'119', PENDING_SUPPORT_ASSIGN_72:'120',
+  PENDING_AFFAIRS_OPINION_72:'121'
 };
 const CODE_STATUS = Object.fromEntries(Object.entries(STATUS_CODE).map(([k, v]) => [v, k]));
 
@@ -349,7 +351,13 @@ const TRANSITIONS = [
 
   { from:'PENDING_CHAIRMAN_72', to:'IN_SCREENING_72', event:'ORDER_SCREENING_72', actor:'chairman',
     ref:'ประธานฯ ลงนามมอบหมาย — ส่งคณะอนุกลั่นกรองฯ (กบค. กระจายเข้าคณะที่ ๑–๘)',
-    note:'เคสไม่ด่วน 7.2 — ประธานฯ ลงนามในบันทึกมอบหมายก่อนเข้าชั้นกลั่นกรอง' },
+    note:'เคสไม่ด่วน 7.2 ที่ซับซ้อนยุ่งยาก — ประธานฯ ลงนามในบันทึกมอบหมายก่อนเข้าชั้นกลั่นกรอง' },
+  { from:'PENDING_CHAIRMAN_72', to:'PENDING_AFFAIRS_OPINION_72', event:'SEND_AFFAIRS_OPINION_72', actor:'chairman',
+    ref:'ประธานฯ ลงนามส่งกลุ่มงานกิจการคณะกรรมการให้ความเห็นก่อนบรรจุวาระ',
+    note:'เคสไม่ด่วน 7.2 เส้นทางปกติ (ไม่ซับซ้อน) — ข้ามขั้นอนุกลั่นกรองฯ ให้กลุ่มกิจลงความเห็นแทน' },
+  { from:'PENDING_AFFAIRS_OPINION_72', to:'PENDING_SIGN_AGENDA_72', event:'AFFAIRS_OPINION_DONE_72', actor:'affairs',
+    ref:'กลุ่มงานกิจการคณะกรรมการลงความเห็นแล้ว — เสนอประธานฯ ลงนามสั่งบรรจุวาระ',
+    note:'กลุ่มกิจลงความเห็น (ใบบันทึกความเห็นกลุ่มกิจ) แล้วส่งกลับให้ประธานฯ บรรจุเข้าวาระต่อ' },
   { from:'PENDING_CHAIRMAN_72', to:'RETURNED_72', event:'CHAIRMAN_RETURN_72', actor:'chairman',
     ref:'ประธานฯ ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข',
     note:'ส่งคืนเจ้าของสำนวน (RETURNED_72 owner=owner) — แก้ไขแล้วเสนอกลับตามสาย' },
@@ -666,6 +674,7 @@ const PAGE_FOR_72 = {
   PENDING_SUPPORT_ASSIGN_72:'dir-case-support-assign.html',
   PENDING_URGENT_72:'dir-case-urgent-review.html', PENDING_CHAIRMAN_URGENT_72:'urgent-agenda.html',
   PENDING_CHAIRMAN_72:'chairman-agenda.html',
+  PENDING_AFFAIRS_OPINION_72:'affairs-644-opinion.html',
   PENDING_SIGN_AGENDA_72:'chairman-agenda.html',
   IN_SCREENING_72:'subcommittee-screening.html',
   SCREENING_MORE_INFO_72:'subcommittee-screening.html',
@@ -940,7 +949,7 @@ const ACT7_STATUSES_72 = [
 ];
 const ACT7_STAGE_72 = {
   PENDING_SECTION_72:0, PENDING_DIRECTOR_72:0, PENDING_DEPUTY_72:0, RETURNED_72:0, PENDING_SECGEN_72:0,
-  IN_SUPPORT_SUB_72:1, PENDING_SUPPORT_ASSIGN_72:1, PENDING_URGENT_72:1, PENDING_CHAIRMAN_URGENT_72:1, PENDING_CHAIRMAN_72:1, IN_SCREENING_72:1, PENDING_SIGN_AGENDA_72:1, PENDING_INVITE_72:1,
+  IN_SUPPORT_SUB_72:1, PENDING_SUPPORT_ASSIGN_72:1, PENDING_URGENT_72:1, PENDING_CHAIRMAN_URGENT_72:1, PENDING_CHAIRMAN_72:1, PENDING_AFFAIRS_OPINION_72:1, IN_SCREENING_72:1, PENDING_SIGN_AGENDA_72:1, PENDING_INVITE_72:1,
   IN_MEETING_72:2,
   RESOLVED_PENDING_72:3, PENDING_SIGN_RULING_72:3,
   PENDING_AREA_NOTICE_72:4, DISPATCHING_NACC_72:4, PENDING_DISPATCH_GUILTY_72:4,
@@ -2929,7 +2938,7 @@ const STATUS_STEP_73 = {
 const STATUS_STEP_72 = {
   PENDING_SECTION_72:'secgen72', PENDING_DIRECTOR_72:'secgen72', PENDING_DEPUTY_72:'secgen72', RETURNED_72:'secgen72',
   PENDING_SECGEN_72:'secgen72',
-  IN_SUPPORT_SUB_72:'agenda72', PENDING_SUPPORT_ASSIGN_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', PENDING_CHAIRMAN_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72', PENDING_SIGN_AGENDA_72:'agenda72',
+  IN_SUPPORT_SUB_72:'agenda72', PENDING_SUPPORT_ASSIGN_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', PENDING_CHAIRMAN_72:'agenda72', PENDING_AFFAIRS_OPINION_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72', PENDING_SIGN_AGENDA_72:'agenda72',
   PENDING_INVITE_72:'meeting72', IN_MEETING_72:'meeting72',
   RESOLVED_PENDING_72:'ruling72', PENDING_SIGN_RULING_72:'ruling72',
   PENDING_AREA_NOTICE_72:'dispatch72', DISPATCHING_NACC_72:'dispatch72', PENDING_DISPATCH_GUILTY_72:'dispatch72',
@@ -3226,6 +3235,7 @@ const PAGE_PERMISSIONS = {
   'urgent-agenda.html': ['dir_case', 'chairman', 'affairs', 'secgen', 'board_sec', 'board', 'board_ex', 'case_admin'],
   'dir-case-support-assign.html': ['dir_case', 'secgen', 'affairs', 'board_sec', 'case_admin'],
   'dir-case-urgent-review.html': ['dir_case', 'secgen', 'affairs', 'chairman', 'board_sec', 'case_admin'],
+  'affairs-644-opinion.html': ['affairs', 'chairman', 'secgen', 'board_sec', 'case_admin'],
   'agenda-set.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'agenda.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'agenda-meeting-docs.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
@@ -4026,6 +4036,20 @@ function typeBadge(c, force72){
     return '<span class="meet-badge meet-type-ruling"><i class="fa-solid fa-gavel me-1"></i>วินิจฉัยชี้มูล</span>';
   }
   return '<span class="meet-badge meet-type-inquiry"><i class="fa-solid fa-file-lines me-1"></i>ไต่สวนเบื้องต้น</span>';
+}
+
+/* ตาม spec กจ7-workflow (E9): สำนวนที่เข้าคิว กบค. (case_admin) แยกที่มา 2 ทาง —
+   "สำนวนปราบ" (จากส่วนกลาง/กองปราบปรามฯ ที่ประธานฯ สั่งตรง) กับ "สำนวนเขต" (จาก สนง.เขต ที่
+   ผ่านเลขาธิการฯ) — ระบบยังไม่มีฟิลด์ origin แยกจริง จึงอนุมานจาก ownerOrg (มีคำว่า "เขต"
+   หรือไม่) ใช้แสดงเป็น badge ให้ กบค. เห็นที่มาได้ ไม่ใช่ field ที่ผูกกับ state machine */
+function caseOriginType(kase){
+  const org = (kase && kase.ownerOrg) || '';
+  return /เขต/.test(org) ? 'regional' : 'central';
+}
+function caseOriginBadge(kase){
+  return caseOriginType(kase) === 'regional'
+    ? '<span class="meet-badge meet-origin-regional"><i class="fa-solid fa-map-location-dot me-1"></i>สำนวนเขต</span>'
+    : '<span class="meet-badge meet-origin-central"><i class="fa-solid fa-building-shield me-1"></i>สำนวนปราบ</span>';
 }
 
 function statusBadge(statusKey){
@@ -7354,7 +7378,7 @@ if (typeof localStorage !== 'undefined') {
   SUBCOMMITTEE_TEAMS, currentSubTeam, setSubTeam,
   SUPPORT_GROUPS, SUPPORT_GROUP_LABELS, currentSupportGroup, setSupportGroup,
   isAuthed, currentUsername, logout,
-  renderShell, stepperHtml, statusBadge, typeBadge, slaBadge, actionBar,
+  renderShell, stepperHtml, statusBadge, typeBadge, slaBadge, actionBar, caseOriginType, caseOriginBadge,
   markNotifRead, getReadNotifIds, formatNotifReadAt, loadNotifReadReceipts, handleNotifLinkClick,
   mergeField, removePreviewEllipses, escapeHtml, fakeTodayIso, daysUntilFakeIso, paginateDoc, paginateResolutionDoc, exportDocToDocx, exportDocToPdf, printDoc, confirmAction, toastOk, toastWarn, signDialog, sequentialSignDialog,
 

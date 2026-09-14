@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ลงความเห็นใบด่วน | E-CMIS</title>
+  <title>ความเห็นกลุ่มงานกิจการฯ (644) | E-CMIS</title>
   <link rel="icon" type="image/png" href="assets/pacc_logo.png">
   <link
     href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&family=Noto+Serif+Thai:wght@400;500;600;700&display=swap"
@@ -22,10 +22,10 @@
     <div class="page-head">
       <div>
         <a href="inbox.html" class="back-link"><i class="fa-solid fa-arrow-left me-1"></i>กลับหน้ารายการ</a>
-        <h1><i class="fa-solid fa-bolt me-2"></i>ลงความเห็นใบด่วน</h1>
+        <h1><i class="fa-solid fa-comment-dots me-2"></i>ความเห็นกลุ่มงานกิจการคณะกรรมการ</h1>
       </div>
       <div class="ms-auto text-end">
-        <span class="flow-ref">ผอ.กบค. รับรอง / ไม่รับรองเหตุผลเร่งด่วนก่อนเข้าคิวประธานฯ</span>
+        <span class="flow-ref">กบค. (กลุ่มงานกิจการคณะกรรมการ) ลงความเห็นเรื่อง 644 ก่อนส่งคืนประธานฯ บรรจุวาระ</span>
         <div class="mt-1" id="stBadge"></div>
       </div>
     </div>
@@ -48,7 +48,7 @@
         </div>
 
         <div class="ws-card mb-3">
-          <div class="card-header" id="stepCardHeader"><i class="fa-solid fa-bolt"></i> <span id="stepCardTitle"></span></div>
+          <div class="card-header" id="stepCardHeader"><i class="fa-solid fa-comment-dots"></i> <span id="stepCardTitle"></span></div>
           <div class="card-body" id="stepCardBody"></div>
         </div>
       </div>
@@ -58,7 +58,7 @@
         <div class="ws-doc-toolbar">
           <div class="d-flex flex-column w-100 gap-1">
             <div class="d-flex justify-content-between align-items-center">
-              <span class="name"><i class="fa-solid fa-bolt text-warning me-1"></i> บันทึกความเห็นใบด่วน</span>
+              <span class="name"><i class="fa-solid fa-comment-dots me-1"></i> ใบบันทึกความเห็นกลุ่มกิจ</span>
               <div class="d-flex gap-1 align-items-center">
                 <button type="button" class="btn btn-sm btn-outline-primary" id="btnDocx" title="ส่งออกเป็นเอกสาร Microsoft Word (.docx)"><i class="fa-solid fa-file-word me-1"></i>ส่งออก DOCX</button>
                 <button class="btn btn-sm btn-light border" onclick="window.print()" title="พิมพ์เอกสาร"><i class="fa-solid fa-print"></i></button>
@@ -85,9 +85,9 @@
   <script src="assets/ecmis-app.js"></script>
   <script src="assets/ecmis-model.js"></script>
   <script>
-    ECMIS.renderShell('dir-case-urgent-review.html');
+    ECMIS.renderShell('affairs-644-opinion.html');
     const role = ECMIS.currentRole();
-    const dirCase = ECMIS.getRole('dir_case');
+    const affairsRole = ECMIS.getRole('affairs');
 
     const SUPABASE_URL = 'https://ljhabbwjxnoucrcrsoii.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_2Bps-dWMZHz_7cs3BppF6A_ul1_A_xd';
@@ -104,15 +104,14 @@
       return data ? ECMIS.supabaseRowToCase(data) : null;
     }
 
-    /* urgentCertified/urgentCertifiedDate72/urgentRejectNote ไม่มีคอลัมน์ใน Supabase จึงคง set
-       บน kase ในหน่วยความจำไว้เหมือนเดิม ตามรูปแบบเดียวกับ persistCase ใน urgent-agenda.html */
+    /* affairsOpinion644 ไม่มีคอลัมน์ใน Supabase จึงคง set บน kase ในหน่วยความจำไว้เหมือนเดิม
+       ตามรูปแบบเดียวกับ persistCase ในหน้า dir-case-*.html */
     async function persistCase(kase, patch) {
       const dbPatch = {};
       if ('status' in patch) {
         const code = ECMIS.STATUS_CODE[patch.status];
         if (code) dbPatch.trr_status = code;
       }
-      if ('urgent' in patch) dbPatch.trr_urgent = !!patch.urgent;
       if (kase.trr_id && Object.keys(dbPatch).length) {
         try {
           const { error } = await sb.from('tbl_res_request').update(dbPatch).eq('trr_id', kase.trr_id);
@@ -128,7 +127,7 @@
     }
 
     const params = new URLSearchParams(location.search);
-    let kase = null, is72 = false, is73 = false, isCertifyStep = false;
+    let kase = null, isOpinionStep = false;
 
     (async function main() {
       const caseParam = params.get('case') || '';
@@ -143,14 +142,10 @@
     })();
 
     function renderPage() {
-      is72 = ECMIS.isCase72(kase);
-      is73 = ECMIS.isCase73(kase);
-      isCertifyStep = kase.status === 'PENDING_URGENT' || kase.status === 'PENDING_URGENT_72';
+      isOpinionStep = kase.status === 'PENDING_AFFAIRS_OPINION_72';
 
       document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
-      document.getElementById('stepper').innerHTML = is72
-        ? ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
-        : ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS, ECMIS.STATUS_STEP);
+      document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
 
       document.getElementById('fCaseId').textContent = kase.id;
       document.getElementById('fOwner').textContent = `${kase.owner || ''} — ${kase.ownerOrg || ''}`;
@@ -158,28 +153,24 @@
 
       renderStepCard();
       renderDoc();
-      ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: false });
       renderActionButtons();
     }
 
     function renderStepCard() {
-      if (isCertifyStep) {
-        document.getElementById('stepCardTitle').textContent = 'รับรองเหตุผลเร่งด่วน (ผอ.กบค.)';
+      if (isOpinionStep) {
+        document.getElementById('stepCardTitle').textContent = 'ลงความเห็นกลุ่มงานกิจการคณะกรรมการ';
         document.getElementById('stepCardBody').innerHTML = `
-      <label class="form-label field-req">เหตุผลความเร่งด่วนที่เลขาธิการฯ เสนอมา</label>
-      <textarea class="form-control" rows="4" readonly>${kase.urgentReason || ''}</textarea>
-      <label class="form-label mt-3">ความเห็นของ ผอ.กบค.
-        <span class="text-muted">(บังคับกรอกเมื่อ "ไม่รับรอง")</span></label>
-      <textarea class="form-control" id="dirCaseUrgentNote" rows="3"
-        placeholder="ระบุความเห็น เช่น เห็นด้วยกับเหตุผลเร่งด่วน / ยังไม่เข้าเกณฑ์ด่วนจริง...">${kase.urgentRejectNote || ''}</textarea>
-      <div class="val-msg val-err" data-for="dirCaseUrgentNote">กรุณาระบุเหตุผลก่อนไม่รับรอง</div>`;
+      <p class="text-muted small mb-3">ประธานฯ ส่งสำนวนนี้มาให้กลุ่มงานกิจการคณะกรรมการลงความเห็นก่อนส่งกลับให้ประธานฯ พิจารณาสั่งบรรจุเข้าวาระ</p>
+      <label class="form-label field-req">ความเห็นของกลุ่มงานกิจการคณะกรรมการ</label>
+      <textarea class="form-control" id="affairsOpinionText" rows="5" placeholder="ระบุความเห็นประกอบการเสนอประธานฯ พิจารณาสั่งบรรจุวาระ"></textarea>
+      <div class="val-msg val-err" data-for="affairsOpinionText">กรุณาระบุความเห็นก่อนส่งกลับ</div>`;
       } else {
-        document.getElementById('stepCardTitle').textContent = 'ไม่อยู่ในขั้นตอนลงความเห็นใบด่วน';
+        document.getElementById('stepCardTitle').textContent = 'ไม่อยู่ในขั้นตอนลงความเห็นกลุ่มกิจ';
         document.getElementById('stepCardBody').innerHTML = `
       <div class="no-permission">
         <i class="fa-solid fa-circle-info me-1"></i>
         สำนวน <strong>${kase.id}</strong> อยู่ในสถานะ <strong>${ECMIS.STATUS[kase.status] ? ECMIS.STATUS[kase.status].label : kase.status}</strong>
-        ซึ่งไม่ใช่ขั้นตอนลงความเห็นใบด่วน — เปิดหน้านี้ได้เฉพาะสถานะรอ ผอ.กบค. รับรองใบด่วนเท่านั้น
+        ซึ่งไม่ใช่ขั้นตอนลงความเห็นกลุ่มงานกิจการคณะกรรมการ — เปิดหน้านี้ได้เฉพาะสถานะรอกลุ่มงานกิจการฯ ลงความเห็นเท่านั้น
       </div>`;
       }
     }
@@ -192,7 +183,7 @@
     <div class="doc-paper doc-resolution a4-paper active-page" id="docPaperPage">
       <div class="doc-secret">ลับ</div>
       <div class="doc-title">
-        <div class="doc-title-l1">บันทึกความเห็นใบด่วน</div>
+        <div class="doc-title-l1">ใบบันทึกความเห็นกลุ่มงานกิจการคณะกรรมการ</div>
         <div class="doc-title-l2">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
       </div>
       <div class="doc-sub">เรื่องที่ ${M(kase.id)}</div>
@@ -202,14 +193,11 @@
       <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
 
       <div class="doc-body-indent">
-        <div class="doc-h">เหตุผลความเร่งด่วน</div>
-        <div class="doc-indent">${M(kase.urgentReason, '……………………………………………………………………………………')}</div>
-
-        <div class="doc-h">ความเห็นของ ผอ.กบค.</div>
-        <div class="doc-indent">${M(kase.urgentRejectNote)}</div>
+        <div class="doc-h">ความเห็นของกลุ่มงานกิจการคณะกรรมการ</div>
+        <div class="doc-indent">${M(kase.affairsOpinion644, '……………………………………………………………………………………')}</div>
 
         <div class="doc-h">ผู้ลงความเห็น</div>
-        <div class="doc-indent">${dirCase.name} — ${dirCase.title}</div>
+        <div class="doc-indent">${affairsRole.name} — ${affairsRole.title}</div>
       </div>
 
       <div class="doc-secret-foot">ลับ</div>
@@ -217,15 +205,10 @@
     }
 
     function buildButtons() {
-      if (!isCertifyStep) return [];
-      /* 7.3 (ใบมติเรื่องทั่วไป) ไม่มีขั้นอนุกลั่นกรองฯ เลย (ดู STATUS_STEP_73 / FLOW_STEPS_73) จึง
-         ไม่มีปลายทาง "ส่งเข้ากลั่นกรองปกติ" ให้ไม่รับรองได้ — เหลือแค่ปุ่มรับรองอย่างเดียว */
-      const btns = [];
-      if (!is72 && !is73) {
-        btns.push({ act: 'reject', label: 'ไม่รับรอง — ส่งเข้ากลั่นกรองปกติ', icon: 'fa-xmark', cls: 'btn-outline-danger' });
-      }
-      btns.push({ act: 'certify', label: 'รับรองและส่งประธานฯ', icon: 'fa-check', cls: 'btn-navy' });
-      return btns;
+      if (!isOpinionStep) return [];
+      return [
+        { act: 'submit_opinion', label: 'ส่งความเห็นกลับประธานฯ', icon: 'fa-check', cls: 'btn-navy' }
+      ];
     }
 
     function renderActionButtons() {
@@ -235,64 +218,35 @@
     }
 
     async function handle(act) {
-      if (act === 'certify') {
-        const targetStatus = is72 ? 'PENDING_CHAIRMAN_URGENT_72' : 'PENDING_CHAIRMAN';
-        ECMIS.confirmAction({
-          title: 'รับรองเหตุผลเร่งด่วน',
-          html: `<p>สำนวน <strong>${kase.id}</strong> — รับรองโดย ${dirCase.title}</p>`,
-          confirmText: 'ยืนยันรับรอง'
-        }).then(async res => {
-          if (!res.isConfirmed) return;
-          const patch = { status: targetStatus, urgentCertified: true };
-          if (is72) patch.urgentCertifiedDate72 = new Date().toISOString().slice(0, 10);
-          try {
-            await persistCase(kase, patch);
-            await ECMIS.logRequestEvent(kase.trr_id, kase.status, targetStatus, {
-              type: 'URGENT_CERTIFY', actorRole: 'dir_case'
-            });
-          } catch (err) {
-            console.error('รับรองเหตุผลเร่งด่วนไม่สำเร็จ:', err);
-            ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
-            return;
-          }
-          ECMIS.toastOk('รับรองเหตุผลเร่งด่วนเรียบร้อย ส่งต่อประธานฯ แล้ว');
-          setTimeout(() => location.href = ECMIS.homeHref(role.id), 1400);
-        });
-        return;
-      }
-
-      if (act === 'reject') {
-        if (is72) {
-          ECMIS.toastWarn('สำนวนสายวินิจฉัยชี้มูล (7.2) ไม่มีทางเลือก "ไม่รับรอง" ที่ขั้นนี้ — ต้องรับรองแล้วให้ประธานฯ เป็นผู้พิจารณาส่งเข้ากลั่นกรองแทนหากเห็นว่ายังไม่ด่วนจริง');
-          return;
-        }
-        const ta = document.getElementById('dirCaseUrgentNote');
-        const msg = document.querySelector('.val-msg[data-for="dirCaseUrgentNote"]');
+      if (act === 'submit_opinion') {
+        const ta = document.getElementById('affairsOpinionText');
+        const msg = document.querySelector('.val-msg[data-for="affairsOpinionText"]');
         if (!ta.value.trim()) {
           ta.classList.add('is-invalid-ecmis');
           msg.classList.add('show');
-          ECMIS.toastWarn('กรุณาระบุเหตุผลก่อนไม่รับรอง');
+          ECMIS.toastWarn('กรุณาระบุความเห็นก่อนส่งกลับ');
           return;
         }
         ta.classList.remove('is-invalid-ecmis');
         msg.classList.remove('show');
+
         ECMIS.confirmAction({
-          title: 'ไม่รับรองเหตุผลเร่งด่วน',
-          html: `<p>สำนวน <strong>${kase.id}</strong> จะไม่บรรจุเป็นวาระด่วน และถูกส่งเข้าเส้นทางกลั่นกรองปกติแทน</p>`,
-          confirmText: 'ยืนยันไม่รับรอง'
+          title: 'ส่งความเห็นกลับประธานฯ',
+          html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งกลับประธานฯ เพื่อพิจารณาสั่งบรรจุเข้าวาระต่อไป</p>`,
+          confirmText: 'ยืนยันส่งความเห็น'
         }).then(async res => {
           if (!res.isConfirmed) return;
           try {
-            await persistCase(kase, { status: 'IN_SCREENING', urgent: false, urgentRejectNote: ta.value.trim() });
-            await ECMIS.logRequestEvent(kase.trr_id, kase.status, 'IN_SCREENING', {
-              type: 'URGENT_REJECT', actorRole: 'dir_case', data: { note: ta.value.trim() }
+            await persistCase(kase, { status: 'PENDING_SIGN_AGENDA_72', affairsOpinion644: ta.value.trim() });
+            await ECMIS.logRequestEvent(kase.trr_id, kase.status, 'PENDING_SIGN_AGENDA_72', {
+              type: 'AFFAIRS_OPINION_DONE_72', actorRole: 'affairs', data: { opinion: ta.value.trim() }
             });
           } catch (err) {
-            console.error('ไม่รับรองเหตุผลเร่งด่วนไม่สำเร็จ:', err);
+            console.error('ส่งความเห็นไม่สำเร็จ:', err);
             ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
             return;
           }
-          ECMIS.toastOk('ไม่รับรองใบด่วน — ส่งเข้ากลั่นกรองปกติแล้ว');
+          ECMIS.toastOk('ส่งความเห็นกลับประธานฯ เรียบร้อยแล้ว');
           setTimeout(() => location.href = ECMIS.homeHref(role.id), 1400);
         });
         return;

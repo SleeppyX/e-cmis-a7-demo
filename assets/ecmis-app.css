@@ -333,6 +333,8 @@ body.sidebar-collapsed .sidebar-user-chip-text{ display:none; }
 .meet-type-inquiry { background:#F8FAFC; color:#475569; border-color:#CBD5E1; }
 .meet-type-ruling  { background:#F5F3FF; color:#7C3AED; border-color:#C4B5FD; }
 .meet-type-general { background:#F0F9FF; color:#0369A1; border-color:#7DD3FC; }
+.meet-origin-central  { background:#FEF2F2; color:#B91C1C; border-color:#FCA5A5; }
+.meet-origin-regional { background:#F0FDF4; color:#15803D; border-color:#86EFAC; }
 .meet-confirmed {
   display:inline-flex; align-items:center; gap:4px;
   font-size:.75rem; font-weight:600; padding:.2rem .55rem; line-height:1.25;

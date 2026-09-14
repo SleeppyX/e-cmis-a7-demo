@@ -1466,6 +1466,98 @@ const CASES = [
     docType:'GENERAL', signPhase:'WAIT'
   },
 
+  /* ── ชุดเคสทดสอบ 7.1 ไต่สวนเบื้องต้นเพิ่มเติม 5 รายการที่เลขาธิการฯ (PENDING_SECGEN)
+     ผสมด่วน/ไม่ด่วน 2/3 และมาตรา ม.18/4 / ม.62 — ต่อจากชุด 9201-9204/2569 ด้วย
+     เลขคดี 9206-9210/2569 (ข้าม 9205/2569 เพราะมีเคสทดสอบเดิมใช้เลขนี้อยู่แล้ว)
+     ไม่ตั้งค่า subCommittee ล่วงหน้าเช่นเดียวกับชุดก่อนหน้า */
+  {
+    id:'9210/2569',
+    subject:'กล่าวหาเจ้าหน้าที่เทศบาลตำบลแห่งหนึ่ง เรียกรับเงินจากผู้รับเหมาก่อนเบิกจ่ายค่างานก่อสร้างศาลาประชาคม',
+    legalBase:'ม.18/4',
+    status:'PENDING_SECGEN',
+    procType:'7.1',
+    owner:'นายสุรชัย มั่นคง', ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 3',
+    complainant:'ผู้รับเหมาก่อสร้าง (ผู้ร้อง)',
+    accused:[ { no:1, name:'นายไพโรจน์ รับทรัพย์', pos:'ผู้อำนวยการกองช่าง เทศบาลตำบล', idcard:'3-1050-0xxxx-xx-x', agency:'เทศบาลตำบลแห่งหนึ่ง' } ],
+    allegation:'เรียกรับเงินจากผู้รับเหมาก่อสร้างเป็นการตอบแทนการเบิกจ่ายเงินค่างวดงานก่อสร้างศาลาประชาคม',
+    receivedDate:'2569-07-10', deadline60:'2569-09-08', deadline2y:'2571-07-10', prescription:'2572-07-10',
+    docRef:'ปป 0021/9210 ลงวันที่ 10 กรกฎาคม 2569',
+    urgent:false, complex:false, dupWarning:false,
+    docType:'213', signPhase:'WAIT',
+    slaDays:0, slaLimit:15, subCommittee:null,
+    meetingNo:null, agendaNo:null
+  },
+  {
+    id:'9206/2569',
+    subject:'กล่าวหาเจ้าหน้าที่สำนักงานสาธารณสุขจังหวัดแห่งหนึ่ง จัดซื้อเวชภัณฑ์ราคาสูงกว่าตลาดเอื้อประโยชน์บริษัทเอกชน ใกล้ขาดอายุความ',
+    legalBase:'ม.18/4',
+    status:'PENDING_SECGEN',
+    procType:'7.1',
+    owner:'นางสาวพิมพ์ใจ ตรงต่อหน้าที่', ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 4',
+    complainant:'เจ้าหน้าที่พัสดุภายในหน่วยงาน (ผู้ร้อง)',
+    accused:[ { no:1, name:'นายเกรียงศักดิ์ จัดซื้อ', pos:'หัวหน้ากลุ่มงานพัสดุ สำนักงานสาธารณสุขจังหวัด', idcard:'3-1060-0xxxx-xx-x', agency:'สำนักงานสาธารณสุขจังหวัดแห่งหนึ่ง' } ],
+    allegation:'จัดซื้อเวชภัณฑ์และครุภัณฑ์ทางการแพทย์ในราคาสูงกว่าท้องตลาดอย่างผิดปกติ เอื้อประโยชน์ให้บริษัทเอกชนรายหนึ่ง คดีใกล้ครบกำหนดอายุความ',
+    receivedDate:'2569-05-15', deadline60:'2569-07-14', deadline2y:'2571-05-15', prescription:'2569-11-01',
+    docRef:'ปป 0021/9206 ลงวันที่ 15 พฤษภาคม 2569',
+    urgent:true, urgentReason:'คดีใกล้ครบกำหนดอายุความภายใน 30 วัน เห็นควรเสนอเร่งรัดพิจารณา',
+    complex:false, dupWarning:false,
+    docType:'213', signPhase:'WAIT',
+    slaDays:0, slaLimit:15, subCommittee:null,
+    meetingNo:null, agendaNo:null
+  },
+  {
+    id:'9207/2569',
+    subject:'กล่าวหาเจ้าหน้าที่สำนักงานขนส่งจังหวัดแห่งหนึ่ง เรียกรับเงินเพื่ออำนวยความสะดวกในการออกใบอนุญาตขับขี่',
+    legalBase:'ม.62',
+    status:'PENDING_SECGEN',
+    procType:'7.1',
+    owner:'นายธีรพงษ์ ซื่อสัตย์', ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 5',
+    complainant:'ประชาชนผู้มาติดต่อราชการ (ผู้ร้อง)',
+    accused:[ { no:1, name:'นายสมพงษ์ เร่งงาน', pos:'นายทะเบียนใบอนุญาตขับรถ', idcard:'3-1070-0xxxx-xx-x', agency:'สำนักงานขนส่งจังหวัดแห่งหนึ่ง' } ],
+    allegation:'เรียกรับเงินจากประชาชนผู้มาติดต่อขอรับใบอนุญาตขับรถเพื่อแลกกับการอำนวยความสะดวกและลัดคิว',
+    receivedDate:'2569-07-20', deadline60:'2569-09-18', deadline2y:'2571-07-20', prescription:'2572-07-20',
+    docRef:'ปป 0021/9207 ลงวันที่ 20 กรกฎาคม 2569',
+    urgent:false, complex:false, dupWarning:false,
+    docType:'213', signPhase:'WAIT',
+    slaDays:0, slaLimit:15, subCommittee:null,
+    meetingNo:null, agendaNo:null
+  },
+  {
+    id:'9208/2569',
+    subject:'กล่าวหาเจ้าหน้าที่โรงพยาบาลส่งเสริมสุขภาพตำบลแห่งหนึ่ง เบิกค่าตอบแทนเวรนอกเวลาราชการโดยไม่ได้ปฏิบัติงานจริง',
+    legalBase:'ม.62',
+    status:'PENDING_SECGEN',
+    procType:'7.1',
+    owner:'นางสาวอรทัย ตรวจตรา', ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 6',
+    complainant:'เจ้าหน้าที่ภายในหน่วยงานเดียวกัน (ผู้ร้อง)',
+    accused:[ { no:1, name:'นางสาวกัลยา เบิกเกิน', pos:'พยาบาลวิชาชีพชำนาญการ', idcard:'3-1080-0xxxx-xx-x', agency:'โรงพยาบาลส่งเสริมสุขภาพตำบลแห่งหนึ่ง' } ],
+    allegation:'เบิกจ่ายค่าตอบแทนการปฏิบัติงานนอกเวลาราชการโดยไม่ได้มาปฏิบัติงานจริงตามที่เบิก รวมหลายครั้ง',
+    receivedDate:'2569-08-02', deadline60:'2569-10-01', deadline2y:'2571-08-02', prescription:'2572-08-02',
+    docRef:'ปป 0021/9208 ลงวันที่ 2 สิงหาคม 2569',
+    urgent:false, complex:false, dupWarning:false,
+    docType:'213', signPhase:'WAIT',
+    slaDays:0, slaLimit:15, subCommittee:null,
+    meetingNo:null, agendaNo:null
+  },
+  {
+    id:'9209/2569',
+    subject:'กล่าวหาเจ้าหน้าที่สำนักงานที่ดินสาขาแห่งหนึ่ง เรียกรับเงินเร่งรัดการจดทะเบียนสิทธิและนิติกรรม ใกล้ขาดอายุความ',
+    legalBase:'ม.62',
+    status:'PENDING_SECGEN',
+    procType:'7.1',
+    owner:'นายวุฒิชัย เที่ยงธรรม', ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 7',
+    complainant:'ประชาชนผู้มาติดต่อขอจดทะเบียน (ผู้ร้อง)',
+    accused:[ { no:1, name:'นายสุเมธ จดทะเบียน', pos:'เจ้าพนักงานที่ดินสาขา', idcard:'3-1090-0xxxx-xx-x', agency:'สำนักงานที่ดินสาขาแห่งหนึ่ง' } ],
+    allegation:'เรียกรับเงินจากประชาชนเพื่อเร่งรัดขั้นตอนการจดทะเบียนสิทธิและนิติกรรมที่ดินให้เร็วกว่าคิวปกติ คดีใกล้ครบกำหนดอายุความ',
+    receivedDate:'2569-06-25', deadline60:'2569-08-24', deadline2y:'2571-06-25', prescription:'2569-10-25',
+    docRef:'ปป 0021/9209 ลงวันที่ 25 มิถุนายน 2569',
+    urgent:true, urgentReason:'คดีใกล้ครบกำหนดอายุความภายใน 43 วัน เห็นควรเสนอบรรจุวาระด่วน',
+    complex:false, dupWarning:false,
+    docType:'213', signPhase:'WAIT',
+    slaDays:0, slaLimit:15, subCommittee:null,
+    meetingNo:null, agendaNo:null
+  },
+
   {
     id:'0921/2569',
     subject:'กล่าวหาเจ้าหน้าที่สหกรณ์ออมทรัพย์แห่งหนึ่ง ยักยอกเงินฝากสมาชิกโดยทุจริต',
@@ -2580,7 +2672,7 @@ function __hubBridgeCases() {
   else Object.assign(CASES[index], shared);
 }
 
-const CASES_VERSION = '2026-09-04-case-admin-intake-v1';
+const CASES_VERSION = '2026-09-14-71-secgen-batch2';
 if (typeof sessionStorage !== 'undefined') {
   const savedVersion = sessionStorage.getItem('ecmis_cases_version');
   const savedCases = sessionStorage.getItem('ecmis_cases');

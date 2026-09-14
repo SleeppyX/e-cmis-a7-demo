@@ -378,12 +378,13 @@
       if (!confirmed.isConfirmed) return;
 
       let trc_id = form.trcId;
+      let addedItem = null;
       try {
         if (!form.existingMode) {
           const meeting = await AR.addMeeting({ trc_name: form.meetNo, trc_date: form.meetDate, trc_status: '0' });
           trc_id = meeting.trc_id;
         }
-        await AR.addItem({
+        addedItem = await AR.addItem({
           trc_id, trci_number: form.agendaNo,
           category: resolvedLike ? 'finding' : 'preliminary',
           trci_topic: form.topic,
@@ -398,6 +399,11 @@
         console.error('บรรจุระเบียบวาระไม่สำเร็จ:', err);
         ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
         return;
+      }
+      /* เลขที่เรื่องที่ระบบหาไม่เจอในฐานข้อมูล (พิมพ์ผิด/เลขไม่ตรง) เดิมเงียบสนิท ไม่เชื่อมโยงจริง
+         แต่ผู้ใช้เข้าใจว่าบรรจุวาระสำเร็จแล้ว — ต้องเตือนให้เห็นชัดว่าเรื่องไหนไม่ถูกเชื่อมโยง */
+      if (addedItem && addedItem.unresolvedCaseNos && addedItem.unresolvedCaseNos.length) {
+        ECMIS.toastWarn(`บรรจุวาระสำเร็จ แต่ไม่พบเลขที่เรื่องในระบบ: ${addedItem.unresolvedCaseNos.join(', ')} — สำนวนนี้จะไม่ถูกเชื่อมโยงเข้าครั้งประชุมจริง กรุณาตรวจสอบเลขที่เรื่องอีกครั้ง`);
       }
       ECMIS.toastOk('บรรจุระเบียบวาระเรียบร้อย — กำลังเปิดรายละเอียดวาระของครั้งประชุมนี้');
       setTimeout(() => { location.href = 'agenda-detail.html?meet=' + encodeURIComponent(trc_id); }, 1400);

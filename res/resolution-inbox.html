@@ -224,6 +224,33 @@ async function loadCasesFromSupabase() {
   }
 }
 
+/* trr_meeting_no/trr_agenda_no บนตัวสำนวนเองไม่เคยถูกเติมค่าตอน "บรรจุระเบียบวาระ" ที่หน้า
+   agenda-registry.html (เขียนเข้า tbl_res_calendar_item + เชื่อมผ่าน tbl_res_calendar_item_case
+   เท่านั้น) — ต้อง join ตารางจริงตรงนี้เพื่อให้ group ตามครั้งประชุมได้ถูกต้อง ไม่ใช่รอ trr_meeting_no
+   ที่จะถูกเติมค่าจริงก็ตอนบันทึกมติแล้ว (resolution.html/board-resolution.html) ซึ่งช้าเกินไป */
+async function loadMeetingLinksFromSupabase() {
+  if (!sb) return {};
+  try {
+    const { data, error } = await sb
+      .from('tbl_res_calendar_item_case')
+      .select('trr_id, tbl_res_calendar_item!inner(trci_number, is_deleted, tbl_res_calendar!inner(trc_name, trc_date, is_deleted))')
+      .eq('tbl_res_calendar_item.is_deleted', false)
+      .eq('tbl_res_calendar_item.tbl_res_calendar.is_deleted', false);
+    if (error) throw error;
+    const map = {};
+    (data || []).forEach(row => {
+      const item = row.tbl_res_calendar_item;
+      const meeting = item && item.tbl_res_calendar;
+      if (!meeting) return;
+      map[row.trr_id] = { meetingNo: meeting.trc_name, meetingDate: meeting.trc_date, agendaNo: item.trci_number };
+    });
+    return map;
+  } catch (err) {
+    console.warn('โหลดข้อมูลเชื่อมโยงครั้งประชุมไม่สำเร็จ:', err);
+    return {};
+  }
+}
+
 async function updateCaseStatus(kase, newStatus) {
   const fromStatus = kase.status;
   kase.status = newStatus;
@@ -249,9 +276,13 @@ function getStage(c) {
   return ECMIS.computeResolutionStage(c);
 }
 
+/* stage 2 = "จัดทำมติแล้วเสร็จ" (บันทึกมติที่ประชุมสำเร็จแล้ว trr_status='RESOLVED') — เดิมยังนับเป็น
+   actionable ทำให้กดปุ่ม "บันทึกมติ" แก้ไขซ้ำได้แม้เสร็จงานแล้ว ตามที่ตกลง ให้ล็อกเป็นดูอย่างเดียว
+   ทันที เหลือเฉพาะ stage 1 (อยู่ระหว่างจัดทำมติ) เท่านั้นที่ยังแก้ไขได้ — ล็อกเด็ดขาด ไม่มีทาง
+   ย้อนกลับแก้ไขจากหน้านี้อีก (ตามที่ยืนยัน) */
 function isRowActionable(c) {
   const stg = getStage(c);
-  return stg === 1 || stg === 2;
+  return stg === 1;
 }
 
 /* ---------- KPI Cards (Clean Text) ---------- */
@@ -665,7 +696,17 @@ function populateMeetingFilter() {
     console.error('โหลดข้อมูลไม่สำเร็จ:', err);
     CASES = ECMIS.CASES.slice();
   }
-  
+
+  const meetingLinks = await loadMeetingLinksFromSupabase();
+  CASES.forEach(c => {
+    const link = c.trr_id && meetingLinks[c.trr_id];
+    if (link) {
+      c.meetingNo = link.meetingNo;
+      c.agendaNo = link.agendaNo;
+      c.meetingDate = link.meetingDate;
+    }
+  });
+
   // Scope รวมทุกสำนวนในสายงานมติ (Stage 1 ถึง 6)
   const RESOLUTION_SCOPE_STATUSES = [
     'AGENDA_SET', 'IN_MEETING', 'PENDING_INVITE_72', 'IN_MEETING_72', 

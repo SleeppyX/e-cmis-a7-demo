@@ -413,7 +413,9 @@
     ECMIS.initSmartCombobox(signerNameEl);
 
     /* ---------- Q: สิทธิ์แก้ไขมติ (ชีตแถว 15) ---------- */
-    const mayEdit = ECMIS.canEditMaster(role.id) || ECMIS.can('record.minutes', role.id);
+    /* บันทึกมติที่ประชุมสำเร็จแล้ว (status='RESOLVED') ต้องล็อกเด็ดขาด ดูได้อย่างเดียว ไม่มีทาง
+       ย้อนกลับแก้ไขจากหน้านี้อีก แม้เปิดตรงด้วย URL ก็ตาม (ไม่ใช่แค่ซ่อนปุ่มที่ resolution-inbox.html) */
+    const mayEdit = (ECMIS.canEditMaster(role.id) || ECMIS.can('record.minutes', role.id)) && kase.status !== 'RESOLVED';
     const mayView = ECMIS.canViewCase(kase, role.id);
 
     if (!mayView) {
@@ -424,6 +426,12 @@
       และคณะอนุกรรมการเห็นได้เฉพาะสำนวนที่ได้รับมอบหมายให้คณะของตน
     </div>`;
       document.getElementById('content') && (document.getElementById('content').style.display = 'none');
+    } else if (kase.status === 'RESOLVED') {
+      document.getElementById('editGate').innerHTML = `
+    <div class="mb-3">
+      <strong><i class="fa-solid fa-lock me-1"></i>โหมดอ่านอย่างเดียว — จัดทำมติแล้วเสร็จ</strong><br>
+      สำนวนนี้บันทึกมติที่ประชุมเรียบร้อยแล้ว ไม่สามารถแก้ไขได้อีก
+    </div>`;
     } else if (!mayEdit) {
       document.getElementById('editGate').innerHTML = `
     <div class="mb-3">

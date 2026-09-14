@@ -428,6 +428,10 @@
 
     const mapped = mapItemRow(data);
     ITEMS.push(mapped);
+    /* unresolved: เลขที่เรื่องที่ resolveCaseNoToTrrId หาไม่พบในระบบ — เดิม swallow ไปเฉยๆ
+       (เก็บ overlay สำรองไว้ก็จริง แต่ผู้ใช้ไม่รู้ตัวว่าสำนวนไม่ได้เชื่อมโยงจริงลง DB) จึง return
+       กลับไปให้ผู้เรียกแจ้งเตือนต่อ */
+    mapped.unresolvedCaseNos = unresolved;
     return mapped;
   }
 

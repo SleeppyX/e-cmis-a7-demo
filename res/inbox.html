@@ -396,6 +396,15 @@ if(ECMIS.isUpstreamRole(role.id)){
       <option value="PENDING_DISPATCH_GUILTY_72">รอส่งดำเนินคดี</option>
     `;
   }
+} else if (role.id === 'dir_case') {
+  const sf = document.getElementById('statusFilter');
+  if (sf) {
+    sf.innerHTML = `
+      <option value="ALL">ทั้งหมด</option>
+      <option value="PENDING_SUPPORT_ASSIGN">รอ assign อนุสนับสนุน</option>
+      <option value="PENDING_URGENT">รอลงความเห็นใบด่วน</option>
+    `;
+  }
 }
 
 let allCasesCombined = [];
@@ -471,6 +480,40 @@ function renderKPICards() {
       const isActive = (currentSt === k.id);
       return `
       <div class="col-12 col-sm-6 col-md-3 col-xl">
+        <div class="card card-ecmis kpi-card h-100 ${isActive ? 'border-2 shadow-sm' : ''}"
+             style="min-height:88px; cursor:pointer; ${isActive ? `border-color:${k.c} !important; background:${k.c}0D;` : ''}"
+             onclick="filterByKPI('${k.id}')">
+          <div class="card-body d-flex align-items-center gap-2 py-3 px-3">
+            <div style="flex:0 0 38px;height:38px;border-radius:10px;background:${k.c}18;display:flex;align-items:center;justify-content:center">
+              <i class="fa-solid ${k.i}" style="color:${k.c};font-size:1.05rem"></i>
+            </div>
+            <div style="min-width:0">
+              <div style="font-size:1.5rem;font-weight:700;font-family:var(--serif);color:${k.c};line-height:1.1">${k.n}</div>
+              <div class="text-muted text-truncate" style="font-size:.74rem;margin-top:2px" title="${k.l}">${k.l}</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  if (role.id === 'dir_case') {
+    /* ผอ.กบค. มี 2 คิวงานแยกกันจริง (assign อนุสนับสนุน / ลงความเห็นใบด่วน) แต่ใช้หน้า inbox
+       เดียวกันตามที่ตกลงไว้ — แยกด้วย KPI card กดกรองได้ ครอบคลุมทั้งสาย 7.1 และ 7.2 */
+    const supportAssignCount = allCasesCombined.filter(c => c.status === 'PENDING_SUPPORT_ASSIGN' || c.status === 'PENDING_SUPPORT_ASSIGN_72').length;
+    const urgentReviewCount  = allCasesCombined.filter(c => c.status === 'PENDING_URGENT' || c.status === 'PENDING_URGENT_72').length;
+
+    const kpis = [
+      { id:'ALL', n: allCasesCombined.length, l:'รายการทั้งหมด', i:'fa-folder-open', c:'#0F2A62' },
+      { id:'PENDING_SUPPORT_ASSIGN', n: supportAssignCount, l:'รอ assign อนุสนับสนุน', i:'fa-people-arrows', c:'#0284C7' },
+      { id:'PENDING_URGENT', n: urgentReviewCount, l:'รอลงความเห็นใบด่วน', i:'fa-bolt', c:'#DB2626' }
+    ];
+
+    document.getElementById('kpiRow').innerHTML = kpis.map(k => {
+      const isActive = (currentSt === k.id);
+      return `
+      <div class="col-12 col-sm-6 col-md-4 col-xl">
         <div class="card card-ecmis kpi-card h-100 ${isActive ? 'border-2 shadow-sm' : ''}"
              style="min-height:88px; cursor:pointer; ${isActive ? `border-color:${k.c} !important; background:${k.c}0D;` : ''}"
              onclick="filterByKPI('${k.id}')">
@@ -851,6 +894,9 @@ function applyFilters() {
       }
     } else if (role.id === 'affairs') {
       if (st !== 'ALL') matchSt = (c.status === st);
+    } else if (role.id === 'dir_case') {
+      if (st === 'PENDING_SUPPORT_ASSIGN') matchSt = (c.status === 'PENDING_SUPPORT_ASSIGN' || c.status === 'PENDING_SUPPORT_ASSIGN_72');
+      else if (st === 'PENDING_URGENT') matchSt = (c.status === 'PENDING_URGENT' || c.status === 'PENDING_URGENT_72');
     } else if (st !== 'ALL') {
       if (st === 'MINE_PENDING') {
         matchSt = (getSecgenStatusCategory(c) === 'PENDING');

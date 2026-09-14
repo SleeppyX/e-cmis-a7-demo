@@ -160,7 +160,7 @@
 
     const params = new URLSearchParams(location.search);
     const role = ECMIS.currentRole();
-    let kase = null, dirCase, chairman, isCertifyStep, isSignStep;
+    let kase = null, chairman, isSignStep;
 
     (async function main() {
       const caseParam = params.get('case') || '2015/2569';
@@ -181,23 +181,14 @@
     document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
     document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
 
-    dirCase = ECMIS.getRole('dir_case');
     chairman = ECMIS.getRole('chairman');
-    isCertifyStep = kase.status === 'PENDING_URGENT_72';
     isSignStep = kase.status === 'PENDING_CHAIRMAN_URGENT_72';
 
     function renderStepCard() {
-      if (isCertifyStep) {
-        document.getElementById('stepCardTitle').textContent = 'รับรองเหตุผลเร่งด่วน (ผอ.กบค.)';
-        document.getElementById('stepCardBody').innerHTML = `
-      <label class="form-label field-req">เหตุผลความเร่งด่วน</label>
-      <textarea class="form-control" id="urgentReason" rows="5"
-        placeholder="ระบุเหตุผลความจำเป็นเร่งด่วน เช่น ใกล้ครบกำหนดอายุความ / มีความเสี่ยงต่อพยานหลักฐาน...">${kase.urgentReason ? kase.urgentReason : ''}</textarea>
-      <div class="val-msg val-err" data-for="urgentReason">กรุณาระบุเหตุผลความเร่งด่วนก่อนรับรอง</div>`;
-      } else if (isSignStep) {
+      if (isSignStep) {
         document.getElementById('stepCardTitle').textContent = 'ลงนามมอบหมาย/บรรจุวาระด่วน (ประธานฯ)';
         document.getElementById('stepCardBody').innerHTML = `
-      <label class="form-label">เหตุผลความเร่งด่วนที่ ${dirCase.title} รับรองไว้</label>
+      <label class="form-label">เหตุผลความเร่งด่วนที่เสนอ</label>
       <textarea class="form-control" rows="4" readonly>${kase.urgentReason || ''}</textarea>
       <label class="form-label mt-3">ความเห็น/เหตุผลของประธานฯ
         <span class="text-muted">(บังคับกรอกเมื่อ "ส่งเข้าคณะอนุกลั่นกรองฯ" หรือ "ตีกลับให้แก้ไข")</span></label>
@@ -210,18 +201,15 @@
       <div class="no-permission">
         <i class="fa-solid fa-circle-info me-1"></i>
         สำนวน <strong>${kase.id}</strong> อยู่ในสถานะ <strong>${ECMIS.STATUS[kase.status] ? ECMIS.STATUS[kase.status].label : kase.status}</strong>
-        ซึ่งไม่ใช่ขั้นตอนคำร้องขอบรรจุวาระด่วน — เปิดหน้านี้ได้เฉพาะสถานะรอ ผอ.กบค. รับรอง
-        หรือรอประธานฯ ลงนามมอบหมาย/บรรจุวาระด่วนเท่านั้น
+        ซึ่งไม่ใช่ขั้นตอนคำร้องขอบรรจุวาระด่วน — เปิดหน้านี้ได้เฉพาะสถานะรอประธานฯ
+        ลงนามมอบหมาย/บรรจุวาระด่วนเท่านั้น
       </div>`;
       }
     }
 
     function renderDoc() {
       const M = ECMIS.mergeField;
-      const reasonNow = isCertifyStep
-        ? (document.getElementById('urgentReason') ? document.getElementById('urgentReason').value.trim() : '')
-        : (kase.urgentReason || '');
-      const certifierShown = kase.urgentCertifiedDate72 ? `${dirCase.name} — ${dirCase.title}` : '';
+      const reasonNow = kase.urgentReason || '';
       const signerShown = kase.agendaUrgentSignedDate72 ? `${chairman.name} — ${chairman.title}` : '';
       const docPaperEl = document.getElementById('docPaper');
       if (!docPaperEl) return;
@@ -242,9 +230,6 @@
       <div class="doc-body-indent">
         <div class="doc-h">เหตุผลความเร่งด่วน</div>
         <div class="doc-indent">${M(reasonNow, '……………………………………………………………………………………')}</div>
-
-        <div class="doc-h">ผู้รับรองเหตุผลเร่งด่วน</div>
-        <div class="doc-indent">${M(certifierShown)}</div>
 
         <div class="doc-h">ผู้ลงนามมอบหมาย/บรรจุวาระด่วน</div>
         <div class="doc-indent">${M(signerShown)}</div>
@@ -272,14 +257,8 @@
     renderStepCard();
     renderDoc();
     ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: true });
-    if (isCertifyStep) {
-      document.getElementById('urgentReason').addEventListener('input', renderDoc);
-    }
 
     function buildButtons() {
-      if (isCertifyStep) {
-        return [{ act: 'certify', label: 'รับรองและส่งประธานฯ', icon: 'fa-check', cls: 'btn-navy' }];
-      }
       if (isSignStep) {
         return [
           { act: 'sign', label: 'ลงนามมอบหมาย/บรรจุวาระด่วน', icon: 'fa-signature', cls: 'btn-gold' },
@@ -294,40 +273,6 @@
       b.addEventListener('click', () => handle(b.dataset.act)));
 
     async function handle(act) {
-      if (act === 'certify') {
-        const ta = document.getElementById('urgentReason');
-        if (!ta.value.trim()) {
-          ta.classList.add('is-invalid-ecmis');
-          document.querySelector('.val-msg[data-for="urgentReason"]').classList.add('show');
-          ECMIS.toastWarn('กรุณาระบุเหตุผลความเร่งด่วนก่อนรับรอง');
-          return;
-        }
-        ta.classList.remove('is-invalid-ecmis');
-        document.querySelector('.val-msg[data-for="urgentReason"]').classList.remove('show');
-
-        ECMIS.confirmAction({
-          title: 'รับรองเหตุผลเร่งด่วน',
-          html: `<p>สำนวน <strong>${kase.id}</strong> — รับรองโดย ${dirCase.title}</p>`,
-          confirmText: 'ยืนยันรับรอง'
-        }).then(async res => {
-          if (!res.isConfirmed) return;
-          try {
-            await persistCase(kase, {
-              urgentReason: ta.value.trim(),
-              urgentCertifiedDate72: new Date().toISOString().slice(0, 10),
-              status: 'PENDING_CHAIRMAN_URGENT_72'
-            });
-          } catch (err) {
-            console.error('รับรองเหตุผลเร่งด่วนไม่สำเร็จ:', err);
-            ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
-            return;
-          }
-          ECMIS.toastOk('รับรองเหตุผลเร่งด่วนเรียบร้อย ส่งต่อประธานฯ แล้ว');
-          setTimeout(() => location.reload(), 1400);
-        });
-        return;
-      }
-
       if (act === 'sign') {
         ECMIS.signDialog(`หนังสือขอบรรจุวาระการประชุมด่วน — เรื่องที่ ${kase.id}`, `${chairman.name} — ${chairman.title}`)
           .then(async res => {

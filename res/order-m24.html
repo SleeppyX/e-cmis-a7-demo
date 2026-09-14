@@ -226,13 +226,13 @@
           </div>
 
           <div class="ws-card mb-3">
-            <div class="card-header"><i class="fa-solid fa-clipboard-check"></i> ๔–๕. ความเห็นผู้ตรวจ / ผอ.กบค.</div>
+            <div class="card-header"><i class="fa-solid fa-clipboard-check"></i> ๔–๕. ความเห็นผู้ตรวจ / กบค.</div>
             <div class="card-body">
               <div class="row g-2">
                 <div class="col-md-6"><label class="form-label">๔. เรื่องที่ (ความเห็นผู้ตรวจ)</label>
                   <input class="form-control" id="memoRef4" placeholder="อ้างเรื่องที่เดียวกับบันทึกนี้">
                 </div>
-                <div class="col-md-6"><label class="form-label">๕. เรื่องที่ (ความเห็น ผอ.กบค.)</label>
+                <div class="col-md-6"><label class="form-label">๕. เรื่องที่ (ความเห็น กบค.)</label>
                   <input class="form-control" id="memoRef5" placeholder="อ้างเรื่องที่เดียวกับบันทึกนี้">
                 </div>
               </div>
@@ -1140,7 +1140,7 @@
     <div class="doc-memo-hdr"><span class="doc-memo-lbl">ที่</span> ${M(no, 'ปป ๐๐๐๔/')}&nbsp;&nbsp;&nbsp;&nbsp;<span class="doc-memo-lbl" style="min-width:auto">วันที่</span> ${M(dt, '……………………')}</div>
     <div class="doc-memo-hdr"><span class="doc-memo-lbl">เรื่อง</span> คำสั่ง${isSub ? 'คณะกรรมการ' : 'สำนักงาน'} ป.ป.ท. เรื่อง แต่งตั้ง${orderKind} กรณีเจ้าหน้าที่ของรัฐกระทำการทุจริตในภาครัฐ</div>
     <div class="doc-indent" style="text-indent:6.2em">เรื่องที่ ${M(kase.id)}</div>
-    <div class="doc-memo-hdr" style="margin-top:6px"><span class="doc-memo-lbl">เรียน</span> ${isSub ? 'ประธานกรรมการ ป.ป.ท.' : 'เลขาธิการคณะกรรมการ ป.ป.ท.'} (ผ่านผู้อำนวยการกองบริหารคดี)</div>
+    <div class="doc-memo-hdr" style="margin-top:6px"><span class="doc-memo-lbl">เรียน</span> ${isSub ? 'ประธานกรรมการ ป.ป.ท.' : 'เลขาธิการคณะกรรมการ ป.ป.ท.'} (ผ่านกบค.กลุ่มงานบริหารคดีและบริหารทั่วไป)</div>
 
     <div class="doc-h" style="margin-top:10px">๑. เรื่องเดิม</div>
     <div class="doc-indent">
@@ -1183,10 +1183,10 @@
     </div>
 
     <div>
-      <div class="doc-h" style="margin-top:22px">๕. ความเห็นผู้อำนวยการกองบริหารคดี (เรื่องที่ ${M(ref5 || kase.id)})</div>
+      <div class="doc-h" style="margin-top:22px">๕. ความเห็นกบค.กลุ่มงานบริหารคดีและบริหารทั่วไป (เรื่องที่ ${M(ref5 || kase.id)})</div>
       <div class="doc-indent">ได้ตรวจสอบร่างคำสั่ง${isSub ? 'คณะกรรมการ' : 'สำนักงาน'} ป.ป.ท. เรื่อง แต่งตั้ง${orderKind}ดังกล่าวถูกต้องครบถ้วน จึงเห็นควรพิจารณาลงนาม</div>
       <div class="doc-indent" style="margin-top:6px">จึงเรียนมาเพื่อโปรดพิจารณา</div>
-      <div class="doc-sign" style="margin-top:24px">(${'…'.repeat(30)})<br>ผู้อำนวยการกองบริหารคดี</div>
+      <div class="doc-sign" style="margin-top:24px">(${'…'.repeat(30)})<br>กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป</div>
     </div>
 
     <div>

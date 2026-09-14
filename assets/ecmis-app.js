@@ -33,7 +33,7 @@ const ROLES = [
     perms:['view.all','download','EDIT.MASTER','doc.generate','order24.draft','secrecy.set'] }
   ,
   { id:'case_admin', login:'Kannika.W', row:4, group:'กองบริหารคดี (กลุ่มงานบริหารคดีและบริหารทั่วไป)',
-    title:'ผู้อำนวยการกองบริหารคดี ปฏิบัติหน้าที่เลขานุการคณะกรรมการ ป.ป.ท.',
+    title:'กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป',
     name:'นางสาวกรรณิกา วงศ์ศิริ', org:'กองบริหารคดี', lane:'L7', flow:'S7 / S11', act:'7.1, 7.2, 7.3',
     perms:['view.all','download','create.agenda','create.invite','record.minutes','doc.generate','dispatch.resolution','urgent.endorse'] }
 ];
@@ -77,7 +77,7 @@ const PERM_DEFS = [
   { k:'download',      cat:'การเข้าถึง', label:'ดาวน์โหลดเอกสารได้ทุกเรื่อง' },
   { k:'download.own',  cat:'การเข้าถึง', label:'ดาวน์โหลดได้เฉพาะสำนวนของตนเอง', note:'ชีตแถว 17' },
   { k:'EDIT.MASTER',   cat:'การแก้ไข',  label:'แก้ไขมติ / คำสั่ง / รายงานในระบบ',
-    note:'สิทธิพิเศษสูงสุด — ชีตแถว 15 ระบุว่ามีเพียง 7 คนเท่านั้น (เจ้าหน้าที่กลุ่มงานกิจการฯ 6 + ผอ.กบค. 1)', critical:true },
+    note:'สิทธิพิเศษสูงสุด — ชีตแถว 15 ระบุว่ามีเพียง 7 คนเท่านั้น (เจ้าหน้าที่กลุ่มงานกิจการฯ 6 + กบค. 1)', critical:true },
   { k:'record.minutes',cat:'การแก้ไข',  label:'บันทึกมติที่ประชุมเข้าระบบ' },
   { k:'lock.pdf',      cat:'การแก้ไข',  label:'ล็อกไฟล์ PDF มติ' },
   { k:'compile.minutes',cat:'การแก้ไข', label:'Auto-compile รายงานการประชุมรวม' },
@@ -111,7 +111,7 @@ const PERM_DEFS = [
   { k:'request.moreinfo',cat:'การประชุม',label:'ขอเอกสาร/ข้อมูลเพิ่มเติมจากเจ้าของสำนวน' },
   { k:'ack.resolution',cat:'ปลายน้ำ',   label:'บันทึกรับมติในระบบ' },
   { k:'urgent.request',cat:'ปลายน้ำ',   label:'ยื่นใบด่วนขอบรรจุวาระ' },
-  { k:'urgent.endorse',cat:'ปลายน้ำ',   label:'เห็นชอบใบด่วนเบื้องต้นก่อนส่ง ผอ.กบค.' },
+  { k:'urgent.endorse',cat:'ปลายน้ำ',   label:'เห็นชอบใบด่วนเบื้องต้นก่อนส่ง กบค.' },
   { k:'dispatch.resolution',cat:'ปลายน้ำ',label:'ส่งมติคืนกอง / สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต' },
   { k:'dispatch.nacc', cat:'ปลายน้ำ',   label:'ทำหนังสือนำส่งสำนวนถึง ป.ป.ช.' },
   { k:'track.discipline',cat:'ปลายน้ำ', label:'ติดตามผลการดำเนินการทางวินัย (เชื่อม กจ.8)' },
@@ -152,7 +152,6 @@ const STATUS = {
 
   PENDING_SECGEN:   { label:'รอเลขาธิการฯ ลงนาม',         cls:'st-pending',  owner:'secgen' },
   IN_SUPPORT_SUB:   { label:'ส่งให้คณะอนุสนับสนุนฯ พิจารณาแล้ว', cls:'st-review', owner:'support_sub' },
-  PENDING_URGENT:   { label:'รอ ผอ.กบค. รับรองใบด่วน',     cls:'st-urgent',   owner:'dir_case' },
   PENDING_CHAIRMAN: { label:'รอประธานฯ สั่งการ',           cls:'st-pending',  owner:'chairman' },
   IN_SCREENING:     { label:'อยู่อนุกลั่นกรองฯ',           cls:'st-review',   owner:'subcommittee' },
   SCREENING_MORE_INFO: { label:'อนุกลั่นกรองฯ ขอข้อมูลเพิ่มเติม', cls:'st-review', owner:'subcommittee' },
@@ -182,7 +181,6 @@ const STATUS = {
   RETURNED_72:         { label:'ตีกลับเจ้าของสำนวน (รายงานวินิจฉัยชี้มูล)',      cls:'st-returned', owner:'owner' },
   PENDING_SECGEN_72:   { label:'รอเลขาธิการฯ พิจารณา / ลงนาม (วินิจฉัยชี้มูล)',   cls:'st-pending', owner:'secgen' },
   IN_SUPPORT_SUB_72:   { label:'ส่งคณะอนุสนับสนุนเลขาธิการฯ พิจารณาแล้ว',        cls:'st-review',  owner:'support_sub' },
-  PENDING_URGENT_72:   { label:'รอ ผอ.กบค. รับรองเหตุผลเร่งด่วน',                cls:'st-urgent',  owner:'dir_case' },
   PENDING_CHAIRMAN_URGENT_72: { label:'รอประธานฯ ลงนามมอบหมาย / บรรจุวาระด่วน',  cls:'st-pending', owner:'chairman' },
   PENDING_CHAIRMAN_72: { label:'รอประธานฯ ลงนามมอบหมาย (ส่งคณะอนุกลั่นกรองฯ)',   cls:'st-pending', owner:'chairman' },
   IN_SCREENING_72:     { label:'อยู่คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง',      cls:'st-review',  owner:'subcommittee' },
@@ -202,14 +200,14 @@ const STATUS = {
 // บล็อก 000-099 = สายงานหลัก, บล็อก 100-199 = สายรายงานวินิจฉัยชี้มูล (คีย์ลงท้าย _72)
 const STATUS_CODE = {
   DRAFT:'000', RETURNED:'001', PENDING_SECTION:'002', PENDING_DIRECTOR:'003', PENDING_DEPUTY:'004',
-  PENDING_SECGEN:'005', IN_SUPPORT_SUB:'006', PENDING_URGENT:'007',
+  PENDING_SECGEN:'005', IN_SUPPORT_SUB:'006',
   PENDING_CHAIRMAN:'009', IN_SCREENING:'010', AGENDA_SET:'011', IN_MEETING:'012', DEFERRED:'013',
   RESOLVED_PENDING:'014', RESOLVED:'015', DISPATCHING:'016', CLOSED:'017',
   PENDING_SIGN_ORDER_CHAIRMAN:'018', PENDING_SIGN_ORDER_SECGEN:'019', UNDER_INVESTIGATION:'020',
   SCREENING_MORE_INFO:'021',
 
   PENDING_SECTION_72:'100', PENDING_DIRECTOR_72:'101', PENDING_DEPUTY_72:'102', RETURNED_72:'103',
-  PENDING_SECGEN_72:'104', IN_SUPPORT_SUB_72:'105', PENDING_URGENT_72:'106', PENDING_CHAIRMAN_URGENT_72:'107',
+  PENDING_SECGEN_72:'104', IN_SUPPORT_SUB_72:'105', PENDING_CHAIRMAN_URGENT_72:'107',
   IN_SCREENING_72:'108', PENDING_INVITE_72:'109', IN_MEETING_72:'110', RESOLVED_PENDING_72:'111',
   PENDING_SIGN_RULING_72:'112', PENDING_AREA_NOTICE_72:'113', DISPATCHING_NACC_72:'114',
   PENDING_DISPATCH_GUILTY_72:'115', CLOSED_72:'116', SCREENING_MORE_INFO_72:'117',
@@ -222,9 +220,9 @@ const TRANSITIONS = [
   { from:'PENDING_SECGEN', to:'IN_SUPPORT_SUB', event:'SIGN_COMPLEX', actor:'secgen',
     ref:'เสนอเลขาธิการฯ', guard:k => g1Triggers(k).required,
     note:'สำนวนซับซ้อน หรือความเห็นในสายบังคับบัญชาไม่ตรงกัน' },
-  { from:'PENDING_SECGEN', to:'PENDING_URGENT', event:'SIGN_URGENT', actor:'secgen',
+  { from:'PENDING_SECGEN', to:'PENDING_CHAIRMAN', event:'SIGN_URGENT', actor:'secgen',
     ref:'เสนอขอเพิ่มวาระด่วน', guard:k => !g1Triggers(k).required && !!k.urgent,
-    note:'กรณีไม่ใช่เรื่องซับซ้อน และมีใบด่วน' },
+    note:'กรณีไม่ใช่เรื่องซับซ้อน และมีใบด่วน — เสนอตรงประธานฯ' },
   { from:'PENDING_SECGEN', to:'PENDING_CHAIRMAN', event:'SIGN_NORMAL', actor:'secgen',
     ref:'เสนอตามขั้นตอนปกติ', guard:k => !g1Triggers(k).required && !k.urgent,
     note:'กรณีไม่ใช่เรื่องซับซ้อน และไม่มีใบด่วน' },
@@ -233,22 +231,17 @@ const TRANSITIONS = [
 
   { from:'IN_SUPPORT_SUB', to:'PENDING_CHAIRMAN', event:'SUPPORT_ALIGNED', actor:'support_sub',
     ref:'อนุกรรมการฯ เห็นชอบตามเสนอ', note:'ความเห็นสอดคล้อง — เสนอประธานฯ สั่งการ' },
-  { from:'IN_SUPPORT_SUB', to:'PENDING_URGENT', event:'SUPPORT_DIVERGED_URGENT', actor:'support_sub',
+  { from:'IN_SUPPORT_SUB', to:'PENDING_CHAIRMAN', event:'SUPPORT_DIVERGED_URGENT', actor:'support_sub',
     ref:'อนุกรรมการฯ เห็นชอบวาระด่วน', guard:k => !!k.urgent,
-    note:'ความเห็นไม่ตรงกัน — เสนอพิจารณาวาระด่วน' },
+    note:'ความเห็นไม่ตรงกัน — เสนอพิจารณาวาระด่วนตรงประธานฯ' },
   { from:'IN_SUPPORT_SUB', to:'PENDING_CHAIRMAN', event:'SUPPORT_DIVERGED', actor:'support_sub',
     ref:'อนุกรรมการฯ เห็นชอบวาระปกติ', guard:k => !k.urgent, note:'ความเห็นไม่ตรงกัน — เสนอเข้าการกลั่นกรองปกติ' },
-
-  { from:'PENDING_URGENT', to:'PENDING_CHAIRMAN', event:'URGENT_CERTIFY', actor:'dir_case',
-    ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. ลงนามรับรองเหตุผลเร่งด่วน' },
-  { from:'PENDING_URGENT', to:'IN_SCREENING', event:'URGENT_REJECT', actor:'dir_case',
-    ref:'ไม่รับรองเหตุผลเร่งด่วน', note:'ไม่รับรองใบด่วน — ปรับเข้าสู่เส้นทางกลั่นกรองปกติ' },
 
   { from:'PENDING_CHAIRMAN', to:'IN_SCREENING', event:'ORDER_SCREENING', actor:'chairman',
     ref:'ประธานฯ สั่งส่งกลั่นกรอง', note:'สั่งส่งกลั่นกรองตามปกติ' },
   { from:'PENDING_CHAIRMAN', to:'AGENDA_SET', event:'ORDER_AGENDA_URGENT', actor:'chairman',
-    ref:'ประธานฯ สั่งบรรจุวาระด่วน', guard:k => !!k.urgentCertified,
-    note:'สั่งบรรจุวาระด่วน — ต้องมีลายเซ็นรับรองของ ผอ.กบค. ก่อนเท่านั้น' },
+    ref:'ประธานฯ สั่งบรรจุวาระด่วน', guard:k => !!k.urgent,
+    note:'สั่งบรรจุวาระด่วนตามที่เลขาธิการฯ เสนอมา' },
 
   { from:'IN_SCREENING', to:'AGENDA_SET', event:'SCREENING_RESOLVED', actor:'subcommittee',
     ref:'กลั่นกรองแล้วเสร็จ',
@@ -309,17 +302,15 @@ const TRANSITIONS = [
   { from:'PENDING_SECGEN_72', to:'IN_SUPPORT_SUB_72', event:'SIGN_COMPLEX_72', actor:'secgen',
     ref:'เสนอสำนวนซับซ้อน', guard:k => !!k.complex72,
     note:'สำนวนมีประเด็นซับซ้อนยุ่งยาก — เข้าคณะอนุกรรมการสนับสนุนเลขาธิการฯ ก่อน' },
-  { from:'PENDING_SECGEN_72', to:'PENDING_URGENT_72', event:'SIGN_URGENT_72', actor:'secgen',
+  { from:'PENDING_SECGEN_72', to:'PENDING_CHAIRMAN_URGENT_72', event:'SIGN_URGENT_72', actor:'secgen',
     ref:'เสนอขอเพิ่มวาระด่วน', guard:k => !k.complex72 && !!k.urgent72 },
   { from:'PENDING_SECGEN_72', to:'PENDING_CHAIRMAN_72', event:'SIGN_NORMAL_72', actor:'secgen',
     ref:'เสนอประธานฯ ลงนามมอบหมายก่อนส่งกลั่นกรอง', guard:k => !k.complex72 && !k.urgent72 },
-  { from:'IN_SUPPORT_SUB_72', to:'PENDING_URGENT_72', event:'SUPPORT_DONE_URGENT_72', actor:'support_sub',
+  { from:'IN_SUPPORT_SUB_72', to:'PENDING_CHAIRMAN_URGENT_72', event:'SUPPORT_DONE_URGENT_72', actor:'support_sub',
     ref:'เห็นชอบวาระด่วน', guard:k => !!k.urgent72 },
   { from:'IN_SUPPORT_SUB_72', to:'PENDING_CHAIRMAN_72', event:'SUPPORT_DONE_72', actor:'support_sub',
     ref:'เห็นชอบวาระปกติ — เสนอประธานฯ ลงนามมอบหมาย', guard:k => !k.urgent72 },
 
-  { from:'PENDING_URGENT_72', to:'PENDING_CHAIRMAN_URGENT_72', event:'URGENT_CERTIFY_72', actor:'dir_case',
-    ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. รับรองเหตุผลเร่งด่วน' },
   { from:'PENDING_CHAIRMAN_URGENT_72', to:'PENDING_INVITE_72', event:'AGENDA_URGENT_72', actor:'chairman',
     ref:'ลงนามบรรจุวาระด่วน', note:'ประธานฯ ลงนามมอบหมาย/บรรจุวาระด่วน — ข้ามขั้นตอนการกลั่นกรอง' },
   { from:'PENDING_CHAIRMAN_URGENT_72', to:'IN_SCREENING_72', event:'URGENT_REJECT_72', actor:'chairman',
@@ -575,7 +566,7 @@ const APPROVAL_CHAIN = ['secgen'];
 
 const FLOW_STEPS = [
   { key:'secgen',    label:'เลขาธิการฯ พิจารณา / ลงนาม', ref:'เสนอเลขาธิการฯ' },
-  { key:'urgent',    label:'ใบด่วน / ผอ.กบค.',           ref:'รับรองเหตุผลเร่งด่วน' },
+  { key:'urgent',    label:'ใบด่วน / กบค.',           ref:'รับรองเหตุผลเร่งด่วน' },
   { key:'chairman',  label:'ประธานฯ สั่งการ',            ref:'ประธานฯ สั่งการ' },
   { key:'screening', label:'อนุกลั่นกรองฯ 1–8',          ref:'อนุกรรมการกลั่นกรอง' },
   { key:'agenda',    label:'บรรจุวาระ',                 ref:'บรรจุวาระการประชุม' },
@@ -1043,7 +1034,7 @@ const CASES = [
         resolution_summary:'ชี้มูลความผิดทางอาญาแก่ผู้ถูกกล่าวหาที่ ๑ และที่ ๒ ตามประมวลกฎหมายอาญา มาตรา ๑๔๗ ประกอบมาตรา ๘๖/๙๑  ข้อกล่าวหาผู้ถูกกล่าวหาที่ ๓ ให้ตกไป',
         lapsed_offences:'ประมวลกฎหมายอาญา มาตรา ๑๕๗ มาตรา ๑๖๑ และพระราชบัญญัติประกอบรัฐธรรมนูญว่าด้วยการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๔๒ และที่แก้ไขเพิ่มเติม มาตรา ๑๒๓/๑ (บางกรรม)',
         case_officer_position:'นักสืบสวนสอบสวนชำนาญการ',
-        signatory_name:'นาง ช. (นามสมมติ)', signatory_position:'ผู้อำนวยการกองบริหารคดี ปฏิบัติหน้าที่เลขานุการคณะกรรมการ ป.ป.ท.'
+        signatory_name:'นาง ช. (นามสมมติ)', signatory_position:'กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป'
       }
     }
   },
@@ -1136,7 +1127,7 @@ const CASES = [
     allegation:'เรียกรับเงินจำนวน 50,000 บาท จากผู้ประกอบการเพื่อแลกกับการเร่งรัดออกใบอนุญาตก่อสร้าง',
     receivedDate:'2568-12-02', deadline60:'2569-01-31', deadline2y:'2570-12-02', prescription:'2569-09-18',
     docRef:'ปป 0020/1104 ลงวันที่ 20 พฤษภาคม 2569',
-    urgent:true, urgent72:true, urgentReason:'คดีใกล้ขาดอายุความภายใน 45 วัน และผู้ถูกร้องมีพฤติการณ์จะโอนย้ายหน่วยงาน (ผอ.กบค. รับรองใบด่วนแล้ว)',
+    urgent:true, urgent72:true, urgentReason:'คดีใกล้ขาดอายุความภายใน 45 วัน และผู้ถูกร้องมีพฤติการณ์จะโอนย้ายหน่วยงาน (กบค. รับรองใบด่วนแล้ว)',
     complex:false, dupWarning:false,
     slaDays:1, slaLimit:15, subCommittee:null,
     meetingNo:'37/2569', agendaNo:'5.4', meetingDate:'2569-08-20',
@@ -1579,7 +1570,7 @@ const CASES = [
     id:'1203/2569',
     subject:'กล่าวหาเจ้าหน้าที่กรมที่ดินแห่งหนึ่ง เร่งรัดออกเอกสารสิทธิ์โดยมิชอบ ก่อนคดีขาดอายุความ',
     legalBase:'ม.18/4',
-    status:'PENDING_URGENT',
+    status:'PENDING_CHAIRMAN',
     procType:'7.1',
     owner:'นายสมชาย ใจซื่อ', ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 1',
     complainant:'นายสุรพล ที่ดินทอง (ผู้ร้อง)',
@@ -1587,7 +1578,7 @@ const CASES = [
     allegation:'ออกเอกสารสิทธิ์ที่ดินโดยมิชอบให้กับพวกพ้อง คดีใกล้ครบกำหนดอายุความ 2 ปี เห็นควรเสนอขอบรรจุวาระด่วน',
     receivedDate:'2569-06-25', deadline60:'2569-08-24', deadline2y:'2569-09-15', prescription:'2569-09-15',
     docRef:'ปป 0020/0801 ลงวันที่ 25 มิถุนายน 2569',
-    urgent:true, urgentReason:'คดีใกล้ครบกำหนดอายุความ 2 ปี ภายใน 21 วัน เห็นควรเสนอบรรจุวาระด่วน', urgentCertified:false,
+    urgent:true, urgentReason:'คดีใกล้ครบกำหนดอายุความ 2 ปี ภายใน 21 วัน เห็นควรเสนอบรรจุวาระด่วน',
     complex:false, dupWarning:false,
     slaDays:2, slaLimit:15, subCommittee:null,
     meetingNo:null, agendaNo:null,
@@ -1613,11 +1604,11 @@ const CASES = [
   {
     /* คิวสั่งการของประธานฯ ใน inbox.html เคยแสดงสำนวนนี้เป็น mock row ที่ไม่มีใน CASES
        คลิกแล้ว getCase() หลุดไป Supabase fallback → canAct() ไม่ผ่าน → actionBar ขึ้นข้อความล็อก
-       ไม่มีปุ่มลงนาม/บันทึก — เติมเป็นสำนวนจริงในชุด mock (สาย 7.1 วาระด่วน ผ่าน ผอ.กบค. รับรองแล้ว) */
+       ไม่มีปุ่มลงนาม/บันทึก — เติมเป็นสำนวนจริงในชุด mock (สาย 7.1 วาระด่วน เสนอตรงประธานฯ) */
     id:'2016/2569',
     subject:'กล่าวหาเจ้าหน้าที่องค์การบริหารส่วนจังหวัดแห่งหนึ่ง เอื้อประโยชน์ในการจัดซื้อครุภัณฑ์ ก่อนคดีขาดอายุความ',
     legalBase:'ม.18/4',
-    status:'PENDING_URGENT',
+    status:'PENDING_CHAIRMAN',
     procType:'7.1',
     owner:'นายสมชาย ใจซื่อ', ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 1',
     complainant:'ความปรากฏต่อสำนักงาน',
@@ -1625,7 +1616,7 @@ const CASES = [
     allegation:'กำหนดคุณลักษณะเฉพาะครุภัณฑ์เพื่อเอื้อประโยชน์ให้ผู้เสนอราคารายหนึ่งเป็นการเฉพาะ มูลค่าโครงการ 12.4 ล้านบาท',
     receivedDate:'2569-06-30', deadline60:'2569-08-29', deadline2y:'2569-09-20', prescription:'2569-09-20',
     docRef:'ปป 0020/0855 ลงวันที่ 30 มิถุนายน 2569',
-    urgent:true, urgentReason:'คดีใกล้ครบกำหนดอายุความภายใน 18 วัน และผู้ถูกร้องมีคำสั่งโอนย้ายหน่วยงาน (ผอ.กบค. รับรองใบด่วนแล้ว)', urgentCertified:true,
+    urgent:true, urgentReason:'คดีใกล้ครบกำหนดอายุความภายใน 18 วัน และผู้ถูกร้องมีคำสั่งโอนย้ายหน่วยงาน',
     complex:false, dupWarning:false,
     slaDays:2, slaLimit:15, subCommittee:null,
     meetingNo:null, agendaNo:null,
@@ -1985,7 +1976,7 @@ const CASES = [
     id:'1177/2566',
     subject:'รายงานผลการไต่สวนเพื่อวินิจฉัยชี้มูล กรณีเจ้าหน้าที่กรมสรรพากรแห่งหนึ่ง เรียกรับสินบนก่อนคดีขาดอายุความ',
     legalBase:'ม.18/4',
-    status:'PENDING_URGENT_72',
+    status:'PENDING_CHAIRMAN_URGENT_72',
     procType:'7.2',
     owner:'นายฉัตรชัย ตรวจการ', ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 2',
     complainant:'ผู้ประกอบการ (ผู้ร้อง)',
@@ -1993,7 +1984,7 @@ const CASES = [
     allegation:'เรียกรับเงินจากผู้ประกอบการเพื่อแลกกับการลดยอดประเมินภาษี คดีใกล้ครบกำหนดอายุความ เห็นควรเสนอขอวาระด่วน',
     receivedDate:'2569-06-12', deadline60:'2569-08-11', deadline2y:'2569-09-20', prescription:'2569-09-20',
     docRef:'ปป 0021/0760 ลงวันที่ 12 มิถุนายน 2569',
-    urgent:false, urgent72:true, urgentReason:'คดีใกล้ครบกำหนดอายุความภายใน 25 วัน เห็นควรเสนอบรรจุวาระด่วน', urgentCertifiedDate72:'',
+    urgent:false, urgent72:true, urgentReason:'คดีใกล้ครบกำหนดอายุความภายใน 25 วัน เห็นควรเสนอบรรจุวาระด่วน',
     complex:false, complex72:false, dupWarning:false,
     slaDays:2, slaLimit:15, subCommittee:null,
     meetingNo:null, agendaNo:null,
@@ -2008,10 +1999,10 @@ const CASES = [
     owner:'นายฉัตรชัย ตรวจการ', ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 2',
     complainant:'ผู้รับเหมารายอื่น (ผู้ร้อง)',
     accused:[ { no:1, name:'นายบุญเลิศ สะพานดี', pos:'ผู้อำนวยการแขวงทางหลวงชนบท', idcard:'3-2201-0xxxx-xx-x', agency:'แขวงทางหลวงชนบทแห่งหนึ่ง' } ],
-    allegation:'กำหนดคุณสมบัติผู้เสนอราคางานก่อสร้างสะพานเพื่อเอื้อประโยชน์ผู้รับเหมารายหนึ่ง คดีใกล้ครบกำหนดอายุความ ผอ.กบค. รับรองเหตุผลเร่งด่วนแล้ว',
+    allegation:'กำหนดคุณสมบัติผู้เสนอราคางานก่อสร้างสะพานเพื่อเอื้อประโยชน์ผู้รับเหมารายหนึ่ง คดีใกล้ครบกำหนดอายุความ',
     receivedDate:'2569-06-15', deadline60:'2569-08-14', deadline2y:'2569-09-25', prescription:'2569-09-25',
     docRef:'ปป 0021/0771 ลงวันที่ 15 มิถุนายน 2569',
-    urgent:false, urgent72:true, urgentReason:'คดีใกล้ครบกำหนดอายุความภายใน 30 วัน ผอ.กบค. รับรองเหตุผลเร่งด่วนแล้ว', urgentCertifiedDate72:'20 ก.ค. 2569',
+    urgent:false, urgent72:true, urgentReason:'คดีใกล้ครบกำหนดอายุความภายใน 30 วัน',
     complex:false, complex72:false, dupWarning:false,
     slaDays:1, slaLimit:15, subCommittee:null,
     meetingNo:null, agendaNo:null,
@@ -3202,7 +3193,7 @@ const PAGE_PERMISSIONS = {
   'resolution.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'resolution-72.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'ruling-report.html': ['board_sec', 'affairs', 'chairman', 'secgen', 'board', 'board_ex', 'case_admin'],
-  'urgent-agenda.html': ['dir_case', 'chairman', 'affairs', 'secgen', 'board_sec', 'board', 'board_ex', 'case_admin'],
+  'urgent-agenda.html': ['chairman', 'affairs', 'secgen', 'board_sec', 'board', 'board_ex', 'case_admin'],
   'agenda-set.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'agenda.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'agenda-meeting-docs.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
@@ -3445,7 +3436,7 @@ function visibleNavFor(role){
 const MOCK_NOTIFICATIONS = [
   { id: 'demo-1', title: 'เสนอเรื่องใหม่', body: 'สำนวน 1547/2568 รอเลขาธิการฯ พิจารณา/ลงนาม', time: '10 นาทีที่แล้ว', icon: 'fa-user-check', cls: 'bg-primary text-white' },
   { id: 'demo-2', title: 'มติบอร์ดเสร็จสิ้น', body: 'บันทึกมติที่ประชุมบอร์ด สำนวน 1119/2565 แล้ว', time: '1 ชม. ที่แล้ว', icon: 'fa-scale-balanced', cls: 'bg-success text-white' },
-  { id: 'demo-3', title: 'คำร้องขอใบด่วน', body: 'ผอ.กบค. ส่งใบด่วนขอวาระด่วน สำนวน 1396/2564', time: '2 ชม. ที่แล้ว', icon: 'fa-bolt', cls: 'bg-warning text-dark' }
+  { id: 'demo-3', title: 'คำร้องขอใบด่วน', body: 'กบค. ส่งใบด่วนขอวาระด่วน สำนวน 1396/2564', time: '2 ชม. ที่แล้ว', icon: 'fa-bolt', cls: 'bg-warning text-dark' }
 ];
 const notificationReadState = { userId:null, byId:{}, loadPromise:null, pending:{} };
 function getReadNotifIds(){
@@ -6257,7 +6248,7 @@ const DEFAULT_SUGGESTIONS = {
   suggestions: [
     'เห็นชอบตามความเห็นและข้อเสนอของเจ้าหน้าที่รับเรื่อง',
     'ส่งกลับให้ตรวจสอบข้อเท็จจริงและเอกสารเพิ่มเติม',
-    'เห็นควรเสนอ ผู้อำนวยการกองบริหารคดี พิจารณาต่อไป',
+    'เห็นควรเสนอ กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป พิจารณาต่อไป',
     'โปรดตรวจสอบข้อเท็จจริงเพิ่มเติม',
     'พบข้อมูลที่ควรตรวจสอบความเชื่อมโยง',
     'เอกสารประกอบยังไม่ครบถ้วน',

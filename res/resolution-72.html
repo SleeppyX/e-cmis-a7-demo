@@ -304,7 +304,7 @@
     ECMIS.initMultiSelectCombo(document.getElementById('presenter'), [
       `${kase.owner} (ผู้รับผิดชอบสำนวน)`,
       `${ECMIS.getRole('board_sec').name} (เจ้าหน้าที่กลุ่มงานคำวินิจฉัยและมติคณะกรรมการ)`,
-      `${ECMIS.getRole('dir_case').name} (ผู้อำนวยการกองบริหารคดี)`
+      `${ECMIS.getRole('case_admin').name} (กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป)`
     ]);
 
     const mayEdit = ECMIS.canEditMaster(role.id) || ECMIS.can('record.minutes', role.id);
@@ -643,7 +643,7 @@
     <div class="doc-sign">
       <span class="doc-dots"></span><br>
       (นางสาวกรรณิกา วงศ์ศิริ)<br>
-      ผู้อำนวยการกองบริหารคดี ปฏิบัติหน้าที่เลขานุการคณะกรรมการ ป.ป.ท.
+      กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป
     </div>`;
 
       ECMIS.paginateResolutionDoc(document.getElementById('docPaper'), { introBlock, flowBlocks, signBlock, runningHeaderHtml });

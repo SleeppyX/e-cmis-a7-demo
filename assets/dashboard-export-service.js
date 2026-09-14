@@ -931,7 +931,7 @@
             </div>
             <div>
               <strong>(นางสาวกรรณิกา วงศ์ศิริ)</strong><br>
-              <span>ผู้อำนวยการกองบริหารคดี</span><br>
+              <span>กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป</span><br>
               <span class="small text-muted">สำนักงาน ป.ป.ท.</span>
             </div>
           </div>

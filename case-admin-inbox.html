@@ -327,7 +327,7 @@
         const { team, reason } = res.value;
         ECMIS.pushCaseHistory(kase, {
           event: 'ROUTE_TO_SUBCOMMITTEE', from: kase.status, to: kase.status, team,
-          note: `กระจายสำนวนเข้า ${team}${team === suggested ? ' (Round-Robin)' : ' (เลือกโดย ผอ.กบค.)'}${reason ? ' — ' + reason : ''}`
+          note: `กระจายสำนวนเข้า ${team}${team === suggested ? ' (Round-Robin)' : ' (เลือกโดย กบค.)'}${reason ? ' — ' + reason : ''}`
         });
         const routedAt = new Date().toISOString();
         kase.subCommittee = team;

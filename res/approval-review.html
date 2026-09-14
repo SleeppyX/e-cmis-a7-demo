@@ -735,7 +735,7 @@
           ? `<strong>G1 = ใช่</strong> → <span class="chip">T6 คณะอนุสนับสนุนฯ</span> → <span class="chip">G2</span>
        <div class="text-muted mt-1" style="font-size:.78rem">เหตุ: ${why}</div>`
           : `<strong>G1 = ไม่ใช่</strong> → <span class="chip">G3 ตรวจใบด่วน</span> →
-       <span class="chip">${kase.urgent ? 'T7 ผอ.กบค.' : 'T8 ประธานกรรมการ ป.ป.ท.'}</span>
+       <span class="chip">T8 ประธานกรรมการ ป.ป.ท.${kase.urgent ? ' (วาระด่วน)' : ''}</span>
        <div class="text-muted mt-1" style="font-size:.78rem">เหตุ: ${why}</div>`;
       }
 
@@ -1161,9 +1161,9 @@
               ? 'เรื่องมีความเห็นไม่ตรงกันในสายบังคับบัญชา จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ'
               : 'เลขาธิการฯ เห็นว่าเรื่องซับซ้อน จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ';
           } else if (kase.urgent || urgentYes()) {
-            targetStatus = is72 ? 'PENDING_URGENT_72' : 'PENDING_URGENT';
-            dest = 'ผู้อำนวยการกองบริหารคดี เพื่อรับรองเหตุผลเร่งด่วน';
-            path = 'สำนวนเร่งด่วน: รับรองเหตุผลเร่งด่วนก่อนเสนอประธานฯ';
+            targetStatus = is72 ? 'PENDING_CHAIRMAN_URGENT_72' : 'PENDING_CHAIRMAN';
+            dest = 'ประธานกรรมการ ป.ป.ท.';
+            path = 'สำนวนเร่งด่วน: เสนอตรงประธานฯ เพื่อสั่งบรรจุวาระด่วน';
           } else {
             targetStatus = is72 ? 'PENDING_CHAIRMAN_72' : 'PENDING_CHAIRMAN';
             dest = 'ประธานกรรมการ ป.ป.ท.';
@@ -1268,20 +1268,8 @@
             return;
           }
 
-          const complex = g1Yes();
-
           const SEC = { name: 'นายอภิชาติ สุจริตกุล', title: 'เลขาธิการคณะกรรมการ ป.ป.ท.' };
-          const needsSequential = !complex && !!kase.urgent;
-          const signers = needsSequential
-            ? [SEC, {
-              name: 'นางสาวกรรณิกา วงศ์ศิริ',
-              title: 'ผู้อำนวยการกองบริหารคดี (รับรองเหตุผลเร่งด่วน — T7)',
-              note: 'รอรับรองเหตุผลเร่งด่วนในขั้นตอนถัดไปของผัง (T7) ก่อนจึง Bypass ได้'
-            }]
-            : [SEC];
-          const signPromise = needsSequential
-            ? ECMIS.sequentialSignDialog(`${docType.label} เรื่องที่ ${kase.id}`, signers)
-            : ECMIS.signDialog(`${docType.label} เรื่องที่ ${kase.id}`, `${SEC.name} — ${SEC.title}`);
+          const signPromise = ECMIS.signDialog(`${docType.label} เรื่องที่ ${kase.id}`, `${SEC.name} — ${SEC.title}`);
 
           signPromise.then(res => {
             if (!res.isConfirmed) return;
@@ -1440,7 +1428,7 @@
         if (!el) return;
         let outcome;
         if (complexYes()) outcome = 'ซับซ้อน → ส่งคณะอนุกรรมการสนับสนุนเลขาธิการฯ ก่อน หากเป็นกรณีเร่งด่วนจะพิจารณาความเร่งด่วนต่อในขั้นถัดไป';
-        else if (urgentYes()) outcome = 'ไม่ซับซ้อน + เร่งด่วน → ขอรับรองเหตุผลเร่งด่วนจาก ผอ.กบค. เพื่อเสนอวาระด่วน';
+        else if (urgentYes()) outcome = 'ไม่ซับซ้อน + เร่งด่วน → เสนอตรงประธานฯ เพื่อสั่งบรรจุวาระด่วน';
         else outcome = 'ไม่ซับซ้อน + ไม่เร่งด่วน → เข้าคณะอนุกรรมการกลั่นกรองเรื่องไต่สวนข้อเท็จจริงตามเส้นทางปกติ';
         el.innerHTML = `<strong>เส้นทางที่จะเกิดขึ้น:</strong> ${outcome}`;
       }

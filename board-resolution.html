@@ -387,14 +387,14 @@
       `${ECMIS.getRole('scr_sec').name} (อนุกรรมการและเลขานุการ คณะอนุกลั่นกรองฯ)`,
       `${ECMIS.getRole('scr_asst').name} (อนุกรรมการและผู้ช่วยเลขานุการ คณะอนุกลั่นกรองฯ)`,
       `${ECMIS.getRole('board_sec').name} (เจ้าหน้าที่กลุ่มงานคำวินิจฉัยและมติคณะกรรมการ)`,
-      `${ECMIS.getRole('dir_case').name} (ผู้อำนวยการกองบริหารคดี)`
+      `${ECMIS.getRole('case_admin').name} (กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป)`
     ]);
 
-    /* ผู้ลงนามท้ายเอกสารเดิม hardcode ชื่อ ผอ.กบค. ไว้ตรงๆ — เปลี่ยนเป็นเลือกจากบทบาท
+    /* ผู้ลงนามท้ายเอกสารเดิม hardcode ชื่อ กบค. ไว้ตรงๆ — เปลี่ยนเป็นเลือกจากบทบาท
        ที่มีสิทธิ์แก้ไขมติได้จริง (ชีตแถว 15) ส่วนตำแหน่งแยกเป็นช่องข้อความอิสระ เพราะ
        ถ้อยคำตำแหน่งเปลี่ยนได้ตามสถานการณ์จริง (เช่น "รักษาการแทน") ไม่ผูกตายตัวกับชื่อ */
     const SIGNER_CANDIDATES = [
-      { name: ECMIS.getRole('dir_case').name, title: 'ผู้อำนวยการกองบริหารคดี ปฏิบัติหน้าที่เลขานุการคณะกรรมการ ป.ป.ท.' },
+      { name: ECMIS.getRole('case_admin').name, title: ECMIS.getRole('case_admin').title },
       { name: ECMIS.getRole('board_sec').name, title: 'เจ้าหน้าที่กลุ่มงานคำวินิจฉัยและมติคณะกรรมการ ปฏิบัติหน้าที่เลขานุการคณะกรรมการ ป.ป.ท.' },
       { name: ECMIS.getRole('secgen').name, title: 'เลขาธิการคณะกรรมการ ป.ป.ท.' }
     ];
@@ -428,7 +428,7 @@
       document.getElementById('editGate').innerHTML = `
     <div class="mb-3">
       <strong><i class="fa-solid fa-lock me-1"></i>โหมดอ่านอย่างเดียว — บทบาทนี้บันทึก/แก้ไขมติไม่ได้</strong><br>
-      ชีตแถว 15 ระบุว่ามีเพียง <strong>เจ้าหน้าที่กลุ่มงานกิจการคณะกรรมการ 6 คน + ผอ.กบค. 1 คน (รวม 7 คน)</strong>
+      ชีตแถว 15 ระบุว่ามีเพียง <strong>เจ้าหน้าที่กลุ่มงานกิจการคณะกรรมการ 6 คน + กบค. 1 คน (รวม 7 คน)</strong>
       ที่มีสิทธิ์แก้ไขมติ/คำสั่ง/รายงาน และกลุ่มงานคำวินิจฉัยและมติฯ เป็นผู้บันทึกมติเข้าระบบ<br>
       <small>ชีตแถว 17: ผู้รับผิดชอบสำนวนอ่านและดาวน์โหลดได้ แต่แก้ไขไม่ได้ทั้งส่วนมติและคำสั่ง/รายงาน</small>
     </div>`;
@@ -1039,7 +1039,7 @@
       const sigBoxEl = document.getElementById('sigBox');
       if (!sigBoxEl) return;
       const signerName = document.getElementById('signerName')?.value || 'นางสาวกรรณิกา วงศ์ศิริ';
-      const signerTitle = document.getElementById('signerTitle')?.value || 'ผู้อำนวยการกองบริหารคดี';
+      const signerTitle = document.getElementById('signerTitle')?.value || 'กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป';
       if (isSigned) {
         sigBoxEl.className = 'sig-box signed';
         sigBoxEl.innerHTML = `

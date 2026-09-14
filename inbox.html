@@ -224,11 +224,8 @@ async function loadCasesFromSupabase() {
     });
 }
 
-/* PENDING_URGENT เป็นคิวของ ผอ.กบค. (dir_case) เสมอ ไม่ใช่ของประธานฯ — ต้องรอ dir_case
-   รับรอง (event URGENT_CERTIFY) ให้สถานะเปลี่ยนเป็น PENDING_CHAIRMAN ก่อนจึงจะถึงคิวประธานฯ จริง
-   (เดิมมีเงื่อนไข `c.status === 'PENDING_URGENT' && c.urgent` ปนอยู่ ทำให้ปุ่ม "พิจารณาสั่งการ"
-   ขึ้นก่อนเวลาสำหรับสำนวนด่วนที่ยังไม่ผ่าน ผอ.กบค. รับรอง กดเข้าไปแล้วหน้า chairman-agenda.html
-   ล็อกไม่มีปุ่มลงนามให้ — ตัดออกให้ตรงกับ state machine จริง) */
+/* เคสด่วน (kase.urgent) เข้า PENDING_CHAIRMAN ตรงจากเลขาธิการฯ ทันที (ไม่มีขั้นรับรองใบด่วน
+   แยกต่างหากอีกต่อไป) จึงนับเป็นคิวของประธานฯ ได้เลยเหมือนเคสปกติ */
 function isChairActionable(c) {
   return c.status === 'PENDING_CHAIRMAN' ||
          c.status === 'PENDING_CHAIRMAN_72' ||

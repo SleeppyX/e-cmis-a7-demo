@@ -46,7 +46,7 @@
                                 <input class="form-control autofilled" id="assignedTeam" readonly>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Manual Assign (ผอ.กบค. เท่านั้น)</label>
+                                <label class="form-label">Manual Assign (กบค. เท่านั้น)</label>
                                 <select class="form-select" id="manualTeam"></select>
                             </div>
                         </div>
@@ -246,7 +246,7 @@
                 .then(({ error }) => { if (error) console.warn('บันทึกข้อมูลลง Supabase ไม่สำเร็จ:', error); });
         }
 
-        /* อนุกลั่นกรองฯ เห็นเฉพาะส่วนที่ตนทำได้ — การกระจายสำนวนเข้าคณะเป็นงานของ ผอ.กบค. เท่านั้น
+        /* อนุกลั่นกรองฯ เห็นเฉพาะส่วนที่ตนทำได้ — การกระจายสำนวนเข้าคณะเป็นงานของ กบค. เท่านั้น
            ซ่อนด้วย d-none แทนการลบ DOM เพราะ initScreening71/72 ยังเขียนลง #quotaGrid/#assignedTeam/
            #manualTeam ภายในการ์ดนี้อยู่ (ใช้คำนวณคณะที่ได้รับมอบหมายสำหรับ renderDoc/sig ด้วย) */
         if (role.id === 'subcommittee') {
@@ -431,7 +431,7 @@
         document.getElementById('manualTeam').innerHTML =
             '<option value="">— ไม่เปลี่ยนแปลง —</option>' +
             QUOTA.map(q => `<option value="คณะที่ ${q.n}" ${q.used >= 40 ? 'disabled' : ''}>คณะที่ ${q.n}${q.used >= 40 ? ' (เต็มโควตา)' : ''}</option>`).join('');
-        document.getElementById('manualTeam').disabled = role.id !== 'dir_case';
+        document.getElementById('manualTeam').disabled = role.id !== 'case_admin';
         document.getElementById('manualTeam').addEventListener('change', e => {
             document.getElementById('manualReasonBox').classList.toggle('d-none', !e.target.value);
             renderDoc();
@@ -739,7 +739,7 @@
             document.getElementById('manualTeam').innerHTML =
                 '<option value="">— ไม่เปลี่ยนแปลง —</option>' +
                 QUOTA.map(q => `<option value="คณะที่ ${q.n}" ${q.used >= 40 ? 'disabled' : ''}>คณะที่ ${q.n}${q.used >= 40 ? ' (เต็มโควตา)' : ''}</option>`).join('');
-            document.getElementById('manualTeam').disabled = role.id !== 'dir_case';
+            document.getElementById('manualTeam').disabled = role.id !== 'case_admin';
             document.getElementById('manualTeam').addEventListener('change', e => {
                 document.getElementById('manualReasonBox').classList.toggle('d-none', !e.target.value);
                 renderDoc();
@@ -1146,7 +1146,7 @@
         });
 
         try {
-            const mayEdit = (role.id === 'sec_sub' || role.id === 'dir_case' || role.id === 'admin');
+            const mayEdit = (role.id === 'sec_sub' || role.id === 'case_admin' || role.id === 'admin');
             ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: mayEdit });
         } catch (e) { }
     </script>

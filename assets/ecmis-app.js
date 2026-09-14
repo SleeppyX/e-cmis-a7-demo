@@ -259,18 +259,15 @@ const TRANSITIONS = [
 
   { from:'AGENDA_SET', to:'IN_MEETING', event:'OPEN_AGENDA', actor:'board_sec',
     ref:'เปิดการประชุม' },
-  { from:'IN_MEETING', to:'RESOLVED_PENDING', event:'RECORD_RESOLUTION', actor:'board_sec',
+  { from:'IN_MEETING', to:'RESOLVED', event:'RECORD_RESOLUTION', actor:'board_sec',
     ref:'บันทึกมติที่ประชุม', guard:k => !!k.quorumOk,
-    note:'องค์ประชุมไม่ครบ ระบบต้องบล็อกการบันทึกมติ' },
+    note:'องค์ประชุมไม่ครบ ระบบต้องบล็อกการบันทึกมติ — รวมขั้น "ล็อก PDF" เข้าไปในขั้นตอนนี้ทันที เพราะไม่มีหน้าจอจริงที่แยกทำ LOCK_PDF ต่างหาก (ดู board-resolution.html save_resolution)' },
   { from:'IN_MEETING', to:'DEFERRED', event:'DEFER_AGENDA', actor:'board_sec',
     ref:'ถอน/เลื่อนวาระ', note:'เลื่อน/ถอนวาระ — ต้องปิดเลขวาระเดิม' },
   { from:'DEFERRED', to:'AGENDA_SET', event:'REAGENDA', actor:'affairs',
     ref:'บรรจุวาระใหม่', guard:k => !!k.newAgendaNo,
     note:'กลับเข้าประชุมต้องได้เลขวาระใหม่เสมอ' },
 
-  { from:'RESOLVED_PENDING', to:'RESOLVED', event:'LOCK_PDF', actor:'board_sec',
-    ref:'อนุมัติมติที่ประชุม', guard:k => can('EDIT.MASTER', k.actorRoleId) || !k.actorRoleId,
-    note:'ล็อกไฟล์ PDF — แก้ไขได้เฉพาะ 7 คนที่มีสิทธิ์ EDIT.MASTER' },
   { from:'RESOLVED', to:'DISPATCHING', event:'DISPATCH_EXTERNAL', actor:'owner',
     ref:'ส่งเรื่องหน่วยงานภายนอก', guard:k => k.resolution === 'FORWARD' && !!k.forwardTo &&
                                (forwardTarget(k.forwardTo) || {}).external === true,
@@ -795,7 +792,11 @@ function computeResolutionStage(c) {
     return 1;
   }
   
-  const resCode = (typeof c.resolution === 'object' ? c.resolution?.code : c.resolution) || c.resolutionCode || '';
+  /* c.code คือฟิลด์จริงที่ supabaseRowToCase() spread มาจาก trr_resolution_data.code (บันทึกมติ
+     ที่ board-resolution.html เขียนไว้) — เดิมฟังก์ชันนี้เช็คแต่ c.resolution/c.resolutionCode ซึ่ง
+     ไม่มีทางถูก set จริงจากเคสที่โหลดจาก Supabase เลย ทำให้ resCode ว่างเปล่าเสมอและตกไปที่ stage 2
+     ("จัดทำมติแล้วเสร็จ") ทั้งที่มติจริงมีรหัสที่ควรจัดเข้ากลุ่ม 3/4/5 ต่างหาก */
+  const resCode = (typeof c.resolution === 'object' ? c.resolution?.code : c.resolution) || c.resolutionCode || c.code || '';
   
   if (resCode.includes('ACCEPT') || resCode.includes('M24') || (c.procType === '7.1' && (resCode === 'ACCEPT_S24P1' || resCode === 'ACCEPT_S24P3' || resCode === 'ACCEPT_PRELIMINARY'))) {
     if (c.order24Signed || c.order24Done) return 6;

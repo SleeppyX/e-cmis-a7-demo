@@ -293,18 +293,53 @@ function isRowActionable(c) {
   return stg === 1;
 }
 
+/* ตัวกรอง ค้นหา/ประเภทเรื่อง/ครั้งที่ประชุม ใช้ร่วมกันทั้งตาราง (filteredCombined) และ KPI —
+   แยกออกมาจาก applyFilters() เพื่อไม่ให้ตัวเลข KPI ค้างเป็นยอดรวมทั้งหมดตอนผู้ใช้กรองอยู่
+   (ไม่รวม "แท็บ" และ "สถานะ" เพราะ 2 อย่างนี้เป็นตัวกำหนด stage ของ KPI เอง ไม่ใช่ตัวกรองภายนอก) */
+function matchesSearchTypeMeeting(c) {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const typ = document.getElementById('typeFilter')?.value || 'ALL';
+  const mtg = document.getElementById('meetingFilter')?.value || 'ALL';
+  const is72 = ECMIS.isCase72(c);
+  const is73 = ECMIS.isCase73(c);
+
+  const matchQ = !q ||
+    c.id.toLowerCase().includes(q) ||
+    (c.subject && c.subject.toLowerCase().includes(q)) ||
+    (c.ownerOrg && c.ownerOrg.toLowerCase().includes(q)) ||
+    (c.owner && c.owner.toLowerCase().includes(q)) ||
+    (c.complainant && c.complainant.toLowerCase().includes(q)) ||
+    (Array.isArray(c.accused) && c.accused.some(p =>
+      (p.name && p.name.toLowerCase().includes(q)) ||
+      (p.idcard && p.idcard.toLowerCase().includes(q))
+    )) ||
+    (c.agendaNo && c.agendaNo.toLowerCase().includes(q));
+
+  let matchType = true;
+  if (typ === '7.1') matchType = (!is72 && !is73);
+  else if (typ === '7.2') matchType = is72;
+  else if (typ === '7.3') matchType = is73;
+
+  let matchMeeting = true;
+  if (mtg === 'NONE') matchMeeting = !c.meetingNo;
+  else if (mtg !== 'ALL') matchMeeting = (c.meetingNo === mtg);
+
+  return matchQ && matchType && matchMeeting;
+}
+
 /* ---------- KPI Cards (Clean Text) ---------- */
 function renderKPICards() {
   const currentSt = quickFilter;
+  const kpiScope = allCasesCombined.filter(matchesSearchTypeMeeting);
 
   const countByStage = {
-    ALL: allCasesCombined.length,
-    IN_PROGRESS: allCasesCombined.filter(c => getStage(c) === 1).length,
-    COMPLETED:   allCasesCombined.filter(c => getStage(c) === 2).length,
-    SIGNED:      allCasesCombined.filter(c => getStage(c) === 3).length,
-    RETURNED:    allCasesCombined.filter(c => getStage(c) === 4).length,
-    CLOSED:      allCasesCombined.filter(c => getStage(c) === 5).length,
-    DISPATCHING: allCasesCombined.filter(c => getStage(c) === 6).length
+    ALL: kpiScope.length,
+    IN_PROGRESS: kpiScope.filter(c => getStage(c) === 1).length,
+    COMPLETED:   kpiScope.filter(c => getStage(c) === 2).length,
+    SIGNED:      kpiScope.filter(c => getStage(c) === 3).length,
+    RETURNED:    kpiScope.filter(c => getStage(c) === 4).length,
+    CLOSED:      kpiScope.filter(c => getStage(c) === 5).length,
+    DISPATCHING: kpiScope.filter(c => getStage(c) === 6).length
   };
 
   const kpis = [

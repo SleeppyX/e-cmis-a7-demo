@@ -606,6 +606,13 @@ function getActionBadge(c) {
    ชี้ไปหน้าจัดทำคำสั่งจริง (order.html) แทน */
 const AFFAIRS_PAGE_FOR_STATUS = { RESOLVED: 'order.html' };
 
+/* ผอ.กบค. (dir_case) มี 2 คิวงานแยกกันตามสถานะ — ใช้แผนที่นี้แทน PAGE_FOR[role.id]
+   แบบเดียวกับ AFFAIRS_PAGE_FOR_STATUS ด้านบน */
+const DIR_CASE_PAGE_FOR_STATUS = {
+  PENDING_SUPPORT_ASSIGN: 'dir-case-support-assign.html',
+  PENDING_URGENT: 'dir-case-urgent-review.html'
+};
+
 /* ป้าย "ประเภทเรื่อง" ในคอลัมน์ของตัวเอง — ตรงกับ 3 กลุ่มใน docTypeFilter (71/72/73) เสมอ
    ใช้ Master Style (.meet-badge) เดียวกันทั้งระบบ */
 function typeBadge(c, is72){
@@ -619,7 +626,9 @@ function row(c){
      งานลงนามคำสั่ง ม.24 */
   const page = c.status === 'PENDING_SIGN_ORDER_SECGEN' ? 'order.html'
     : is72 ? ECMIS.pageForCase72(c)
-    : (role.id === 'affairs' && AFFAIRS_PAGE_FOR_STATUS[c.status]) || (PAGE_FOR[role.id] || 'case-register.html');
+    : (role.id === 'affairs' && AFFAIRS_PAGE_FOR_STATUS[c.status])
+    || (role.id === 'dir_case' && DIR_CASE_PAGE_FOR_STATUS[c.status])
+    || (PAGE_FOR[role.id] || 'case-register.html');
   const target = `${page}?case=${encodeURIComponent(c.id)}`;
 
   if (role.id === 'chairman') {

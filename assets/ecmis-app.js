@@ -35,7 +35,11 @@ const ROLES = [
   { id:'case_admin', login:'Kannika.W', row:4, group:'กองบริหารคดี (กลุ่มงานบริหารคดีและบริหารทั่วไป)',
     title:'กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป',
     name:'นางสาวกรรณิกา วงศ์ศิริ', org:'กองบริหารคดี', lane:'L7', flow:'S7 / S11', act:'7.1, 7.2, 7.3',
-    perms:['view.all','download','create.agenda','create.invite','record.minutes','doc.generate','dispatch.resolution','urgent.endorse'] }
+    perms:['view.all','download','create.agenda','create.invite','record.minutes','doc.generate','dispatch.resolution'] }
+  ,
+  { id:'dir_case', login:'Bunlue.S', row:4, group:'กองบริหารคดี', title:'ผู้อำนวยการกองบริหารคดี',
+    name:'นายบุญลือ สุขเกษม', org:'กองบริหารคดี', lane:'L7', flow:'S3 / T7', act:'7.1, 7.2',
+    perms:['view.assigned','download','support.assign','urgent.endorse'] }
 ];
 
 const DOC_TYPES = {
@@ -151,7 +155,9 @@ const STATUS = {
   PENDING_DEPUTY:   { label:'รอผู้ช่วย / รองเลขาธิการฯ',     cls:'st-pending',  owner:'deputy',       scope:'UPSTREAM' },
 
   PENDING_SECGEN:   { label:'รอเลขาธิการฯ ลงนาม',         cls:'st-pending',  owner:'secgen' },
+  PENDING_SUPPORT_ASSIGN: { label:'รอ ผอ.กบค. ยืนยันส่งเข้าคณะอนุสนับสนุนฯ', cls:'st-pending', owner:'dir_case' },
   IN_SUPPORT_SUB:   { label:'ส่งให้คณะอนุสนับสนุนฯ พิจารณาแล้ว', cls:'st-review', owner:'support_sub' },
+  PENDING_URGENT:   { label:'รอ ผอ.กบค. รับรองใบด่วน',     cls:'st-urgent',   owner:'dir_case' },
   PENDING_CHAIRMAN: { label:'รอประธานฯ สั่งการ',           cls:'st-pending',  owner:'chairman' },
   IN_SCREENING:     { label:'อยู่อนุกลั่นกรองฯ',           cls:'st-review',   owner:'subcommittee' },
   SCREENING_MORE_INFO: { label:'อนุกลั่นกรองฯ ขอข้อมูลเพิ่มเติม', cls:'st-review', owner:'subcommittee' },
@@ -180,7 +186,9 @@ const STATUS = {
   PENDING_DEPUTY_72:   { label:'รอผู้ช่วย / รองเลขาธิการฯ (รายงานวินิจฉัยชี้มูล)', cls:'st-pending', owner:'deputy' },
   RETURNED_72:         { label:'ตีกลับเจ้าของสำนวน (รายงานวินิจฉัยชี้มูล)',      cls:'st-returned', owner:'owner' },
   PENDING_SECGEN_72:   { label:'รอเลขาธิการฯ พิจารณา / ลงนาม (วินิจฉัยชี้มูล)',   cls:'st-pending', owner:'secgen' },
+  PENDING_SUPPORT_ASSIGN_72: { label:'รอ ผอ.กบค. ยืนยันส่งเข้าคณะอนุสนับสนุนฯ (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'dir_case' },
   IN_SUPPORT_SUB_72:   { label:'ส่งคณะอนุสนับสนุนเลขาธิการฯ พิจารณาแล้ว',        cls:'st-review',  owner:'support_sub' },
+  PENDING_URGENT_72:   { label:'รอ ผอ.กบค. รับรองเหตุผลเร่งด่วน',                cls:'st-urgent',  owner:'dir_case' },
   PENDING_CHAIRMAN_URGENT_72: { label:'รอประธานฯ ลงนามมอบหมาย / บรรจุวาระด่วน',  cls:'st-pending', owner:'chairman' },
   PENDING_CHAIRMAN_72: { label:'รอประธานฯ ลงนามมอบหมาย (ส่งคณะอนุกลั่นกรองฯ)',   cls:'st-pending', owner:'chairman' },
   IN_SCREENING_72:     { label:'อยู่คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง',      cls:'st-review',  owner:'subcommittee' },
@@ -200,48 +208,58 @@ const STATUS = {
 // บล็อก 000-099 = สายงานหลัก, บล็อก 100-199 = สายรายงานวินิจฉัยชี้มูล (คีย์ลงท้าย _72)
 const STATUS_CODE = {
   DRAFT:'000', RETURNED:'001', PENDING_SECTION:'002', PENDING_DIRECTOR:'003', PENDING_DEPUTY:'004',
-  PENDING_SECGEN:'005', IN_SUPPORT_SUB:'006',
+  PENDING_SECGEN:'005', IN_SUPPORT_SUB:'006', PENDING_URGENT:'007', PENDING_SUPPORT_ASSIGN:'008',
   PENDING_CHAIRMAN:'009', IN_SCREENING:'010', AGENDA_SET:'011', IN_MEETING:'012', DEFERRED:'013',
   RESOLVED_PENDING:'014', RESOLVED:'015', DISPATCHING:'016', CLOSED:'017',
   PENDING_SIGN_ORDER_CHAIRMAN:'018', PENDING_SIGN_ORDER_SECGEN:'019', UNDER_INVESTIGATION:'020',
   SCREENING_MORE_INFO:'021',
 
   PENDING_SECTION_72:'100', PENDING_DIRECTOR_72:'101', PENDING_DEPUTY_72:'102', RETURNED_72:'103',
-  PENDING_SECGEN_72:'104', IN_SUPPORT_SUB_72:'105', PENDING_CHAIRMAN_URGENT_72:'107',
+  PENDING_SECGEN_72:'104', IN_SUPPORT_SUB_72:'105', PENDING_URGENT_72:'106', PENDING_CHAIRMAN_URGENT_72:'107',
   IN_SCREENING_72:'108', PENDING_INVITE_72:'109', IN_MEETING_72:'110', RESOLVED_PENDING_72:'111',
   PENDING_SIGN_RULING_72:'112', PENDING_AREA_NOTICE_72:'113', DISPATCHING_NACC_72:'114',
   PENDING_DISPATCH_GUILTY_72:'115', CLOSED_72:'116', SCREENING_MORE_INFO_72:'117',
-  PENDING_CHAIRMAN_72:'118', PENDING_SIGN_AGENDA_72:'119'
+  PENDING_CHAIRMAN_72:'118', PENDING_SIGN_AGENDA_72:'119', PENDING_SUPPORT_ASSIGN_72:'120'
 };
 const CODE_STATUS = Object.fromEntries(Object.entries(STATUS_CODE).map(([k, v]) => [v, k]));
 
 const TRANSITIONS = [
 
-  { from:'PENDING_SECGEN', to:'IN_SUPPORT_SUB', event:'SIGN_COMPLEX', actor:'secgen',
+  { from:'PENDING_SECGEN', to:'PENDING_SUPPORT_ASSIGN', event:'SIGN_COMPLEX', actor:'secgen',
     ref:'เสนอเลขาธิการฯ', guard:k => g1Triggers(k).required,
-    note:'สำนวนซับซ้อน หรือความเห็นในสายบังคับบัญชาไม่ตรงกัน' },
-  { from:'PENDING_SECGEN', to:'PENDING_CHAIRMAN', event:'SIGN_URGENT', actor:'secgen',
+    note:'สำนวนซับซ้อน หรือความเห็นในสายบังคับบัญชาไม่ตรงกัน — รอ ผอ.กบค. ยืนยันส่งเข้าคณะอนุสนับสนุนฯ' },
+  { from:'PENDING_SECGEN', to:'PENDING_URGENT', event:'SIGN_URGENT', actor:'secgen',
     ref:'เสนอขอเพิ่มวาระด่วน', guard:k => !g1Triggers(k).required && !!k.urgent,
-    note:'กรณีไม่ใช่เรื่องซับซ้อน และมีใบด่วน — เสนอตรงประธานฯ' },
+    note:'กรณีไม่ใช่เรื่องซับซ้อน และมีใบด่วน' },
   { from:'PENDING_SECGEN', to:'PENDING_CHAIRMAN', event:'SIGN_NORMAL', actor:'secgen',
     ref:'เสนอตามขั้นตอนปกติ', guard:k => !g1Triggers(k).required && !k.urgent,
     note:'กรณีไม่ใช่เรื่องซับซ้อน และไม่มีใบด่วน' },
   { from:'PENDING_SECGEN', to:'RETURNED', event:'RETURN_TO_SOURCE', actor:'secgen',
     ref:'ส่งคืนสายงานต้นทาง', note:'ส่งคืนเรื่องกลับสายงานต้นทาง' },
 
+  { from:'PENDING_SUPPORT_ASSIGN', to:'IN_SUPPORT_SUB', event:'ASSIGN_SUPPORT_SUB', actor:'dir_case',
+    ref:'ยืนยันส่งเข้าคณะอนุสนับสนุนฯ', note:'ผอ.กบค. ยืนยัน + เลือกกลุ่มคณะอนุสนับสนุนเลขาธิการฯ' },
+  { from:'PENDING_SUPPORT_ASSIGN', to:'PENDING_SECGEN', event:'ASSIGN_REJECT', actor:'dir_case',
+    ref:'ตีกลับให้เลขาธิการฯ ทบทวน', note:'ผอ.กบค. เห็นว่าไม่ใช่เรื่องซับซ้อน — ส่งคืนให้เลขาธิการฯ ทบทวน' },
+
   { from:'IN_SUPPORT_SUB', to:'PENDING_CHAIRMAN', event:'SUPPORT_ALIGNED', actor:'support_sub',
     ref:'อนุกรรมการฯ เห็นชอบตามเสนอ', note:'ความเห็นสอดคล้อง — เสนอประธานฯ สั่งการ' },
-  { from:'IN_SUPPORT_SUB', to:'PENDING_CHAIRMAN', event:'SUPPORT_DIVERGED_URGENT', actor:'support_sub',
+  { from:'IN_SUPPORT_SUB', to:'PENDING_URGENT', event:'SUPPORT_DIVERGED_URGENT', actor:'support_sub',
     ref:'อนุกรรมการฯ เห็นชอบวาระด่วน', guard:k => !!k.urgent,
-    note:'ความเห็นไม่ตรงกัน — เสนอพิจารณาวาระด่วนตรงประธานฯ' },
+    note:'ความเห็นไม่ตรงกัน — เสนอพิจารณาวาระด่วน' },
   { from:'IN_SUPPORT_SUB', to:'PENDING_CHAIRMAN', event:'SUPPORT_DIVERGED', actor:'support_sub',
     ref:'อนุกรรมการฯ เห็นชอบวาระปกติ', guard:k => !k.urgent, note:'ความเห็นไม่ตรงกัน — เสนอเข้าการกลั่นกรองปกติ' },
+
+  { from:'PENDING_URGENT', to:'PENDING_CHAIRMAN', event:'URGENT_CERTIFY', actor:'dir_case',
+    ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. ลงนามรับรองเหตุผลเร่งด่วน' },
+  { from:'PENDING_URGENT', to:'IN_SCREENING', event:'URGENT_REJECT', actor:'dir_case',
+    ref:'ไม่รับรองเหตุผลเร่งด่วน', note:'ไม่รับรองใบด่วน — ปรับเข้าสู่เส้นทางกลั่นกรองปกติ' },
 
   { from:'PENDING_CHAIRMAN', to:'IN_SCREENING', event:'ORDER_SCREENING', actor:'chairman',
     ref:'ประธานฯ สั่งส่งกลั่นกรอง', note:'สั่งส่งกลั่นกรองตามปกติ' },
   { from:'PENDING_CHAIRMAN', to:'AGENDA_SET', event:'ORDER_AGENDA_URGENT', actor:'chairman',
-    ref:'ประธานฯ สั่งบรรจุวาระด่วน', guard:k => !!k.urgent,
-    note:'สั่งบรรจุวาระด่วนตามที่เลขาธิการฯ เสนอมา' },
+    ref:'ประธานฯ สั่งบรรจุวาระด่วน', guard:k => !!k.urgentCertified,
+    note:'สั่งบรรจุวาระด่วน — ต้องมีลายเซ็นรับรองของ ผอ.กบค. ก่อนเท่านั้น' },
 
   { from:'IN_SCREENING', to:'AGENDA_SET', event:'SCREENING_RESOLVED', actor:'subcommittee',
     ref:'กลั่นกรองแล้วเสร็จ',
@@ -299,17 +317,26 @@ const TRANSITIONS = [
   { from:'PENDING_DEPUTY_72', to:'RETURNED_72', event:'RETURN_72', actor:'deputy', ref:'ส่งคืนเสนอตามลำดับชั้น' },
   { from:'RETURNED_72', to:'PENDING_SECTION_72', event:'RESUBMIT_72', actor:'owner', ref:'ส่งคืนแก้ไขและเสนอใหม่' },
 
-  { from:'PENDING_SECGEN_72', to:'IN_SUPPORT_SUB_72', event:'SIGN_COMPLEX_72', actor:'secgen',
+  { from:'PENDING_SECGEN_72', to:'PENDING_SUPPORT_ASSIGN_72', event:'SIGN_COMPLEX_72', actor:'secgen',
     ref:'เสนอสำนวนซับซ้อน', guard:k => !!k.complex72,
-    note:'สำนวนมีประเด็นซับซ้อนยุ่งยาก — เข้าคณะอนุกรรมการสนับสนุนเลขาธิการฯ ก่อน' },
-  { from:'PENDING_SECGEN_72', to:'PENDING_CHAIRMAN_URGENT_72', event:'SIGN_URGENT_72', actor:'secgen',
+    note:'สำนวนมีประเด็นซับซ้อนยุ่งยาก — รอ ผอ.กบค. ยืนยันส่งเข้าคณะอนุกรรมการสนับสนุนเลขาธิการฯ' },
+  { from:'PENDING_SECGEN_72', to:'PENDING_URGENT_72', event:'SIGN_URGENT_72', actor:'secgen',
     ref:'เสนอขอเพิ่มวาระด่วน', guard:k => !k.complex72 && !!k.urgent72 },
   { from:'PENDING_SECGEN_72', to:'PENDING_CHAIRMAN_72', event:'SIGN_NORMAL_72', actor:'secgen',
     ref:'เสนอประธานฯ ลงนามมอบหมายก่อนส่งกลั่นกรอง', guard:k => !k.complex72 && !k.urgent72 },
-  { from:'IN_SUPPORT_SUB_72', to:'PENDING_CHAIRMAN_URGENT_72', event:'SUPPORT_DONE_URGENT_72', actor:'support_sub',
+
+  { from:'PENDING_SUPPORT_ASSIGN_72', to:'IN_SUPPORT_SUB_72', event:'ASSIGN_SUPPORT_SUB_72', actor:'dir_case',
+    ref:'ยืนยันส่งเข้าคณะอนุสนับสนุนฯ', note:'ผอ.กบค. ยืนยัน + เลือกกลุ่มคณะอนุสนับสนุนเลขาธิการฯ' },
+  { from:'PENDING_SUPPORT_ASSIGN_72', to:'PENDING_SECGEN_72', event:'ASSIGN_REJECT_72', actor:'dir_case',
+    ref:'ตีกลับให้เลขาธิการฯ ทบทวน', note:'ผอ.กบค. เห็นว่าไม่ใช่เรื่องซับซ้อน — ส่งคืนให้เลขาธิการฯ ทบทวน' },
+
+  { from:'IN_SUPPORT_SUB_72', to:'PENDING_URGENT_72', event:'SUPPORT_DONE_URGENT_72', actor:'support_sub',
     ref:'เห็นชอบวาระด่วน', guard:k => !!k.urgent72 },
   { from:'IN_SUPPORT_SUB_72', to:'PENDING_CHAIRMAN_72', event:'SUPPORT_DONE_72', actor:'support_sub',
     ref:'เห็นชอบวาระปกติ — เสนอประธานฯ ลงนามมอบหมาย', guard:k => !k.urgent72 },
+
+  { from:'PENDING_URGENT_72', to:'PENDING_CHAIRMAN_URGENT_72', event:'URGENT_CERTIFY_72', actor:'dir_case',
+    ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. รับรองเหตุผลเร่งด่วน' },
 
   { from:'PENDING_CHAIRMAN_URGENT_72', to:'PENDING_INVITE_72', event:'AGENDA_URGENT_72', actor:'chairman',
     ref:'ลงนามบรรจุวาระด่วน', note:'ประธานฯ ลงนามมอบหมาย/บรรจุวาระด่วน — ข้ามขั้นตอนการกลั่นกรอง' },
@@ -578,7 +605,7 @@ const STATUS_STEP = {
 
   DRAFT:'secgen', RETURNED:'secgen',
   PENDING_SECTION:'secgen', PENDING_DIRECTOR:'secgen', PENDING_DEPUTY:'secgen',
-  PENDING_SECGEN:'secgen', IN_SUPPORT_SUB:'secgen',
+  PENDING_SECGEN:'secgen', IN_SUPPORT_SUB:'secgen', PENDING_SUPPORT_ASSIGN:'secgen',
   PENDING_URGENT:'urgent',
   PENDING_CHAIRMAN:'chairman',
   IN_SCREENING:'screening', SCREENING_MORE_INFO:'screening',
@@ -636,7 +663,8 @@ const PAGE_FOR_72 = {
   PENDING_DEPUTY_72:'approval-review.html', RETURNED_72:'approval-review.html',
   PENDING_SECGEN_72:'approval-review.html',
   IN_SUPPORT_SUB_72:'support-subcommittee.html',
-  PENDING_URGENT_72:'urgent-agenda.html', PENDING_CHAIRMAN_URGENT_72:'urgent-agenda.html',
+  PENDING_SUPPORT_ASSIGN_72:'dir-case-support-assign.html',
+  PENDING_URGENT_72:'dir-case-urgent-review.html', PENDING_CHAIRMAN_URGENT_72:'urgent-agenda.html',
   PENDING_CHAIRMAN_72:'chairman-agenda.html',
   PENDING_SIGN_AGENDA_72:'chairman-agenda.html',
   IN_SCREENING_72:'subcommittee-screening.html',
@@ -660,8 +688,10 @@ function pageForCaseByStatus(kase) {
     return resolvePage('approval-review.html');
   }
   if (st === 'IN_SUPPORT_SUB') return resolvePage('support-subcommittee.html');
+  if (st === 'PENDING_SUPPORT_ASSIGN') return resolvePage('dir-case-support-assign.html');
+  if (st === 'PENDING_URGENT') return resolvePage('dir-case-urgent-review.html');
   if (st === 'IN_SCREENING' || st === 'SCREENING_MORE_INFO') return resolvePage('subcommittee-screening.html');
-  if (['PENDING_CHAIRMAN', 'PENDING_URGENT'].includes(st)) {
+  if (st === 'PENDING_CHAIRMAN') {
     return resolvePage('chairman-agenda.html');
   }
   if (st === 'AGENDA_SET') return resolvePage('agenda-registry.html');
@@ -910,7 +940,7 @@ const ACT7_STATUSES_72 = [
 ];
 const ACT7_STAGE_72 = {
   PENDING_SECTION_72:0, PENDING_DIRECTOR_72:0, PENDING_DEPUTY_72:0, RETURNED_72:0, PENDING_SECGEN_72:0,
-  IN_SUPPORT_SUB_72:1, PENDING_URGENT_72:1, PENDING_CHAIRMAN_URGENT_72:1, PENDING_CHAIRMAN_72:1, IN_SCREENING_72:1, PENDING_SIGN_AGENDA_72:1, PENDING_INVITE_72:1,
+  IN_SUPPORT_SUB_72:1, PENDING_SUPPORT_ASSIGN_72:1, PENDING_URGENT_72:1, PENDING_CHAIRMAN_URGENT_72:1, PENDING_CHAIRMAN_72:1, IN_SCREENING_72:1, PENDING_SIGN_AGENDA_72:1, PENDING_INVITE_72:1,
   IN_MEETING_72:2,
   RESOLVED_PENDING_72:3, PENDING_SIGN_RULING_72:3,
   PENDING_AREA_NOTICE_72:4, DISPATCHING_NACC_72:4, PENDING_DISPATCH_GUILTY_72:4,
@@ -2899,7 +2929,7 @@ const STATUS_STEP_73 = {
 const STATUS_STEP_72 = {
   PENDING_SECTION_72:'secgen72', PENDING_DIRECTOR_72:'secgen72', PENDING_DEPUTY_72:'secgen72', RETURNED_72:'secgen72',
   PENDING_SECGEN_72:'secgen72',
-  IN_SUPPORT_SUB_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', PENDING_CHAIRMAN_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72', PENDING_SIGN_AGENDA_72:'agenda72',
+  IN_SUPPORT_SUB_72:'agenda72', PENDING_SUPPORT_ASSIGN_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', PENDING_CHAIRMAN_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72', PENDING_SIGN_AGENDA_72:'agenda72',
   PENDING_INVITE_72:'meeting72', IN_MEETING_72:'meeting72',
   RESOLVED_PENDING_72:'ruling72', PENDING_SIGN_RULING_72:'ruling72',
   PENDING_AREA_NOTICE_72:'dispatch72', DISPATCHING_NACC_72:'dispatch72', PENDING_DISPATCH_GUILTY_72:'dispatch72',
@@ -3159,7 +3189,7 @@ function roleIdForLogin(username){
 /* Centralized Page Permissions Matrix (RBAC & Page Guard) */
 const PAGE_PERMISSIONS = {
   // Main Inbox Screens
-  'inbox.html': ['secgen', 'chairman', 'affairs', 'owner', 'director', 'deputy', 'section_head', 'legal', 'admin'],
+  'inbox.html': ['secgen', 'chairman', 'affairs', 'owner', 'director', 'deputy', 'section_head', 'legal', 'admin', 'dir_case'],
   'support-subcommittee-inbox.html': ['support_sub', 'sup_chair', 'sup_sec', 'sup_asst'],
   'subcommittee-inbox.html': ['subcommittee', 'affairs', 'chairman', 'secgen', 'board_sec', 'board', 'board_ex', 'case_admin'],
   'board-inbox.html': ['board', 'board_ex'],
@@ -3193,7 +3223,9 @@ const PAGE_PERMISSIONS = {
   'resolution.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'resolution-72.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'ruling-report.html': ['board_sec', 'affairs', 'chairman', 'secgen', 'board', 'board_ex', 'case_admin'],
-  'urgent-agenda.html': ['chairman', 'affairs', 'secgen', 'board_sec', 'board', 'board_ex', 'case_admin'],
+  'urgent-agenda.html': ['dir_case', 'chairman', 'affairs', 'secgen', 'board_sec', 'board', 'board_ex', 'case_admin'],
+  'dir-case-support-assign.html': ['dir_case', 'secgen', 'affairs', 'board_sec', 'case_admin'],
+  'dir-case-urgent-review.html': ['dir_case', 'secgen', 'affairs', 'chairman', 'board_sec', 'case_admin'],
   'agenda-set.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'agenda.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'agenda-meeting-docs.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],

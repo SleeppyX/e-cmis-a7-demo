@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ยืนยันส่งเข้าคณะอนุสนับสนุนฯ | E-CMIS</title>
+  <link rel="icon" type="image/png" href="assets/pacc_logo.png">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&family=Noto+Serif+Thai:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <link href="assets/ecmis-app.css" rel="stylesheet">
+  <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+</head>
+
+<body>
+
+  <main class="app-main">
+    <div class="page-head">
+      <div>
+        <a href="inbox.html" class="back-link"><i class="fa-solid fa-arrow-left me-1"></i>กลับหน้ารายการ</a>
+        <h1><i class="fa-solid fa-people-arrows me-2"></i>ยืนยันส่งเข้าคณะอนุสนับสนุนฯ</h1>
+      </div>
+      <div class="ms-auto text-end">
+        <span class="flow-ref">ผอ.กบค. ยืนยัน / ตีกลับการส่งสำนวนซับซ้อนเข้าคณะอนุกรรมการสนับสนุนเลขาธิการฯ</span>
+        <div class="mt-1" id="stBadge"></div>
+      </div>
+    </div>
+
+    <div class="ws-card mb-3">
+      <div class="card-body pb-1" id="stepper"></div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-7">
+        <div class="ws-card mb-3">
+          <div class="card-header"><i class="fa-solid fa-circle-info"></i> สรุปสำนวน</div>
+          <div class="card-body">
+            <div class="row g-2 mb-2">
+              <div class="col-6"><span class="text-muted small">เลขสำนวน</span><div class="fw-bold" id="fCaseId"></div></div>
+              <div class="col-6"><span class="text-muted small">เจ้าของสำนวน</span><div class="fw-bold" id="fOwner"></div></div>
+            </div>
+            <div class="mb-2"><span class="text-muted small">เรื่อง</span><div id="fSubject"></div></div>
+            <div class="mb-2"><span class="text-muted small">เหตุผลที่เลขาธิการฯ เห็นว่าซับซ้อน</span>
+              <div id="fComplexReason" class="text-muted fst-italic"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ws-card mb-3">
+          <div class="card-header" id="stepCardHeader"><i class="fa-solid fa-people-arrows"></i> <span id="stepCardTitle"></span></div>
+          <div class="card-body" id="stepCardBody"></div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="ws-card">
+          <div class="card-header"><i class="fa-solid fa-clock-rotate-left"></i> ประวัติที่มาของสำนวน</div>
+          <div class="card-body" id="historyBox"><div class="text-muted small">ไม่มีข้อมูลประวัติ</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="actionBarSlot"></div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="assets/ecmis-app.js"></script>
+  <script src="assets/ecmis-model.js"></script>
+  <script>
+    ECMIS.renderShell('dir-case-support-assign.html');
+    const role = ECMIS.currentRole();
+
+    const SUPABASE_URL = 'https://ljhabbwjxnoucrcrsoii.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_2Bps-dWMZHz_7cs3BppF6A_ul1_A_xd';
+    const sb = (window.ECMIS && window.ECMIS.getSupabaseClient) ? window.ECMIS.getSupabaseClient(SUPABASE_URL, SUPABASE_KEY) : (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }) : null);
+
+    async function loadCaseFromSupabase(caseId) {
+      const { data, error } = await sb
+        .from('tbl_res_request')
+        .select('*, tbl_cmp_case!inner(*, tbl_cmp_case_accused(*))')
+        .eq('tbl_cmp_case.tcc_no', caseId)
+        .eq('is_deleted', false)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? ECMIS.supabaseRowToCase(data) : null;
+    }
+
+    /* g1reason/assignedGroup ไม่มีคอลัมน์ใน Supabase จึงคง set บน kase ในหน่วยความจำไว้เหมือนเดิม
+       ตามรูปแบบเดียวกับ persistCase ใน urgent-agenda.html / support-subcommittee.html */
+    async function persistCase(kase, patch) {
+      const dbPatch = {};
+      if ('status' in patch) {
+        const code = ECMIS.STATUS_CODE[patch.status];
+        if (code) dbPatch.trr_status = code;
+      }
+      if (kase.trr_id && Object.keys(dbPatch).length) {
+        try {
+          const { error } = await sb.from('tbl_res_request').update(dbPatch).eq('trr_id', kase.trr_id);
+          if (error) console.warn('Supabase update warning:', error);
+        } catch (e) {
+          console.warn('Supabase update failed:', e);
+        }
+      }
+      Object.assign(kase, patch);
+      const memCase = ECMIS.CASES.find(x => x.id === kase.id);
+      if (memCase) Object.assign(memCase, patch);
+      ECMIS.saveCases();
+    }
+
+    const params = new URLSearchParams(location.search);
+    let kase = null, is72 = false, isAssignStep = false;
+
+    (async function main() {
+      const caseParam = params.get('case') || '';
+      try {
+        kase = await loadCaseFromSupabase(caseParam);
+      } catch (err) {
+        console.warn('โหลดข้อมูลจากฐานข้อมูลไม่สำเร็จ:', err);
+      }
+      if (!kase) kase = ECMIS.requireCase(caseParam);
+      if (!kase) return;
+      renderPage();
+    })();
+
+    function renderPage() {
+      is72 = ECMIS.isCase72(kase);
+      isAssignStep = kase.status === 'PENDING_SUPPORT_ASSIGN' || kase.status === 'PENDING_SUPPORT_ASSIGN_72';
+
+      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+      document.getElementById('stepper').innerHTML = is72
+        ? ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
+        : ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS, ECMIS.STATUS_STEP);
+
+      document.getElementById('fCaseId').textContent = kase.id;
+      document.getElementById('fOwner').textContent = `${kase.owner || ''} — ${kase.ownerOrg || ''}`;
+      document.getElementById('fSubject').textContent = kase.subject || '';
+      document.getElementById('fComplexReason').textContent = kase.g1reason || kase.complexReason || 'ไม่ได้ระบุเหตุผลเพิ่มเติม';
+
+      if (Array.isArray(kase.history) && kase.history.length) {
+        document.getElementById('historyBox').innerHTML = kase.history.map(h =>
+          `<div class="mb-2 pb-2 border-bottom"><div class="small fw-bold">${ECMIS.mergeField(h.note || h.event)}</div>
+           <div class="text-muted small">${ECMIS.mergeField(h.actor)} · ${ECMIS.thaiDate ? ECMIS.thaiDate(h.at) : (h.at || '')}</div></div>`
+        ).join('');
+      }
+
+      renderStepCard();
+      renderActionButtons();
+    }
+
+    function renderStepCard() {
+      if (isAssignStep) {
+        document.getElementById('stepCardTitle').textContent = 'ยืนยันส่งเข้าคณะอนุสนับสนุนเลขาธิการฯ';
+        document.getElementById('stepCardBody').innerHTML = `
+      <p class="text-muted small mb-3">เลขาธิการฯ เห็นว่าสำนวนนี้เป็นเรื่องซับซ้อน จึงส่งมาให้ ผอ.กบค. ยืนยันก่อนกระจายเข้าคณะอนุกรรมการสนับสนุนเลขาธิการฯ</p>
+      <label class="form-label field-req">เลือกกลุ่มคณะอนุสนับสนุนเลขาธิการฯ</label>
+      <select class="form-select" id="supportGroupSelect">
+        <option value="group1">กลุ่มที่ 1</option>
+        <option value="group2">กลุ่มที่ 2</option>
+      </select>
+      <div class="val-msg val-err" data-for="supportGroupSelect">กรุณาเลือกกลุ่ม</div>
+      <label class="form-label mt-3">ความเห็นประกอบ (ถ้ามี)</label>
+      <textarea class="form-control" id="dirCaseNote" rows="3" placeholder="ระบุความเห็นเพิ่มเติม (ถ้ามี)"></textarea>`;
+      } else {
+        document.getElementById('stepCardTitle').textContent = 'ไม่อยู่ในขั้นตอนยืนยันส่งเข้าคณะอนุสนับสนุนฯ';
+        document.getElementById('stepCardBody').innerHTML = `
+      <div class="no-permission">
+        <i class="fa-solid fa-circle-info me-1"></i>
+        สำนวน <strong>${kase.id}</strong> อยู่ในสถานะ <strong>${ECMIS.STATUS[kase.status] ? ECMIS.STATUS[kase.status].label : kase.status}</strong>
+        ซึ่งไม่ใช่ขั้นตอนยืนยันส่งเข้าคณะอนุสนับสนุนฯ — เปิดหน้านี้ได้เฉพาะสถานะรอ ผอ.กบค. ยืนยันเท่านั้น
+      </div>`;
+      }
+    }
+
+    function buildButtons() {
+      if (!isAssignStep) return [];
+      return [
+        { act: 'reject', label: 'ตีกลับให้เลขาธิการฯ ทบทวน', icon: 'fa-rotate-left', cls: 'btn-outline-danger' },
+        { act: 'assign', label: 'ยืนยันส่งเข้าคณะอนุสนับสนุนฯ', icon: 'fa-check', cls: 'btn-navy' }
+      ];
+    }
+
+    function renderActionButtons() {
+      document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(kase, role.id, buildButtons());
+      document.querySelectorAll('.action-bar [data-act]').forEach(b =>
+        b.addEventListener('click', () => handle(b.dataset.act)));
+    }
+
+    async function handle(act) {
+      if (act === 'assign') {
+        const sel = document.getElementById('supportGroupSelect');
+        if (!sel.value) {
+          sel.classList.add('is-invalid-ecmis');
+          document.querySelector('.val-msg[data-for="supportGroupSelect"]').classList.add('show');
+          ECMIS.toastWarn('กรุณาเลือกกลุ่มคณะอนุสนับสนุนเลขาธิการฯ ก่อน');
+          return;
+        }
+        const note = document.getElementById('dirCaseNote')?.value.trim() || '';
+        const targetStatus = is72 ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB';
+        ECMIS.confirmAction({
+          title: 'ยืนยันส่งเข้าคณะอนุสนับสนุนฯ',
+          html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งเข้า <strong>คณะอนุสนับสนุนเลขาธิการฯ ${sel.value === 'group1' ? 'กลุ่มที่ 1' : 'กลุ่มที่ 2'}</strong></p>`,
+          confirmText: 'ยืนยันส่งเข้าคณะ'
+        }).then(async res => {
+          if (!res.isConfirmed) return;
+          try {
+            await persistCase(kase, { status: targetStatus, assignedGroup: sel.value, dirCaseAssignNote: note });
+            await ECMIS.logRequestEvent(kase.trr_id, kase.status, targetStatus, {
+              type: 'ASSIGN_SUPPORT_SUB', actorRole: 'dir_case', data: { group: sel.value, note }
+            });
+          } catch (err) {
+            console.error('ยืนยันส่งเข้าคณะอนุสนับสนุนฯ ไม่สำเร็จ:', err);
+            ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+            return;
+          }
+          ECMIS.toastOk('ยืนยันส่งเข้าคณะอนุสนับสนุนฯ เรียบร้อยแล้ว');
+          setTimeout(() => location.href = ECMIS.homeHref(role.id), 1400);
+        });
+        return;
+      }
+
+      if (act === 'reject') {
+        const targetStatus = is72 ? 'PENDING_SECGEN_72' : 'PENDING_SECGEN';
+        ECMIS.confirmAction({
+          title: 'ตีกลับให้เลขาธิการฯ ทบทวน',
+          html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งคืนเลขาธิการฯ เพื่อทบทวนว่าเป็นเรื่องซับซ้อนจริงหรือไม่</p>`,
+          confirmText: 'ยืนยันตีกลับ'
+        }).then(async res => {
+          if (!res.isConfirmed) return;
+          try {
+            await persistCase(kase, { status: targetStatus });
+            await ECMIS.logRequestEvent(kase.trr_id, kase.status, targetStatus, {
+              type: 'ASSIGN_REJECT', actorRole: 'dir_case'
+            });
+          } catch (err) {
+            console.error('ตีกลับไม่สำเร็จ:', err);
+            ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+            return;
+          }
+          ECMIS.toastOk('ตีกลับให้เลขาธิการฯ ทบทวนแล้ว');
+          setTimeout(() => location.href = ECMIS.homeHref(role.id), 1400);
+        });
+        return;
+      }
+    }
+  </script>
+</body>
+
+</html>

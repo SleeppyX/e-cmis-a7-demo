@@ -387,14 +387,14 @@
       `${ECMIS.getRole('scr_sec').name} (อนุกรรมการและเลขานุการ คณะอนุกลั่นกรองฯ)`,
       `${ECMIS.getRole('scr_asst').name} (อนุกรรมการและผู้ช่วยเลขานุการ คณะอนุกลั่นกรองฯ)`,
       `${ECMIS.getRole('board_sec').name} (เจ้าหน้าที่กลุ่มงานคำวินิจฉัยและมติคณะกรรมการ)`,
-      `${ECMIS.getRole('case_admin').name} (กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป)`
+      `${ECMIS.getRole('dir_case').name} (${ECMIS.getRole('dir_case').title})`
     ]);
 
     /* ผู้ลงนามท้ายเอกสารเดิม hardcode ชื่อ กบค. ไว้ตรงๆ — เปลี่ยนเป็นเลือกจากบทบาท
        ที่มีสิทธิ์แก้ไขมติได้จริง (ชีตแถว 15) ส่วนตำแหน่งแยกเป็นช่องข้อความอิสระ เพราะ
        ถ้อยคำตำแหน่งเปลี่ยนได้ตามสถานการณ์จริง (เช่น "รักษาการแทน") ไม่ผูกตายตัวกับชื่อ */
     const SIGNER_CANDIDATES = [
-      { name: ECMIS.getRole('case_admin').name, title: ECMIS.getRole('case_admin').title },
+      { name: ECMIS.getRole('dir_case').name, title: ECMIS.getRole('dir_case').title },
       { name: ECMIS.getRole('board_sec').name, title: 'เจ้าหน้าที่กลุ่มงานคำวินิจฉัยและมติคณะกรรมการ ปฏิบัติหน้าที่เลขานุการคณะกรรมการ ป.ป.ท.' },
       { name: ECMIS.getRole('secgen').name, title: 'เลขาธิการคณะกรรมการ ป.ป.ท.' }
     ];
@@ -1039,7 +1039,7 @@
       const sigBoxEl = document.getElementById('sigBox');
       if (!sigBoxEl) return;
       const signerName = document.getElementById('signerName')?.value || 'นางสาวกรรณิกา วงศ์ศิริ';
-      const signerTitle = document.getElementById('signerTitle')?.value || 'กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป';
+      const signerTitle = document.getElementById('signerTitle')?.value || ECMIS.getRole('dir_case').title;
       if (isSigned) {
         sigBoxEl.className = 'sig-box signed';
         sigBoxEl.innerHTML = `

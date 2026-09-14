@@ -323,9 +323,9 @@
 
         /* ขั้น "ลงนามมอบหมายส่งคณะอนุกลั่นกรองฯ" (เคสไม่ด่วน 7.1 + 7.2) — ก่อนชั้นกลั่นกรอง
            ประธานฯ ลงนามในบันทึกมอบหมายให้ กบค. ส่งสำนวนเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘
-           เคส 7.1 ที่เป็นด่วน (kase.urgent) ยังใช้เส้นทางเดิม (ลงนาม ปปท.๕-๐๒ → บรรจุวาระด่วน) */
+           เคส 7.1 ที่ urgentCertified แล้ว ยังใช้เส้นทางเดิม (ลงนาม ปปท.๕-๐๒ → บรรจุวาระด่วน) */
         function isAssignStep() {
-            return (kase.status === 'PENDING_CHAIRMAN' || kase.status === 'PENDING_CHAIRMAN_72') && !kase.urgent;
+            return (kase.status === 'PENDING_CHAIRMAN' || kase.status === 'PENDING_CHAIRMAN_72') && !kase.urgentCertified;
         }
 
         /* ขั้น "ลงนามสั่งบรรจุวาระ" (7.2 วินิจฉัยชี้มูล) — ลายเซ็นประธานที่ 2 หลังคณะอนุกลั่นกรองฯ พิจารณาเสร็จ
@@ -446,7 +446,7 @@
                             <div><strong>เรื่อง</strong>&nbsp; มอบหมายให้กองบริหารคดีส่งสำนวนเข้าคณะอนุกรรมการกลั่นกรองเรื่องกล่าวหาฯ พิจารณา</div>
                         </div>
 
-                        <div style="margin-top:12px;font-size:16pt;">เรียน&nbsp; กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป</div>
+                        <div style="margin-top:12px;font-size:16pt;">เรียน&nbsp; ผู้อำนวยการกองบริหารคดี</div>
 
                         <div class="doc-indent" style="margin-top:12px;font-size:16pt;line-height:1.4;text-indent:2.5em;">
                             ตามที่สำนักงาน ป.ป.ท. ได้รับเรื่องกล่าวหา เรื่องเสร็จที่ <strong>${M(kase.id)}</strong>

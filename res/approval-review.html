@@ -735,7 +735,7 @@
           ? `<strong>G1 = ใช่</strong> → <span class="chip">T6 คณะอนุสนับสนุนฯ</span> → <span class="chip">G2</span>
        <div class="text-muted mt-1" style="font-size:.78rem">เหตุ: ${why}</div>`
           : `<strong>G1 = ไม่ใช่</strong> → <span class="chip">G3 ตรวจใบด่วน</span> →
-       <span class="chip">T8 ประธานกรรมการ ป.ป.ท.${kase.urgent ? ' (วาระด่วน)' : ''}</span>
+       <span class="chip">${kase.urgent ? 'T7 ผอ.กบค.' : 'T8 ประธานกรรมการ ป.ป.ท.'}</span>
        <div class="text-muted mt-1" style="font-size:.78rem">เหตุ: ${why}</div>`;
       }
 
@@ -905,7 +905,7 @@
             const complex = g1Yes();
             if (complex && !hasSupportOpinion) {
               b.push({
-                act: 'assign', label: 'ส่งคณะอนุกรรมการสนับสนุนเลขาธิการฯ', icon: 'fa-people-arrows',
+                act: 'assign', label: 'เสนอ ผอ.กบค. ส่งเข้าคณะอนุสนับสนุนฯ', icon: 'fa-people-arrows',
                 cls: 'btn-navy'
               });
             } else {
@@ -1088,20 +1088,21 @@
           const subSelect = document.getElementById('supportSubSelect');
           const chosenSub = (subSelect && subSelect.value) ? subSelect.value : 'คณะที่ 1';
           ECMIS.confirmAction({
-            title: 'มอบหมายสำนวนให้คณะอนุกรรมการสนับสนุนเลขาธิการฯ',
-            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกมอบหมายเข้า
-            <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ (${chosenSub})</strong> เพื่อพิจารณาก่อนเสนอต่อ
+            title: 'เสนอ ผอ.กบค. ส่งเข้าคณะอนุกรรมการสนับสนุนเลขาธิการฯ',
+            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกเสนอ ผอ.กบค. เพื่อยืนยันส่งเข้า
+            <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ (แนะนำ ${chosenSub})</strong> ก่อนเสนอต่อ
             <strong>ประธานกรรมการ ป.ป.ท.</strong></p>`,
-            confirmText: 'ยืนยันมอบหมาย'
+            confirmText: 'ยืนยันเสนอ ผอ.กบค.'
           }).then(async r => {
             if (!r.isConfirmed) return;
             const g1yes = document.getElementById('g1yes');
             if (g1yes) g1yes.checked = true;
+            const targetStatus = ECMIS.isCase72(kase) ? 'PENDING_SUPPORT_ASSIGN_72' : 'PENDING_SUPPORT_ASSIGN';
 
-            // Change status to IN_SUPPORT_SUB directly without signing
+            // รอ ผอ.กบค. ยืนยัน — ไม่เข้า IN_SUPPORT_SUB โดยตรงอีกต่อไป
             try {
               await persistCase(kase, {
-                status: ECMIS.isCase72(kase) ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB',
+                status: targetStatus,
                 complex: true,
                 resolutionData: {
                   /* supportSubTeam ไม่ใช่ subCommittee — ชื่อ field ต้องไม่ชนกับ kase.subCommittee
@@ -1112,24 +1113,24 @@
                   assignedAtIso: new Date().toISOString()
                 }
               });
-              await ECMIS.logRequestEvent(kase.trr_id, kase.status, kase.status, {
-                type: 'ASSIGN_SUPPORT_SUB',
+              await ECMIS.logRequestEvent(kase.trr_id, kase.status, targetStatus, {
+                type: 'SIGN_COMPLEX',
                 actorRole: 'secgen',
                 data: { supportSubTeam: chosenSub }
               });
             } catch (err) {
-              console.error('มอบหมายไม่สำเร็จ:', err);
+              console.error('เสนอ ผอ.กบค. ไม่สำเร็จ:', err);
               ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
               return;
             }
 
             Swal.fire({
               icon: 'success',
-              title: 'มอบหมายสำนวนเรียบร้อย',
+              title: 'เสนอ ผอ.กบค. เรียบร้อย',
               html: `<div class="text-start">
               สำนวน <strong>${kase.id}</strong> ถูกส่งต่อไปยัง
-              <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ (${chosenSub})</strong> เรียบร้อยแล้ว<br>
-              <div style="font-size:.82rem;color:#7C8CA3;margin-top:.6rem">เส้นทางที่ระบบกำหนด: กลั่นกรองโดยคณะอนุสนับสนุนฯ (${chosenSub}) ก่อนเสนอประธานฯ</div>
+              <strong>ผอ.กบค.</strong> เพื่อยืนยันส่งเข้าคณะอนุกรรมการสนับสนุนเลขาธิการฯ (แนะนำ ${chosenSub}) เรียบร้อยแล้ว<br>
+              <div style="font-size:.82rem;color:#7C8CA3;margin-top:.6rem">เส้นทางที่ระบบกำหนด: ผอ.กบค. ยืนยัน → กลั่นกรองโดยคณะอนุสนับสนุนฯ ก่อนเสนอประธานฯ</div>
             </div>`,
               confirmButtonColor: '#0F2A62',
               confirmButtonText: 'ตกลง (ไปที่ Work Inbox)',
@@ -1155,15 +1156,15 @@
             dest = order.label;
             path = `ม.28 — ${order.label} (${order.lawRef} มาตรา ${lawSel ? lawSel.value : ''})`;
           } else if (complex && !hasSupportOpinion) {
-            targetStatus = is72 ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB';
-            dest = 'คณะอนุกรรมการสนับสนุนเลขาธิการฯ';
+            targetStatus = is72 ? 'PENDING_SUPPORT_ASSIGN_72' : 'PENDING_SUPPORT_ASSIGN';
+            dest = 'ผอ.กบค. เพื่อยืนยันส่งเข้าคณะอนุกรรมการสนับสนุนเลขาธิการฯ';
             path = g1.diverged
-              ? 'เรื่องมีความเห็นไม่ตรงกันในสายบังคับบัญชา จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ'
-              : 'เลขาธิการฯ เห็นว่าเรื่องซับซ้อน จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ';
+              ? 'เรื่องมีความเห็นไม่ตรงกันในสายบังคับบัญชา จึงเสนอ ผอ.กบค. ยืนยันก่อนส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ'
+              : 'เลขาธิการฯ เห็นว่าเรื่องซับซ้อน จึงเสนอ ผอ.กบค. ยืนยันก่อนส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ';
           } else if (kase.urgent || urgentYes()) {
-            targetStatus = is72 ? 'PENDING_CHAIRMAN_URGENT_72' : 'PENDING_CHAIRMAN';
-            dest = 'ประธานกรรมการ ป.ป.ท.';
-            path = 'สำนวนเร่งด่วน: เสนอตรงประธานฯ เพื่อสั่งบรรจุวาระด่วน';
+            targetStatus = is72 ? 'PENDING_URGENT_72' : 'PENDING_URGENT';
+            dest = 'ผอ.กบค. เพื่อรับรองเหตุผลเร่งด่วน';
+            path = 'สำนวนเร่งด่วน: รับรองเหตุผลเร่งด่วนก่อนเสนอประธานฯ';
           } else {
             targetStatus = is72 ? 'PENDING_CHAIRMAN_72' : 'PENDING_CHAIRMAN';
             dest = 'ประธานกรรมการ ป.ป.ท.';
@@ -1268,8 +1269,21 @@
             return;
           }
 
+          const complex = g1Yes();
+
           const SEC = { name: 'นายอภิชาติ สุจริตกุล', title: 'เลขาธิการคณะกรรมการ ป.ป.ท.' };
-          const signPromise = ECMIS.signDialog(`${docType.label} เรื่องที่ ${kase.id}`, `${SEC.name} — ${SEC.title}`);
+          const needsSequential = !complex && !!kase.urgent;
+          const dirCaseRole = ECMIS.getRole('dir_case');
+          const signers = needsSequential
+            ? [SEC, {
+              name: dirCaseRole.name,
+              title: `${dirCaseRole.title} (รับรองเหตุผลเร่งด่วน — T7)`,
+              note: 'รอรับรองเหตุผลเร่งด่วนในขั้นตอนถัดไปของผัง (T7) ก่อนจึง Bypass ได้'
+            }]
+            : [SEC];
+          const signPromise = needsSequential
+            ? ECMIS.sequentialSignDialog(`${docType.label} เรื่องที่ ${kase.id}`, signers)
+            : ECMIS.signDialog(`${docType.label} เรื่องที่ ${kase.id}`, `${SEC.name} — ${SEC.title}`);
 
           signPromise.then(res => {
             if (!res.isConfirmed) return;
@@ -1428,7 +1442,7 @@
         if (!el) return;
         let outcome;
         if (complexYes()) outcome = 'ซับซ้อน → ส่งคณะอนุกรรมการสนับสนุนเลขาธิการฯ ก่อน หากเป็นกรณีเร่งด่วนจะพิจารณาความเร่งด่วนต่อในขั้นถัดไป';
-        else if (urgentYes()) outcome = 'ไม่ซับซ้อน + เร่งด่วน → เสนอตรงประธานฯ เพื่อสั่งบรรจุวาระด่วน';
+        else if (urgentYes()) outcome = 'ไม่ซับซ้อน + เร่งด่วน → ขอรับรองเหตุผลเร่งด่วนจาก ผอ.กบค. เพื่อเสนอวาระด่วน';
         else outcome = 'ไม่ซับซ้อน + ไม่เร่งด่วน → เข้าคณะอนุกรรมการกลั่นกรองเรื่องไต่สวนข้อเท็จจริงตามเส้นทางปกติ';
         el.innerHTML = `<strong>เส้นทางที่จะเกิดขึ้น:</strong> ${outcome}`;
       }

@@ -394,7 +394,7 @@
         document.getElementById('manualTeam').innerHTML =
             '<option value="">— ไม่เปลี่ยนแปลง —</option>' +
             QUOTA.map(q => `<option value="คณะที่ ${q.n}" ${q.used >= 40 ? 'disabled' : ''}>คณะที่ ${q.n}${q.used >= 40 ? ' (เต็มโควตา)' : ''}</option>`).join('');
-        document.getElementById('manualTeam').disabled = role.id !== 'case_admin';
+        document.getElementById('manualTeam').disabled = role.id !== 'dir_case';
         document.getElementById('manualTeam').addEventListener('change', e => {
             document.getElementById('manualReasonBox').classList.toggle('d-none', !e.target.value);
             renderDoc();
@@ -702,7 +702,7 @@
             document.getElementById('manualTeam').innerHTML =
                 '<option value="">— ไม่เปลี่ยนแปลง —</option>' +
                 QUOTA.map(q => `<option value="คณะที่ ${q.n}" ${q.used >= 40 ? 'disabled' : ''}>คณะที่ ${q.n}${q.used >= 40 ? ' (เต็มโควตา)' : ''}</option>`).join('');
-            document.getElementById('manualTeam').disabled = role.id !== 'case_admin';
+            document.getElementById('manualTeam').disabled = role.id !== 'dir_case';
             document.getElementById('manualTeam').addEventListener('change', e => {
                 document.getElementById('manualReasonBox').classList.toggle('d-none', !e.target.value);
                 renderDoc();
@@ -1109,7 +1109,7 @@
         });
 
         try {
-            const mayEdit = (role.id === 'sec_sub' || role.id === 'case_admin' || role.id === 'admin');
+            const mayEdit = (role.id === 'sec_sub' || role.id === 'dir_case' || role.id === 'admin');
             ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: mayEdit });
         } catch (e) { }
     </script>

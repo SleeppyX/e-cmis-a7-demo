@@ -3176,7 +3176,7 @@ function getRole(id){
   return ROLES.find(r => r.id === 'affairs') || ROLES[0];
 }
 
-// ผู้ใช้งานที่ได้รับอนุญาตให้เข้าสู่ระบบ (Cleansed 6 Users)
+// ผู้ใช้งานที่ได้รับอนุญาตให้เข้าสู่ระบบ (Cleansed 9 Users — รวม ผอ.กบค./dir_case ที่เพิ่งเพิ่มกลับ)
 const LOGIN_ALLOWED_ROLE_IDS = [
   'secgen',
   'support_sub',
@@ -3185,7 +3185,8 @@ const LOGIN_ALLOWED_ROLE_IDS = [
   'board_sec',
   'board',
   'affairs',
-  'case_admin'
+  'case_admin',
+  'dir_case'
 ];
 
 function roleIdForLogin(username){

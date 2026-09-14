@@ -252,10 +252,13 @@ const TRANSITIONS = [
   { from:'IN_SUPPORT_SUB', to:'PENDING_CHAIRMAN', event:'SUPPORT_DIVERGED', actor:'support_sub',
     ref:'อนุกรรมการฯ เห็นชอบวาระปกติ', guard:k => !k.urgent, note:'ความเห็นไม่ตรงกัน — เสนอเข้าการกลั่นกรองปกติ' },
 
-  { from:'PENDING_URGENT', to:'PENDING_CHAIRMAN', event:'URGENT_CERTIFY', actor:'dir_case',
-    ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. ลงนามรับรองเหตุผลเร่งด่วน' },
+  { from:'PENDING_URGENT', to:'PENDING_SECGEN', event:'URGENT_CERTIFY', actor:'dir_case',
+    ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. ลงนามรับรองเหตุผลเร่งด่วน — ส่งกลับเลขาธิการฯ ยืนยันก่อนเสนอประธานฯ' },
   { from:'PENDING_URGENT', to:'IN_SCREENING', event:'URGENT_REJECT', actor:'dir_case',
     ref:'ไม่รับรองเหตุผลเร่งด่วน', note:'ไม่รับรองใบด่วน — ปรับเข้าสู่เส้นทางกลั่นกรองปกติ' },
+  { from:'PENDING_SECGEN', to:'PENDING_CHAIRMAN', event:'FORWARD_URGENT_CHAIRMAN', actor:'secgen',
+    ref:'เลขาธิการฯ ยืนยันวาระด่วน ส่งประธานฯ', guard:k => !!k.urgentCertified,
+    note:'เลขาธิการฯ ให้เหตุผลรับรองเรื่องด่วนของตนเอง แล้วส่งต่อประธานฯ — ใช้ได้เฉพาะเคสที่ ผอ.กบค. รับรองใบด่วนมาแล้วเท่านั้น' },
 
   { from:'PENDING_CHAIRMAN', to:'IN_SCREENING', event:'ORDER_SCREENING', actor:'chairman',
     ref:'ประธานฯ สั่งส่งกลั่นกรอง', note:'สั่งส่งกลั่นกรองตามปกติ' },
@@ -337,8 +340,11 @@ const TRANSITIONS = [
   { from:'IN_SUPPORT_SUB_72', to:'PENDING_CHAIRMAN_72', event:'SUPPORT_DONE_72', actor:'support_sub',
     ref:'เห็นชอบวาระปกติ — เสนอประธานฯ ลงนามมอบหมาย', guard:k => !k.urgent72 },
 
-  { from:'PENDING_URGENT_72', to:'PENDING_CHAIRMAN_URGENT_72', event:'URGENT_CERTIFY_72', actor:'dir_case',
-    ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. รับรองเหตุผลเร่งด่วน' },
+  { from:'PENDING_URGENT_72', to:'PENDING_SECGEN_72', event:'URGENT_CERTIFY_72', actor:'dir_case',
+    ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. รับรองเหตุผลเร่งด่วน — ส่งกลับเลขาธิการฯ ยืนยันก่อนเสนอประธานฯ' },
+  { from:'PENDING_SECGEN_72', to:'PENDING_CHAIRMAN_URGENT_72', event:'FORWARD_URGENT_CHAIRMAN_72', actor:'secgen',
+    ref:'เลขาธิการฯ ยืนยันวาระด่วน ส่งประธานฯ', guard:k => !!k.urgentCertified,
+    note:'เลขาธิการฯ ให้เหตุผลรับรองเรื่องด่วนของตนเอง แล้วส่งต่อประธานฯ — ใช้ได้เฉพาะเคสที่ ผอ.กบค. รับรองใบด่วนมาแล้วเท่านั้น' },
 
   { from:'PENDING_CHAIRMAN_URGENT_72', to:'PENDING_INVITE_72', event:'AGENDA_URGENT_72', actor:'chairman',
     ref:'ลงนามบรรจุวาระด่วน', note:'ประธานฯ ลงนามมอบหมาย/บรรจุวาระด่วน — ข้ามขั้นตอนการกลั่นกรอง' },

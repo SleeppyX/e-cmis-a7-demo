@@ -57,6 +57,14 @@
       </div>
 
       <div class="col-lg-5">
+        <div class="ws-card mb-3">
+          <div class="card-header"><i class="fa-solid fa-file-lines"></i> บันทึกความเห็นซับซ้อน</div>
+          <div class="card-body p-0">
+            <div class="ws-paper-stage" style="max-height:520px;overflow:auto">
+              <div id="docPaper"></div>
+            </div>
+          </div>
+        </div>
         <div class="ws-card">
           <div class="card-header"><i class="fa-solid fa-clock-rotate-left"></i> ประวัติที่มาของสำนวน</div>
           <div class="card-body" id="historyBox"><div class="text-muted small">ไม่มีข้อมูลประวัติ</div></div>
@@ -150,8 +158,43 @@
         ).join('');
       }
 
+      renderDoc();
       renderStepCard();
       renderActionButtons();
+    }
+
+    function renderDoc() {
+      const M = ECMIS.mergeField;
+      const dirCaseRole = ECMIS.getRole('dir_case');
+      const docPaperEl = document.getElementById('docPaper');
+      if (!docPaperEl) return;
+      docPaperEl.innerHTML = `
+    <div class="doc-paper doc-resolution a4-paper active-page" id="docPaperPage">
+      <div class="doc-secret">ลับ</div>
+      <div class="doc-title">
+        <div class="doc-title-l1">บันทึกความเห็นซับซ้อน</div>
+        <div class="doc-title-l2">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
+      </div>
+      <div class="doc-sub">เรื่องที่ ${M(kase.id)}</div>
+
+      <div class="doc-row"><span class="k">เรียน</span> ${dirCaseRole.title}</div>
+      <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
+      <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(kase.owner)}</div>
+      <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
+
+      <div class="doc-body-indent">
+        <div class="doc-h">เหตุผลที่เห็นว่าเป็นเรื่องยุ่งยากซับซ้อน</div>
+        <div class="doc-indent">${M(kase.g1reason || kase.complexReason, '……………………………………………………………………………………')}</div>
+
+        <div class="doc-h">ความเห็นของ ผอ.กบค.</div>
+        <div class="doc-indent">${M(kase.dirCaseAssignNote)}</div>
+
+        <div class="doc-h">ผู้เสนอ</div>
+        <div class="doc-indent">เลขาธิการคณะกรรมการ ป.ป.ท.</div>
+      </div>
+
+      <div class="doc-secret-foot">ลับ</div>
+    </div>`;
     }
 
     function renderStepCard() {

@@ -194,6 +194,19 @@
             </div>
           </div>
         </div>
+
+        <div class="ws-card mb-3 d-none" id="urgentForwardCard">
+          <div class="card-header"><i class="fa-solid fa-bolt text-warning"></i> ผอ.กบค. รับรองใบด่วนแล้ว — ยืนยันส่งประธานฯ</div>
+          <div class="card-body">
+            <label class="form-label">เหตุผลความเร่งด่วนที่เสนอไปเดิม</label>
+            <textarea class="form-control mb-2" rows="3" readonly id="ufOrigReason"></textarea>
+            <label class="form-label">ความเห็นของ ผอ.กบค.</label>
+            <textarea class="form-control mb-3" rows="3" readonly id="ufDirCaseOpinion"></textarea>
+            <label class="form-label field-req">เหตุผลรับรองเรื่องด่วนของเลขาธิการฯ</label>
+            <textarea class="form-control" rows="3" id="ufSecgenReason" placeholder="ระบุเหตุผลยืนยันความเร่งด่วนก่อนส่งประธานฯ"></textarea>
+            <div class="val-msg val-err" data-for="ufSecgenReason">กรุณาระบุเหตุผลก่อนส่งประธานฯ</div>
+          </div>
+        </div>
       </div>
 
       <aside class="ws-doc-pane" style="top:calc(var(--topbar-h) + 14px)">
@@ -422,6 +435,20 @@
       }
       if (!kase) {
         kase = ECMIS.requireCase(caseParam);
+      } else {
+        /* urgentCertified/dirCaseUrgentOpinion/urgentRejectNote ไม่มีคอลัมน์ใน Supabase — kase ที่โหลด
+           จาก loadCaseFromSupabase() ข้างบนเป็น object ใหม่ทุกครั้ง จึงไม่มีค่าที่ dir-case-urgent-review.html
+           เคย set ไว้ (ผ่าน ECMIS.saveCases() ลง localStorage 'ecmis_live_cases') ต้องอ่านกลับมาเอง —
+           ECMIS.CASES (mock array กลาง) ไม่ได้ auto-load จาก localStorage ตอนเปิดหน้านี้ */
+        try {
+          const cached = JSON.parse(sessionStorage.getItem('ecmis_cases') || '[]');
+          const memCase = Array.isArray(cached) ? cached.find(x => x.id === kase.id) : null;
+          if (memCase) {
+            if ('urgentCertified' in memCase) kase.urgentCertified = memCase.urgentCertified;
+            if ('dirCaseUrgentOpinion' in memCase) kase.dirCaseUrgentOpinion = memCase.dirCaseUrgentOpinion;
+            if ('urgentRejectNote' in memCase) kase.urgentRejectNote = memCase.urgentRejectNote;
+          }
+        } catch (e) {}
       }
       if (!kase) return;
 
@@ -573,7 +600,19 @@
         }
       }
 
-      if (role.id === 'secgen') {
+      /* เคสที่ ผอ.กบค. รับรองใบด่วนแล้วส่งกลับมาที่ PENDING_SECGEN — เลขาธิการฯ ต้องให้เหตุผลรับรอง
+         เรื่องด่วนของตนเองแล้วจึงส่งต่อประธานฯ ไม่ใช่การพิจารณา G1/M28 ใหม่ตั้งแต่ต้น */
+      const isUrgentForward = role.id === 'secgen' && kase.status === secgenPendingStatus && !!kase.urgentCertified;
+
+      if (role.id === 'secgen' && isUrgentForward) {
+        document.getElementById('m28Card').classList.add('d-none');
+        document.getElementById('signCard').classList.add('d-none');
+        document.getElementById('g1Box').classList.add('d-none');
+        document.getElementById('myOpinionBox')?.classList.add('d-none');
+        document.getElementById('urgentForwardCard').classList.remove('d-none');
+        document.getElementById('ufOrigReason').value = kase.urgentReason || '';
+        document.getElementById('ufDirCaseOpinion').value = kase.dirCaseUrgentOpinion || '';
+      } else if (role.id === 'secgen') {
         const is73 = ECMIS.isCase73(kase);
         if (!is73) {
           document.getElementById('m28Card').classList.remove('d-none');
@@ -891,6 +930,9 @@
       }
 
       function buildButtons() {
+        if (isUrgentForward) {
+          return [{ act: 'forward_urgent_chairman', label: 'ยืนยันส่งประธานฯ พิจารณาวาระด่วน', icon: 'fa-paper-plane', cls: 'btn-navy' }];
+        }
         const b = [{ act: 'return', label: 'ส่งคืนสายงานต้นทาง (กจ.5)', icon: 'fa-arrow-left-long', cls: 'btn-outline-danger' }];
         if (role.id === 'secgen') {
           const hasSupportOpinion = !!(kase.supportOpinion || kase.supportOpinion72 || kase.supportDecision);
@@ -963,6 +1005,37 @@
       }
 
       async function handle(act) {
+        if (act === 'forward_urgent_chairman') {
+          const reasonEl = document.getElementById('ufSecgenReason');
+          if (!reasonEl.value.trim()) {
+            reasonEl.classList.add('is-invalid-ecmis');
+            document.querySelector('.val-msg[data-for="ufSecgenReason"]').classList.add('show');
+            ECMIS.toastWarn('กรุณาระบุเหตุผลรับรองเรื่องด่วนก่อนส่งประธานฯ');
+            return;
+          }
+          ECMIS.confirmAction({
+            title: 'ยืนยันส่งประธานฯ พิจารณาวาระด่วน',
+            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งเข้าคิวประธานฯ เป็นวาระด่วน</p>`,
+            confirmText: 'ยืนยันส่ง'
+          }).then(async res => {
+            if (!res.isConfirmed) return;
+            const targetStatus = 'PENDING_CHAIRMAN';
+            try {
+              await persistCase(kase, { status: targetStatus, secgenUrgentForwardReason: reasonEl.value.trim() });
+              await ECMIS.logRequestEvent(kase.trr_id, kase.status, targetStatus, {
+                type: 'FORWARD_URGENT_CHAIRMAN', actorRole: 'secgen', data: { reason: reasonEl.value.trim() }
+              });
+            } catch (err) {
+              console.error('ส่งประธานฯ ไม่สำเร็จ:', err);
+              ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+              return;
+            }
+            ECMIS.toastOk('ส่งประธานฯ พิจารณาวาระด่วนเรียบร้อยแล้ว');
+            setTimeout(() => location.href = ECMIS.homeHref(role.id), 1400);
+          });
+          return;
+        }
+
         if (act === 'edit_sign') {
           handle('sign');
           return;

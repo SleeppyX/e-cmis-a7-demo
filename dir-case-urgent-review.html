@@ -25,7 +25,7 @@
         <h1><i class="fa-solid fa-bolt me-2"></i>ลงความเห็นใบด่วน</h1>
       </div>
       <div class="ms-auto text-end">
-        <span class="flow-ref">ผอ.กบค. รับรอง / ไม่รับรองเหตุผลเร่งด่วนก่อนเข้าคิวประธานฯ</span>
+        <span class="flow-ref">ผอ.กบค. รับรอง / ไม่รับรองเหตุผลเร่งด่วน — รับรองแล้วส่งกลับเลขาธิการฯ ก่อนเข้าคิวประธานฯ</span>
         <div class="mt-1" id="stBadge"></div>
       </div>
     </div>
@@ -206,7 +206,7 @@
         <div class="doc-indent">${M(kase.urgentReason, '……………………………………………………………………………………')}</div>
 
         <div class="doc-h">ความเห็นของ ผอ.กบค.</div>
-        <div class="doc-indent">${M(kase.urgentRejectNote)}</div>
+        <div class="doc-indent">${M(kase.dirCaseUrgentOpinion || kase.urgentRejectNote)}</div>
 
         <div class="doc-h">ผู้ลงความเห็น</div>
         <div class="doc-indent">${dirCase.name} — ${dirCase.title}</div>
@@ -224,7 +224,7 @@
       if (!is72 && !is73) {
         btns.push({ act: 'reject', label: 'ไม่รับรอง — ส่งเข้ากลั่นกรองปกติ', icon: 'fa-xmark', cls: 'btn-outline-danger' });
       }
-      btns.push({ act: 'certify', label: 'รับรองและส่งประธานฯ', icon: 'fa-check', cls: 'btn-navy' });
+      btns.push({ act: 'certify', label: 'รับรองและส่งเลขาธิการฯ', icon: 'fa-check', cls: 'btn-navy' });
       return btns;
     }
 
@@ -236,26 +236,28 @@
 
     async function handle(act) {
       if (act === 'certify') {
-        const targetStatus = is72 ? 'PENDING_CHAIRMAN_URGENT_72' : 'PENDING_CHAIRMAN';
+        const targetStatus = is72 ? 'PENDING_SECGEN_72' : 'PENDING_SECGEN';
+        const opinion = document.getElementById('dirCaseUrgentNote')?.value.trim() || '';
         ECMIS.confirmAction({
           title: 'รับรองเหตุผลเร่งด่วน',
-          html: `<p>สำนวน <strong>${kase.id}</strong> — รับรองโดย ${dirCase.title}</p>`,
+          html: `<p>สำนวน <strong>${kase.id}</strong> — รับรองโดย ${dirCase.title}<br>
+          <span class="text-muted small">ส่งกลับเลขาธิการฯ ยืนยันก่อนเสนอประธานฯ</span></p>`,
           confirmText: 'ยืนยันรับรอง'
         }).then(async res => {
           if (!res.isConfirmed) return;
-          const patch = { status: targetStatus, urgentCertified: true };
+          const patch = { status: targetStatus, urgentCertified: true, dirCaseUrgentOpinion: opinion };
           if (is72) patch.urgentCertifiedDate72 = new Date().toISOString().slice(0, 10);
           try {
             await persistCase(kase, patch);
             await ECMIS.logRequestEvent(kase.trr_id, kase.status, targetStatus, {
-              type: 'URGENT_CERTIFY', actorRole: 'dir_case'
+              type: 'URGENT_CERTIFY', actorRole: 'dir_case', data: { opinion }
             });
           } catch (err) {
             console.error('รับรองเหตุผลเร่งด่วนไม่สำเร็จ:', err);
             ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
             return;
           }
-          ECMIS.toastOk('รับรองเหตุผลเร่งด่วนเรียบร้อย ส่งต่อประธานฯ แล้ว');
+          ECMIS.toastOk('รับรองเหตุผลเร่งด่วนเรียบร้อย ส่งกลับเลขาธิการฯ ยืนยันก่อนเสนอประธานฯ แล้ว');
           setTimeout(() => location.href = ECMIS.homeHref(role.id), 1400);
         });
         return;

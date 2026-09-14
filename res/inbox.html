@@ -255,6 +255,13 @@ function isAffairsQueueCase(c) {
   return true;
 }
 
+/* ผอ.กบค. (dir_case) มี 2 คิวงานจริงเท่านั้น — assign อนุสนับสนุน / ลงความเห็นใบด่วน (ทั้งสาย 7.1+7.2)
+   ก่อนหน้านี้ตกไปใช้ fallback ทั่วไป (canViewCase ล้วน) ทำให้เห็นสำนวนทั้งระบบปนกันในแท็บ "ทั้งหมด" */
+const DIR_CASE_STATUSES = ['PENDING_SUPPORT_ASSIGN', 'PENDING_SUPPORT_ASSIGN_72', 'PENDING_URGENT', 'PENDING_URGENT_72'];
+function isDirCaseQueueCase(c) {
+  return DIR_CASE_STATUSES.includes(c.status);
+}
+
 let CASES, all, mine;
 
 function inboxFor(roleId) {
@@ -619,6 +626,11 @@ function getSecgenActionBadge(c) {
   if ((c.status === 'PENDING_SECGEN' || c.status === 'PENDING_SECGEN_72') && (c.supportOpinion || c.supportOpinion72 || c.supportDecision)) {
     return `<span class="meet-badge" style="background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;font-weight:600"><i class="fa-solid fa-clipboard-check me-1"></i>ผ่านอนุสนับสนุนฯ แล้ว — รอลงนาม</span>`;
   }
+  /* ผอ.กบค. รับรองใบด่วนแล้วส่งกลับให้เลขาธิการฯ ยืนยัน+ส่งต่อประธานฯ — แยกป้ายไม่ให้ปนกับสำนวนใหม่
+     ที่ยังไม่เคยพิจารณา (คนละ action กันโดยสิ้นเชิง แม้สถานะ status เดียวกัน) */
+  if ((c.status === 'PENDING_SECGEN' || c.status === 'PENDING_SECGEN_72') && c.urgentCertified) {
+    return `<span class="meet-badge meet-urgent"><i class="fa-solid fa-bolt me-1"></i>ผอ.กบค. รับรองใบด่วนแล้ว — รอส่งประธานฯ</span>`;
+  }
   return `<span class="meet-badge meet-pending"><i class="fa-solid fa-circle-dot me-1" style="font-size:0.65rem"></i>รอเลขาพิจารณาลงนาม</span>`;
 }
 
@@ -953,7 +965,9 @@ document.getElementById('btnClearFilter').addEventListener('click', () => {
       ? CASES.filter(c => ECMIS.canViewCase(c, role.id) && routesToApprovalReview(c) && !UPSTREAM_STATUSES.includes(c.status))
       : role.id === 'chairman'
         ? CASES.filter(c => isChairActionable(c) && ECMIS.canViewCase(c, role.id))
-        : CASES.filter(c => ECMIS.canViewCase(c, role.id));
+        : role.id === 'dir_case'
+          ? CASES.filter(c => isDirCaseQueueCase(c) && ECMIS.canViewCase(c, role.id))
+          : CASES.filter(c => ECMIS.canViewCase(c, role.id));
   mine = role.id === 'chairman'
     ? CASES.filter(c => isChairActionable(c))
     /* affairs ใช้ AFFAIRS_STATUSES เดียวกับ `all` ด้านบนเสมอ — ไม่ใช้ inboxFor() ตรงๆ เพราะ
@@ -961,7 +975,9 @@ document.getElementById('btnClearFilter').addEventListener('click', () => {
        ก็ต้องเห็นสำนวน RESOLVED เป็นงานของตัวเองด้วยเพื่อพิจารณาจัดทำคำสั่ง ม.24 ต่อ */
     : role.id === 'affairs'
       ? CASES.filter(c => isAffairsQueueCase(c) && !ECMIS.isUpstreamCase(c) && ECMIS.canViewCase(c, role.id))
-      : inboxFor(role.id).filter(c => !ECMIS.isUpstreamCase(c) && ECMIS.canViewCase(c, role.id));
+      : role.id === 'dir_case'
+        ? CASES.filter(c => isDirCaseQueueCase(c) && ECMIS.canViewCase(c, role.id))
+        : inboxFor(role.id).filter(c => !ECMIS.isUpstreamCase(c) && ECMIS.canViewCase(c, role.id));
   mineIds = new Set(mine.map(c => c.id));
   buildAllCasesCombined();
   filteredCombined = [...allCasesCombined];

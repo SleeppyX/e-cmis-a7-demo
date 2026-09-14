@@ -1055,26 +1055,31 @@
         if (act === 'save_status') {
           const m28 = m28Selected();
           const complex = g1Yes();
+          /* บั๊กเดิม: ไฟล์นี้ไม่เคยแยก is72 เลยในขั้นนี้ ทำให้เคสสาย 644 (7.2) ถูกเซ็ตสถานะสาย
+             หลัก (7.1) แทน เช่น PENDING_CHAIRMAN แทนที่จะเป็น PENDING_CHAIRMAN_72 — เพิ่ง
+             เจอตอนทดสอบ flow กลุ่มกิจลงความเห็น 644 (2026-09-14) พบว่าเคส 644 ไม่เข้าคิว _72
+             เลย ต้องเช็ค ECMIS.isCase72(kase) เหมือน approval-review.html */
+          const is72 = ECMIS.isCase72(kase);
           let dest, path, targetStatus;
 
           if (m28 !== 'ACCEPT') {
             const lawSel = document.getElementById('m28Law');
             const order = ECMIS.m28Order(m28);
-            targetStatus = 'CLOSED';
+            targetStatus = is72 ? 'CLOSED_72' : 'CLOSED';
             dest = order.label;
             path = `ม.28 — ${order.label} (${order.lawRef} มาตรา ${lawSel ? lawSel.value : ''})`;
           } else if (complex) {
-            targetStatus = 'PENDING_SUPPORT_ASSIGN';
+            targetStatus = is72 ? 'PENDING_SUPPORT_ASSIGN_72' : 'PENDING_SUPPORT_ASSIGN';
             dest = 'ผอ.กบค. เพื่อยืนยันส่งเข้าคณะอนุกรรมการสนับสนุนเลขาธิการฯ';
             path = g1.diverged
               ? 'เรื่องมีความเห็นไม่ตรงกันในสายบังคับบัญชา จึงเสนอ ผอ.กบค. ยืนยันก่อนส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ'
               : 'เลขาธิการฯ เห็นว่าเรื่องซับซ้อน จึงเสนอ ผอ.กบค. ยืนยันก่อนส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ';
           } else if (kase.urgent || urgentYes()) {
-            targetStatus = 'PENDING_URGENT';
+            targetStatus = is72 ? 'PENDING_URGENT_72' : 'PENDING_URGENT';
             dest = 'ผอ.กบค. เพื่อรับรองเหตุผลเร่งด่วน';
             path = 'สำนวนเร่งด่วน: รับรองเหตุผลเร่งด่วนก่อนเสนอประธานฯ';
           } else {
-            targetStatus = 'PENDING_CHAIRMAN';
+            targetStatus = is72 ? 'PENDING_CHAIRMAN_72' : 'PENDING_CHAIRMAN';
             dest = 'ประธานกรรมการ ป.ป.ท.';
             path = 'สำนวนปกติ: เสนอประธานฯ พิจารณาสั่งการ';
           }

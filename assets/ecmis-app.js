@@ -2908,7 +2908,7 @@ function __hubBridgeCases() {
   else Object.assign(CASES[index], shared);
 }
 
-const CASES_VERSION = '2026-09-14-71-secgen-batch2';
+const CASES_VERSION = '2026-09-16-72-demo-cases-9211-9222';
 if (typeof sessionStorage !== 'undefined') {
   const savedVersion = sessionStorage.getItem('ecmis_cases_version');
   const savedCases = sessionStorage.getItem('ecmis_cases');

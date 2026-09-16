@@ -592,9 +592,12 @@
         `<span class="chip me-1">${docType.short}</span>` +
         ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
       const is73 = ECMIS.isCase73(kase);
+      const is72 = !is73 && ECMIS.isCase72(kase);
       document.getElementById('stepper').innerHTML = is73
         ? ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_73, ECMIS.STATUS_STEP_73)
-        : ECMIS.stepperHtml(kase.status);
+        : (is72
+          ? ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
+          : ECMIS.stepperHtml(kase.status));
 
       const CHAIN_STATUS = {
         owner: 'DRAFT', section_head: 'PENDING_SECTION', director: 'PENDING_DIRECTOR',

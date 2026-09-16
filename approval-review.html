@@ -407,6 +407,122 @@
       });
     }
 
+    /* ด่านรับรอง/ยืนยันความเร่งด่วนของสาย 7.1 (T7 ผอ.กบค. + เลขาธิการฯ ยืนยันซ้ำ) — คนละงานกับ
+       การพิจารณารายงาน 213/G1/G3 ตามปกติของหน้านี้ จึงแทนที่ docWorkspace ทั้งหมดด้วย UI เบา ๆ
+       แยกต่างหาก แทนที่จะฝังเข้าไปในฟอร์ม G1/G3/m28 ที่ซับซ้อนอยู่แล้ว */
+    function initUrgentGateScreen() {
+      const dirCase = ECMIS.getRole('dir_case');
+      const isCertifyStep = kase.status === 'PENDING_URGENT';
+      document.querySelector('.page-head h1').innerHTML =
+        `<i class="fa-solid fa-bolt me-2"></i>${isCertifyStep ? 'รับรองเหตุผลเร่งด่วน (ผอ.กบค.)' : 'ยืนยันวาระด่วน (เลขาธิการฯ)'}`;
+      document.querySelector('.flow-ref').innerHTML = 'ด่านรับรองความเร่งด่วน (T7) — ก่อนส่งเข้าคิวประธานฯ';
+      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+      document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS, ECMIS.STATUS_STEP);
+
+      const bodyHtml = isCertifyStep
+        ? `<label class="form-label field-req">เหตุผลความเร่งด่วน</label>
+           <textarea class="form-control" id="urgentReason" rows="5"
+             placeholder="ระบุเหตุผลความจำเป็นเร่งด่วน เช่น ใกล้ครบกำหนดอายุความ / มีความเสี่ยงต่อพยานหลักฐาน...">${kase.urgentReason || ''}</textarea>
+           <div class="val-msg val-err" data-for="urgentReason">กรุณาระบุเหตุผลความเร่งด่วนก่อนรับรอง</div>`
+        : `<label class="form-label">เหตุผลความเร่งด่วนที่ ${dirCase.title} รับรองไว้แล้ว</label>
+           <textarea class="form-control" rows="5" readonly>${kase.urgentReason || ''}</textarea>
+           <div class="alert alert-success py-2 px-3 mt-2 mb-0" style="font-size:.82rem">
+             <i class="fa-solid fa-circle-check me-1"></i>${dirCase.title} รับรองเหตุผลเร่งด่วนแล้ว — กรุณายืนยันอีกครั้งก่อนส่งเข้าคิวประธานฯ
+           </div>`;
+
+      document.getElementById('docWorkspace').innerHTML = `
+        <div>
+          <div class="ws-card mb-3">
+            <div class="card-header"><i class="fa-solid fa-bolt"></i> ${isCertifyStep ? 'รับรองเหตุผลเร่งด่วน' : 'ยืนยันวาระด่วน'}</div>
+            <div class="card-body">${bodyHtml}</div>
+          </div>
+        </div>`;
+
+      const buttons = isCertifyStep
+        ? [
+            { act: 'certify', label: 'รับรองและส่งเลขาธิการฯ ยืนยัน', icon: 'fa-check', cls: 'btn-navy' },
+            { act: 'certifyReject', label: 'ไม่เห็นด้วยว่าด่วน', icon: 'fa-xmark', cls: 'btn-outline-danger' }
+          ]
+        : [{ act: 'confirm', label: 'ยืนยันและส่งประธานฯ', icon: 'fa-check-double', cls: 'btn-gold' }];
+      document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(kase, role.id, buttons);
+      document.querySelectorAll('.action-bar [data-act]').forEach(b =>
+        b.addEventListener('click', () => handleUrgentGate(b.dataset.act)));
+
+      async function handleUrgentGate(act) {
+        if (act === 'certify') {
+          const ta = document.getElementById('urgentReason');
+          if (!ta.value.trim()) {
+            ta.classList.add('is-invalid-ecmis');
+            document.querySelector('.val-msg[data-for="urgentReason"]').classList.add('show');
+            ECMIS.toastWarn('กรุณาระบุเหตุผลความเร่งด่วนก่อนรับรอง');
+            return;
+          }
+          ECMIS.confirmAction({
+            title: 'รับรองเหตุผลเร่งด่วน',
+            html: `<p>สำนวน <strong>${kase.id}</strong> — รับรองโดย ${dirCase.title}<br>
+            <small class="text-muted">ส่งกลับให้เลขาธิการฯ ยืนยันอีกครั้งก่อนเข้าคิวประธานฯ</small></p>`,
+            confirmText: 'ยืนยันรับรอง'
+          }).then(async res => {
+            if (!res.isConfirmed) return;
+            try {
+              await persistCase(kase, {
+                urgentReason: ta.value.trim(),
+                urgentCertified: true,
+                status: 'PENDING_SECGEN_URGENT_CONFIRM'
+              });
+            } catch (err) {
+              console.error('รับรองเหตุผลเร่งด่วนไม่สำเร็จ:', err);
+              ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+              return;
+            }
+            ECMIS.toastOk('รับรองเหตุผลเร่งด่วนเรียบร้อย ส่งกลับให้เลขาธิการฯ ยืนยันแล้ว');
+            setTimeout(() => location.href = ECMIS.homeHref(role.id), 1400);
+          });
+          return;
+        }
+
+        if (act === 'certifyReject') {
+          ECMIS.confirmAction({
+            title: 'ไม่เห็นด้วยว่าด่วน',
+            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกปรับกลับเข้าเส้นทางกลั่นกรองปกติ (ไม่บรรจุวาระด่วน)</p>`,
+            confirmText: 'ยืนยันไม่รับรอง'
+          }).then(async res => {
+            if (!res.isConfirmed) return;
+            try {
+              await persistCase(kase, { status: 'IN_SCREENING', urgent: false });
+            } catch (err) {
+              console.error('บันทึกไม่สำเร็จ:', err);
+              ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+              return;
+            }
+            ECMIS.toastOk('ปรับเข้าสู่เส้นทางกลั่นกรองปกติแล้ว');
+            setTimeout(() => location.href = ECMIS.homeHref(role.id), 1400);
+          });
+          return;
+        }
+
+        if (act === 'confirm') {
+          ECMIS.confirmAction({
+            title: 'ยืนยันเสนอวาระด่วนต่อประธานฯ',
+            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งเข้าคิวประธานฯ เพื่อพิจารณาสั่งบรรจุวาระด่วนต่อไป</p>`,
+            confirmText: 'ยืนยัน'
+          }).then(async res => {
+            if (!res.isConfirmed) return;
+            try {
+              await persistCase(kase, { status: 'PENDING_CHAIRMAN' });
+            } catch (err) {
+              console.error('ยืนยันวาระด่วนไม่สำเร็จ:', err);
+              ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+              return;
+            }
+            ECMIS.toastOk('ยืนยันวาระด่วนเรียบร้อย ส่งเข้าคิวประธานฯ แล้ว');
+            setTimeout(() => location.href = ECMIS.homeHref(role.id), 1400);
+          });
+          return;
+        }
+      }
+    }
+
     let kase, docType, isRuling, secgenPendingStatus, alreadySigned, signed, g1;
     const SECGEN_SIG_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 70">' +
@@ -424,6 +540,11 @@
         kase = ECMIS.requireCase(caseParam);
       }
       if (!kase) return;
+
+      if (kase.status === 'PENDING_URGENT' || kase.status === 'PENDING_SECGEN_URGENT_CONFIRM') {
+        initUrgentGateScreen();
+        return;
+      }
 
       docType = ECMIS.DOC_TYPES[kase.docType];
       isRuling = docType.code === 'RULING';
@@ -735,7 +856,7 @@
           ? `<strong>G1 = ใช่</strong> → <span class="chip">T6 คณะอนุสนับสนุนฯ</span> → <span class="chip">G2</span>
        <div class="text-muted mt-1" style="font-size:.78rem">เหตุ: ${why}</div>`
           : `<strong>G1 = ไม่ใช่</strong> → <span class="chip">G3 ตรวจใบด่วน</span> →
-       <span class="chip">T8 ประธานกรรมการ ป.ป.ท.${kase.urgent ? ' (วาระด่วน)' : ''}</span>
+       <span class="chip">${kase.urgent ? 'T7 ผอ.กบค.' : 'T8 ประธานกรรมการ ป.ป.ท.'}</span>
        <div class="text-muted mt-1" style="font-size:.78rem">เหตุ: ${why}</div>`;
       }
 
@@ -1161,9 +1282,9 @@
               ? 'เรื่องมีความเห็นไม่ตรงกันในสายบังคับบัญชา จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ'
               : 'เลขาธิการฯ เห็นว่าเรื่องซับซ้อน จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ';
           } else if (kase.urgent || urgentYes()) {
-            targetStatus = is72 ? 'PENDING_CHAIRMAN_URGENT_72' : 'PENDING_CHAIRMAN';
-            dest = 'ประธานกรรมการ ป.ป.ท.';
-            path = 'สำนวนเร่งด่วน: เสนอตรงประธานฯ เพื่อสั่งบรรจุวาระด่วน';
+            targetStatus = is72 ? 'PENDING_URGENT_72' : 'PENDING_URGENT';
+            dest = 'ผู้อำนวยการกองบริหารคดี เพื่อรับรองเหตุผลเร่งด่วน';
+            path = 'สำนวนเร่งด่วน: รับรองเหตุผลเร่งด่วนก่อนเสนอประธานฯ';
           } else {
             targetStatus = is72 ? 'PENDING_CHAIRMAN_72' : 'PENDING_CHAIRMAN';
             dest = 'ประธานกรรมการ ป.ป.ท.';
@@ -1268,8 +1389,20 @@
             return;
           }
 
+          const complex = g1Yes();
+
           const SEC = { name: 'นายอภิชาติ สุจริตกุล', title: 'เลขาธิการคณะกรรมการ ป.ป.ท.' };
-          const signPromise = ECMIS.signDialog(`${docType.label} เรื่องที่ ${kase.id}`, `${SEC.name} — ${SEC.title}`);
+          const needsSequential = !complex && !!kase.urgent;
+          const signers = needsSequential
+            ? [SEC, {
+              name: 'นางสาวกรรณิกา วงศ์ศิริ',
+              title: 'ผู้อำนวยการกองบริหารคดี (รับรองเหตุผลเร่งด่วน — T7)',
+              note: 'รอรับรองเหตุผลเร่งด่วนในขั้นตอนถัดไปของผัง (T7) ก่อนจึง Bypass ได้'
+            }]
+            : [SEC];
+          const signPromise = needsSequential
+            ? ECMIS.sequentialSignDialog(`${docType.label} เรื่องที่ ${kase.id}`, signers)
+            : ECMIS.signDialog(`${docType.label} เรื่องที่ ${kase.id}`, `${SEC.name} — ${SEC.title}`);
 
           signPromise.then(res => {
             if (!res.isConfirmed) return;
@@ -1428,7 +1561,7 @@
         if (!el) return;
         let outcome;
         if (complexYes()) outcome = 'ซับซ้อน → ส่งคณะอนุกรรมการสนับสนุนเลขาธิการฯ ก่อน หากเป็นกรณีเร่งด่วนจะพิจารณาความเร่งด่วนต่อในขั้นถัดไป';
-        else if (urgentYes()) outcome = 'ไม่ซับซ้อน + เร่งด่วน → เสนอตรงประธานฯ เพื่อสั่งบรรจุวาระด่วน';
+        else if (urgentYes()) outcome = 'ไม่ซับซ้อน + เร่งด่วน → ขอรับรองเหตุผลเร่งด่วนจาก ผอ.กบค. เพื่อเสนอวาระด่วน';
         else outcome = 'ไม่ซับซ้อน + ไม่เร่งด่วน → เข้าคณะอนุกรรมการกลั่นกรองเรื่องไต่สวนข้อเท็จจริงตามเส้นทางปกติ';
         el.innerHTML = `<strong>เส้นทางที่จะเกิดขึ้น:</strong> ${outcome}`;
       }

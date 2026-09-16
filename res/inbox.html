@@ -286,6 +286,11 @@ function getSecgenStatusCategory(c) {
   if (c.status === 'PENDING_SIGN_ORDER_SECGEN') {
     return 'PENDING';
   }
+  /* ผอ.กบค. รับรองเหตุผลเร่งด่วนแล้ว ส่งกลับมาให้เลขาธิการฯ ยืนยันอีกครั้งก่อนเข้าคิวประธานฯ —
+     ต้องนับเป็น 'PENDING' เช่นเดียวกับ PENDING_SECGEN(_72) เพื่อให้ขึ้นคิว "ต้องดำเนินการ" จริง */
+  if (c.status === 'PENDING_SECGEN_URGENT_CONFIRM' || c.status === 'PENDING_SECGEN_URGENT_CONFIRM_72') {
+    return 'PENDING';
+  }
   if (UPSTREAM_STATUSES.includes(c.status)) {
     return 'UPSTREAM';
   }
@@ -342,11 +347,22 @@ const AFFAIRS_COPY = {
   stPending:  'รอจัดทำ', stDone:  'จัดทำแล้ว', stReturned:  'เลื่อน/ถอนวาระ'
 };
 
+const DIR_CASE_COPY = {
+  pageTitle:  'รายการรับรองเหตุผลเร่งด่วน (ผอ.กบค.)',
+  pageIcon:   'fa-bolt',
+  flowRef:    'ด่านรับรองความเร่งด่วน (T7) — ก่อนส่งกลับให้เลขาธิการฯ ยืนยันและเสนอประธานฯ',
+  card1Title: 'รายการสำนวนรอรับรองเหตุผลเร่งด่วน',
+  colStatusHeader: 'สถานะ',
+  kpiPending: 'รอรับรองเหตุผลเร่งด่วน', kpiDone: 'รับรองแล้ว', kpiReturned: 'ไม่รับรอง',
+  stPending:  'รอรับรองเหตุผลเร่งด่วน', stDone:  'รับรองแล้ว', stReturned:  'ไม่รับรอง'
+};
+
 const ROLE_COPY = {
   owner: UPSTREAM_COPY, section_head: UPSTREAM_COPY, director: UPSTREAM_COPY,
   deputy_sg: UPSTREAM_COPY, deputy: UPSTREAM_COPY,
   chairman: CHAIRMAN_COPY,
-  affairs: AFFAIRS_COPY
+  affairs: AFFAIRS_COPY,
+  dir_case: DIR_CASE_COPY
 };
 const copy = Object.assign({}, DEFAULT_COPY, ROLE_COPY[role.id] || {});
 
@@ -395,6 +411,22 @@ if(ECMIS.isUpstreamRole(role.id)){
       <option value="RESOLVED_PENDING_72">รอจัดทำรายงานชี้มูล / หนังสือลงโทษทางวินัย</option>
       <option value="PENDING_DISPATCH_GUILTY_72">รอส่งดำเนินคดี</option>
     `;
+  }
+} else if (role.id === 'dir_case') {
+  const sf = document.getElementById('statusFilter');
+  if (sf) {
+    sf.innerHTML = `
+      <option value="ALL">ทั้งหมด</option>
+      <option value="PENDING_URGENT">รอรับรองเหตุผลเร่งด่วน</option>
+    `;
+  }
+} else if (role.id === 'secgen') {
+  const sf = document.getElementById('statusFilter');
+  if (sf) {
+    const opt = document.createElement('option');
+    opt.value = 'URGENT_CONFIRM';
+    opt.textContent = 'รอยืนยันวาระด่วน (กบค. รับรองแล้ว)';
+    sf.appendChild(opt);
   }
 }
 
@@ -489,11 +521,47 @@ function renderKPICards() {
     return;
   }
 
+  if (role.id === 'dir_case') {
+    const pendingUrgentCount = allCasesCombined.filter(c => c.status === 'PENDING_URGENT' || c.status === 'PENDING_URGENT_72').length;
+
+    const kpis = [
+      { id:'ALL', n: allCasesCombined.length, l:'รายการทั้งหมด', i:'fa-folder-open', c:'#0F2A62' },
+      { id:'PENDING_URGENT', n: pendingUrgentCount, l:'รอรับรองเหตุผลเร่งด่วน', i:'fa-bolt', c:'#DB2626' }
+    ];
+
+    document.getElementById('kpiRow').innerHTML = kpis.map(k => {
+      const isActive = (currentSt === k.id);
+      return `
+      <div class="col-12 col-sm-6 col-md-4 col-xl">
+        <div class="card card-ecmis kpi-card h-100 ${isActive ? 'border-2 shadow-sm' : ''}"
+             style="min-height:88px; cursor:pointer; ${isActive ? `border-color:${k.c} !important; background:${k.c}0D;` : ''}"
+             onclick="filterByKPI('${k.id}')">
+          <div class="card-body d-flex align-items-center gap-2 py-3 px-3">
+            <div style="flex:0 0 38px;height:38px;border-radius:10px;background:${k.c}18;display:flex;align-items:center;justify-content:center">
+              <i class="fa-solid ${k.i}" style="color:${k.c};font-size:1.05rem"></i>
+            </div>
+            <div style="min-width:0">
+              <div style="font-size:1.5rem;font-weight:700;font-family:var(--serif);color:${k.c};line-height:1.1">${k.n}</div>
+              <div class="text-muted text-truncate" style="font-size:.74rem;margin-top:2px" title="${k.l}">${k.l}</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    return;
+  }
+
   // SecGen / General Roles: Linked KPI Cards to 4 Mutually Exclusive Status Categories + ALL (Sum of 4 = ALL)
   const pendingCount   = allCasesCombined.filter(c => getSecgenStatusCategory(c) === 'PENDING').length;
   const signedCount    = allCasesCombined.filter(c => getSecgenStatusCategory(c) === 'SIGNED').length;
   const returnedCount  = allCasesCombined.filter(c => getSecgenStatusCategory(c) === 'RETURNED').length;
   const screeningCount = allCasesCombined.filter(c => getSecgenStatusCategory(c) === 'SCREENING').length;
+  /* กบค. รับรองเหตุผลเร่งด่วนแล้ว รอเลขาธิการฯ ยืนยันอีกครั้งก่อนเข้าคิวประธานฯ — แยกการ์ดต่างหาก
+     จาก 'PENDING' เดิม (ซึ่งรวมสถานะนี้ไว้ด้วยแล้วเพื่อให้ isMyPending() ทำงานถูกต้อง) เฉพาะ role
+     secgen เท่านั้น ไม่กระทบ support_sub ที่ใช้ getSecgenStatusCategory ร่วมกัน */
+  const urgentConfirmCount = role.id === 'secgen'
+    ? allCasesCombined.filter(c => c.status === 'PENDING_SECGEN_URGENT_CONFIRM' || c.status === 'PENDING_SECGEN_URGENT_CONFIRM_72').length
+    : 0;
 
   const kpis = [
     { id:'ALL', n: allCasesCombined.length, l:'รายการทั้งหมด', i:'fa-folder-open', c:'#0F2A62' },
@@ -502,6 +570,9 @@ function renderKPICards() {
     { id:'RETURNED', n: returnedCount, l:'ไม่ลงนาม / ตีกลับ', i:'fa-circle-xmark', c:'#DB2626' },
     { id:'SCREENING', n: screeningCount, l:'ส่งให้อนุกลั่นกรองพิจารณา', i:'fa-users-gear', c:'#0284C7' }
   ];
+  if (role.id === 'secgen') {
+    kpis.push({ id:'URGENT_CONFIRM', n: urgentConfirmCount, l:'รอยืนยันวาระด่วน (กบค. รับรองแล้ว)', i:'fa-bolt', c:'#B45309' });
+  }
 
   document.getElementById('kpiRow').innerHTML = kpis.map(k => {
     const isActive = (currentSt === k.id);
@@ -538,7 +609,7 @@ const PAGE_FOR = {
   secgen:'approval-review.html', support_sub:'support-subcommittee.html',
   chairman:'chairman-agenda.html', subcommittee:'subcommittee-screening.html',
   board_sec:'agenda-registry.html', affairs:'board-resolution.html',
-  board:'board-resolution.html'
+  board:'board-resolution.html', dir_case:'approval-review.html'
 };
 
 let currentPage = 1;
@@ -572,6 +643,9 @@ function getSecgenActionBadge(c) {
   if (c.status === 'PENDING_SIGN_ORDER_SECGEN') {
     return `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามคำสั่ง ม.24</span>`;
   }
+  if (c.status === 'PENDING_SECGEN_URGENT_CONFIRM' || c.status === 'PENDING_SECGEN_URGENT_CONFIRM_72') {
+    return `<span class="meet-badge meet-urgent"><i class="fa-solid fa-bolt me-1"></i>ยืนยันวาระด่วน (กบค. รับรองแล้ว)</span>`;
+  }
   /* สำนวนที่ผ่านการกลั่นกรองจากคณะอนุกรรมการสนับสนุนเลขาธิการฯ ส่งกลับมา */
   if ((c.status === 'PENDING_SECGEN' || c.status === 'PENDING_SECGEN_72') && (c.supportOpinion || c.supportOpinion72 || c.supportDecision)) {
     return `<span class="meet-badge" style="background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;font-weight:600"><i class="fa-solid fa-clipboard-check me-1"></i>ผ่านอนุสนับสนุนฯ แล้ว — รอลงนาม</span>`;
@@ -596,8 +670,18 @@ function getAffairsActionBadge(c) {
   return ECMIS.statusBadge(c.status);
 }
 
+/* ป้ายงานของ ผอ.กบค. (dir_case) — คิวมีแค่สถานะเดียว (PENDING_URGENT / _72) จึงไม่ต้องแยกเงื่อนไข
+   เยอะเหมือน affairs/secgen แต่แยกฟังก์ชันไว้เพื่อให้ข้อความตรงกับงานจริงของ role นี้เท่านั้น */
+function getDirCaseActionBadge(c) {
+  if (c.status === 'PENDING_URGENT' || c.status === 'PENDING_URGENT_72') {
+    return `<span class="meet-badge meet-urgent"><i class="fa-solid fa-bolt me-1"></i>รอรับรองเหตุผลเร่งด่วน</span>`;
+  }
+  return ECMIS.statusBadge(c.status);
+}
+
 function getActionBadge(c) {
   if (role.id === 'affairs') return getAffairsActionBadge(c);
+  if (role.id === 'dir_case') return getDirCaseActionBadge(c);
   return getSecgenActionBadge(c);
 }
 
@@ -842,9 +926,13 @@ function applyFilters() {
       }
     } else if (role.id === 'affairs') {
       if (st !== 'ALL') matchSt = (c.status === st);
+    } else if (role.id === 'dir_case') {
+      if (st !== 'ALL') matchSt = (c.status === 'PENDING_URGENT' || c.status === 'PENDING_URGENT_72');
     } else if (st !== 'ALL') {
       if (st === 'MINE_PENDING') {
         matchSt = (getSecgenStatusCategory(c) === 'PENDING');
+      } else if (st === 'URGENT_CONFIRM') {
+        matchSt = (c.status === 'PENDING_SECGEN_URGENT_CONFIRM' || c.status === 'PENDING_SECGEN_URGENT_CONFIRM_72');
       } else {
         matchSt = (getSecgenStatusCategory(c) === st);
       }

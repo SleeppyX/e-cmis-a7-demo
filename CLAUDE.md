@@ -96,6 +96,12 @@ Primary user roles in `ECMIS.ROLES`:
 - `board_sec`: ฝ่ายเลขานุการ กก.ป.ป.ท. / กบค. (Home: `agenda-registry.html`, handles `resolution-inbox.html`)
 - `board`: กรรมการ ป.ป.ท. (Home: `board-inbox.html`, attends `board-room.html`)
 - `affairs`: กลุ่มงานประชุมและประสานมติ (Home: `inbox.html`, handles drafting)
+- `dir_case`: ผู้อำนวยการกองบริหารคดี (ผอ.กบค.) — Home: `inbox.html`. ขอบเขตแคบ: เฉพาะ "ด่านรับรอง
+  ความเร่งด่วน" (T7) ของสำนวนที่เลขาธิการฯ เสนอว่าด่วน (สถานะ `PENDING_URGENT` / `PENDING_URGENT_72`)
+  — รับรอง (เข้าสู่ `PENDING_SECGEN_URGENT_CONFIRM(_72)` ให้เลขาธิการฯ ยืนยันซ้ำก่อนเข้าคิว
+  ประธานฯ) หรือไม่เห็นด้วยว่าด่วน (ตีกลับเข้าเส้นทางพิจารณา/กลั่นกรองปกติ) ทำงานผ่าน
+  `approval-review.html` (สาย 7.1) และ `urgent-agenda.html` (สาย 7.2) เดิม ไม่มีคิว assign
+  อนุสนับสนุนฯ แยกต่างหาก และไม่มีหน้าใหม่เฉพาะทาง
 
 Unauthorized access automatically redirects to `ECMIS.homeHref(role.id)` with a Toast notification.
 

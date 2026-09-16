@@ -335,6 +335,12 @@
               urgentCertifiedDate72: new Date().toISOString().slice(0, 10),
               status: 'PENDING_SECGEN_URGENT_CONFIRM_72'
             });
+            ECMIS.pushCaseHistory(kase, {
+              action: 'URGENT_CERTIFY_72',
+              status: 'PENDING_SECGEN_URGENT_CONFIRM_72',
+              urgentReason: ta.value.trim()
+            });
+            ECMIS.saveCases();
           } catch (err) {
             console.error('รับรองเหตุผลเร่งด่วนไม่สำเร็จ:', err);
             ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -355,6 +361,11 @@
           if (!res.isConfirmed) return;
           try {
             await persistCase(kase, { status: 'PENDING_SECGEN_72', urgent72: false });
+            ECMIS.pushCaseHistory(kase, {
+              action: 'URGENT_CERTIFY_REJECT_72',
+              status: 'PENDING_SECGEN_72'
+            });
+            ECMIS.saveCases();
           } catch (err) {
             console.error('บันทึกไม่สำเร็จ:', err);
             ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -375,6 +386,11 @@
           if (!res.isConfirmed) return;
           try {
             await persistCase(kase, { status: 'PENDING_CHAIRMAN_URGENT_72' });
+            ECMIS.pushCaseHistory(kase, {
+              action: 'URGENT_CONFIRM_72',
+              status: 'PENDING_CHAIRMAN_URGENT_72'
+            });
+            ECMIS.saveCases();
           } catch (err) {
             console.error('ยืนยันวาระด่วนไม่สำเร็จ:', err);
             ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');

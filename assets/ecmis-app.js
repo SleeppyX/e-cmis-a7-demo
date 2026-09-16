@@ -145,9 +145,11 @@ function canViewCase(kase, roleId){
   const r = getRole(roleId || currentRoleId());
   if(can('view.all', r.id)) return true;
   if(can('view.assigned', r.id)) {
-    /* dir_case (ผอ.กบค.) เห็นเฉพาะสำนวนด่วนที่รอ/เคยผ่านการรับรองของตน ไม่ใช่สำนวนซับซ้อน
-       (subCommittee/complex) เหมือน support_sub ที่ใช้ perm เดียวกันนี้ */
-    if (r.id === 'dir_case') return !!kase.urgent || !!kase.urgent72 || kase.status === 'PENDING_URGENT' || kase.status === 'PENDING_URGENT_72';
+    /* dir_case (ผอ.กบค.) เห็นเฉพาะสำนวนด่วนที่ "กำลัง" รอการรับรองของตนจริง — เช็คจาก status
+       ปัจจุบัน (เหมือน inboxFor() ที่ใช้ STATUS[c.status].owner==='dir_case') ไม่ใช่ flag
+       kase.urgent/urgent72 ที่ตั้งครั้งเดียวแล้วไม่เคยเคลียร์ ไม่งั้นเคสเก่าที่ผ่านขั้นนี้ไปนาน
+       แล้วจะค้างโผล่ในลิสต์ตลอดไป */
+    if (r.id === 'dir_case') return kase.status === 'PENDING_URGENT' || kase.status === 'PENDING_URGENT_72';
     return !!kase.subCommittee || kase.complex;
   }
   if(can('view.own', r.id)) return kase.owner === r.name || kase.ownerOrg === r.org;

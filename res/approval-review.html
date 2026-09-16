@@ -470,6 +470,12 @@
                 urgentCertified: true,
                 status: 'PENDING_SECGEN_URGENT_CONFIRM'
               });
+              ECMIS.pushCaseHistory(kase, {
+                action: 'URGENT_CERTIFY',
+                status: 'PENDING_SECGEN_URGENT_CONFIRM',
+                urgentReason: ta.value.trim()
+              });
+              ECMIS.saveCases();
             } catch (err) {
               console.error('รับรองเหตุผลเร่งด่วนไม่สำเร็จ:', err);
               ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -490,6 +496,11 @@
             if (!res.isConfirmed) return;
             try {
               await persistCase(kase, { status: 'IN_SCREENING', urgent: false });
+              ECMIS.pushCaseHistory(kase, {
+                action: 'URGENT_REJECT',
+                status: 'IN_SCREENING'
+              });
+              ECMIS.saveCases();
             } catch (err) {
               console.error('บันทึกไม่สำเร็จ:', err);
               ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -510,6 +521,11 @@
             if (!res.isConfirmed) return;
             try {
               await persistCase(kase, { status: 'PENDING_CHAIRMAN' });
+              ECMIS.pushCaseHistory(kase, {
+                action: 'URGENT_CONFIRM',
+                status: 'PENDING_CHAIRMAN'
+              });
+              ECMIS.saveCases();
             } catch (err) {
               console.error('ยืนยันวาระด่วนไม่สำเร็จ:', err);
               ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -1329,6 +1345,14 @@
               actorRole: 'secgen',
               data: { opinion: secOp, signedAt: new Date().toISOString() }
             });
+            if (targetStatus === 'PENDING_URGENT' || targetStatus === 'PENDING_URGENT_72') {
+              ECMIS.pushCaseHistory(kase, {
+                action: targetStatus === 'PENDING_URGENT_72' ? 'SIGN_URGENT_72' : 'SIGN_URGENT',
+                status: targetStatus,
+                urgentReason: urgentReasonNow
+              });
+              ECMIS.saveCases();
+            }
           } catch (err) {
             console.error('บันทึกสถานะไม่สำเร็จ:', err);
             ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');

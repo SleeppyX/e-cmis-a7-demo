@@ -1064,6 +1064,11 @@ function openComplexityModal(caseId) {
     title: 'คัดกรองความยุ่งยากของสำนวน',
     html: `<div class="text-start small">
         <div class="mb-3">สำนวน <strong>${kase.id}</strong> — ${is72 ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</div>
+        <div class="p-2 mb-3 rounded-3" style="background:#F8FAFC; border:1px solid #E2E8F0; font-size:.78rem; color:#475569;">
+          <div class="fw-semibold mb-1" style="color:#1E293B;"><i class="fa-solid fa-clipboard-check me-1"></i>เกณฑ์พิจารณาว่า "ยุ่งยาก" (เข้าข่ายข้อใดข้อหนึ่งถือว่ายุ่งยาก)</div>
+          <div>1) มีประเด็นข้อกฎหมายหรือข้อเท็จจริงซับซ้อน</div>
+          <div>2) มีความเห็นไม่ตรงกันในสายบังคับบัญชาของสำนวนนี้</div>
+        </div>
         <label class="form-label fw-semibold d-block mb-2">ผลการคัดกรอง</label>
         <div class="form-check mb-1">
           <input class="form-check-input" type="radio" name="caComplex" id="caComplexYes" value="YES" checked>

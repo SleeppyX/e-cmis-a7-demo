@@ -34,6 +34,19 @@
       </div>
     </div>
 
+    <!-- Queue Switcher: 2 คิวงานที่แยกกันชัดเจน — "คัดกรองความยุ่งยากก่อนประธานฯ" (ใหม่ 2026-09-17)
+         กับ "กระจายเข้าคณะอนุกลั่นกรองฯ" (เดิม) ห้ามปนกัน เพราะเป็นคนละขั้นตอนของงาน -->
+    <div class="btn-group mb-3" role="group" id="queueSwitcher">
+      <button type="button" class="btn btn-outline-primary btn-sm px-3" data-queue="ROUTE">
+        <i class="fa-solid fa-share-from-square me-1"></i>กระจายเข้าคณะอนุกลั่นกรองฯ
+        <span class="badge bg-secondary ms-1" id="cntRoute">0</span>
+      </button>
+      <button type="button" class="btn btn-outline-primary btn-sm px-3" data-queue="COMPLEXITY">
+        <i class="fa-solid fa-scale-unbalanced me-1"></i>คัดกรองความยุ่งยาก (ก่อนประธานฯ)
+        <span class="badge bg-warning text-dark ms-1" id="cntComplexity">0</span>
+      </button>
+    </div>
+
     <!-- KPI Cards Row -->
     <div class="row g-3 mb-4" id="kpiRow"></div>
 
@@ -83,7 +96,7 @@
                     class="fa-solid fa-sort-down ms-1" style="font-size:0.75rem"></i></th>
                 <th>ประเภทเรื่อง</th>
                 <th>เรื่องกล่าวหา / ผู้รับผิดชอบ</th>
-                <th>คณะที่มอบหมาย</th>
+                <th id="thAssignCol">คณะที่มอบหมาย</th>
                 <th class="sortable-header" data-sort="slaDays" style="cursor:pointer">กำหนดเวลา <i
                     class="fa-solid fa-sort ms-1" style="font-size:0.75rem"></i></th>
                 <th class="text-end">ดำเนินการ</th>
@@ -143,7 +156,9 @@
     }
 
     const SCREEN = ECMIS.CASE_ADMIN_SCREEN_STATUSES; // ['IN_SCREENING','IN_SCREENING_72']
+    const COMPLEXITY = ECMIS.CASE_ADMIN_COMPLEXITY_STATUSES; // ['PENDING_CASE_ADMIN_SCREEN','PENDING_CASE_ADMIN_SCREEN_72']
     let CASES = ECMIS.CASES.slice();
+    let queueMode = 'ROUTE'; // 'ROUTE' (เดิม: กระจายเข้าคณะ) | 'COMPLEXITY' (ใหม่: คัดกรองความยุ่งยาก)
     let kpiFilter = 'WAIT';
     let sortField = 'id', sortOrder = 'asc';
     let currentPage = 1;
@@ -151,17 +166,33 @@
 
     function overdue(c) { return (c.slaDays || 0) >= (c.slaLimit || 15); }
 
-    /* ขอบเขตงานจริงของกองบริหารคดี = เฉพาะสำนวนที่อยู่ชั้นกลั่นกรอง (IN_SCREENING/IN_SCREENING_72)
-       เท่านั้น — ไม่นับคดีที่ผ่าน/ยังไม่ถึงขั้นนี้ (canViewCase ให้เห็นได้กว้างกว่านี้มาก แต่ไม่ใช่
-       ขอบเขตงานที่ต้องทำจริง) ทั้ง KPI และตารางจึงอิง SCREEN สถานะเดียวกันเสมอ กรองย่อยด้วย
-       KPI card แทนการแยกแท็บ (ประเภทเรื่อง 7.1/7.2 มีตัวกรอง "ประเภทเรื่อง" แยกอยู่แล้ว) */
+    /* ขอบเขตงานจริงของกองบริหารคดี แยกเป็น 2 คิวคนละขั้นตอน:
+       - ROUTE: สำนวนที่อยู่ชั้นกลั่นกรองแล้ว (IN_SCREENING/IN_SCREENING_72) รอกระจายเข้าคณะ 1-8 (งานเดิม)
+       - COMPLEXITY: สำนวนที่เลขาธิการฯ ลงนามปกติแล้ว รอ กบค. คัดกรองความยุ่งยากก่อนถึงประธานฯ (ใหม่ 2026-09-17)
+       ทั้ง KPI และตารางอิงคิวที่เลือกอยู่เสมอ ห้ามปนสถานะสองกลุ่มนี้เข้าด้วยกัน */
+    function statusesForQueue() { return queueMode === 'COMPLEXITY' ? COMPLEXITY : SCREEN; }
     function baseCases() {
-      return CASES.filter(c => ECMIS.canViewCase(c, role.id) && SCREEN.includes(c.status));
+      const statuses = statusesForQueue();
+      return CASES.filter(c => ECMIS.canViewCase(c, role.id) && statuses.includes(c.status));
+    }
+
+    function updateQueueCounts() {
+      const routeN = CASES.filter(c => ECMIS.canViewCase(c, role.id) && SCREEN.includes(c.status)).length;
+      const complexityN = CASES.filter(c => ECMIS.canViewCase(c, role.id) && COMPLEXITY.includes(c.status)).length;
+      $('#cntRoute').text(routeN);
+      $('#cntComplexity').text(complexityN);
+      $('#queueSwitcher .btn').removeClass('active btn-primary').addClass('btn-outline-primary');
+      $(`#queueSwitcher .btn[data-queue="${queueMode}"]`).addClass('active btn-primary').removeClass('btn-outline-primary');
+      $('#thAssignCol').text(queueMode === 'COMPLEXITY' ? 'ผลคัดกรอง' : 'คณะที่มอบหมาย');
     }
 
     function renderKPI() {
       const rows = baseCases();
-      const cards = [
+      const cards = queueMode === 'COMPLEXITY' ? [
+        { key: 'ALL', n: rows.length, label: 'รอคัดกรองความยุ่งยากทั้งหมด', icon: 'fa-folder-open', color: '#0F2A62' },
+        { key: 'WAIT', n: rows.filter(c => ECMIS.isCaseAdminComplexityQueue(c)).length, label: 'รอคัดกรอง', icon: 'fa-hourglass-half', color: '#D0A830' },
+        { key: 'OVERDUE', n: rows.filter(overdue).length, label: 'เกินกำหนด', icon: 'fa-triangle-exclamation', color: '#B91C1C' }
+      ] : [
         { key: 'ALL', n: rows.length, label: 'คดีในชั้นกลั่นกรองทั้งหมด', icon: 'fa-folder-open', color: '#0F2A62' },
         { key: 'WAIT', n: rows.filter(c => ECMIS.isCaseAdminQueue(c)).length, label: 'รอส่งเข้าคณะ', icon: 'fa-hourglass-half', color: '#D0A830' },
         { key: 'ROUTED', n: rows.filter(c => ECMIS.caseAdminRouted(c)).length, label: 'ส่งเข้าคณะแล้ว', icon: 'fa-share-from-square', color: '#15803D' },
@@ -198,9 +229,15 @@
       ROUTED: 'ทะเบียนคุมคดี — ส่งเข้าคณะแล้ว',
       OVERDUE: 'ทะเบียนคุมคดี — เกินกำหนด (ชั้นกลั่นกรอง)'
     };
+    const TABLE_TITLE_BY_FILTER_COMPLEXITY = {
+      ALL: 'ทะเบียนคุมคดี — รอคัดกรองความยุ่งยากทั้งหมด',
+      WAIT: 'คิวสำนวนรอคัดกรองความยุ่งยาก (ก่อนถึงประธานฯ)',
+      OVERDUE: 'ทะเบียนคุมคดี — เกินกำหนด (รอคัดกรองความยุ่งยาก)'
+    };
 
     function render() {
-      $('#tableTitle').text(TABLE_TITLE_BY_FILTER[kpiFilter] || TABLE_TITLE_BY_FILTER.ALL);
+      const titleMap = queueMode === 'COMPLEXITY' ? TABLE_TITLE_BY_FILTER_COMPLEXITY : TABLE_TITLE_BY_FILTER;
+      $('#tableTitle').text(titleMap[kpiFilter] || titleMap.ALL);
       const q = ($('#searchInput').val() || '').trim().toLowerCase();
       const type = $('#typeFilter').val() || 'ALL';
 
@@ -208,8 +245,12 @@
         const pt = c.procType || (ECMIS.isCase72(c) ? '7.2' : '7.1');
         if (type !== 'ALL' && !pt.startsWith(type)) return false;
         if (kpiFilter === 'OVERDUE' && !overdue(c)) return false;
-        if (kpiFilter === 'WAIT' && !ECMIS.isCaseAdminQueue(c)) return false;
-        if (kpiFilter === 'ROUTED' && !ECMIS.caseAdminRouted(c)) return false;
+        if (queueMode === 'COMPLEXITY') {
+          if (kpiFilter === 'WAIT' && !ECMIS.isCaseAdminComplexityQueue(c)) return false;
+        } else {
+          if (kpiFilter === 'WAIT' && !ECMIS.isCaseAdminQueue(c)) return false;
+          if (kpiFilter === 'ROUTED' && !ECMIS.caseAdminRouted(c)) return false;
+        }
         if (!q) return true;
         return [c.id, c.subject, c.owner, c.ownerOrg].some(v => v && v.toLowerCase().includes(q))
           || (c.accused || []).some(a => a.name && a.name.toLowerCase().includes(q));
@@ -240,14 +281,20 @@
       }
 
       $('#caQueue').html(pagedRows.map(c => {
-        const inScreen = SCREEN.includes(c.status);
-        const teamCell = c.subCommittee
-          ? `<span class="badge bg-success-subtle text-success border border-success-subtle">${c.subCommittee}</span>`
-          : (inScreen ? `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">— รอส่งเข้าคณะ</span>`
-            : `<span class="text-muted small">—</span>`);
-        const actionBtn = ECMIS.isCaseAdminQueue(c)
-          ? `<button class="btn btn-sm btn-navy px-3 btn-route" data-id="${encodeURIComponent(c.id)}"><i class="fa-solid fa-share-from-square me-1"></i>ส่งเข้าคณะ</button>`
-          : `<a href="case-admin-detail.html?case=${encodeURIComponent(c.id)}" class="btn btn-sm btn-outline-secondary px-3"><i class="fa-solid fa-eye me-1"></i>ดูรายละเอียด</a>`;
+        let teamCell, actionBtn;
+        if (queueMode === 'COMPLEXITY') {
+          teamCell = `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">— รอคัดกรอง</span>`;
+          actionBtn = `<button class="btn btn-sm btn-navy px-3 btn-screen-complexity" data-id="${encodeURIComponent(c.id)}"><i class="fa-solid fa-scale-unbalanced me-1"></i>คัดกรองความยุ่งยาก</button>`;
+        } else {
+          const inScreen = SCREEN.includes(c.status);
+          teamCell = c.subCommittee
+            ? `<span class="badge bg-success-subtle text-success border border-success-subtle">${c.subCommittee}</span>`
+            : (inScreen ? `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">— รอส่งเข้าคณะ</span>`
+              : `<span class="text-muted small">—</span>`);
+          actionBtn = ECMIS.isCaseAdminQueue(c)
+            ? `<button class="btn btn-sm btn-navy px-3 btn-route" data-id="${encodeURIComponent(c.id)}"><i class="fa-solid fa-share-from-square me-1"></i>ส่งเข้าคณะ</button>`
+            : `<a href="case-admin-detail.html?case=${encodeURIComponent(c.id)}" class="btn btn-sm btn-outline-secondary px-3"><i class="fa-solid fa-eye me-1"></i>ดูรายละเอียด</a>`;
+        }
         return `<tr>
           <td class="case-no">${c.id}</td>
           <td>${ECMIS.typeBadge(c)}</td>
@@ -263,6 +310,9 @@
 
       $('#caQueue .btn-route').on('click', function () {
         openRouteModal(decodeURIComponent($(this).data('id')));
+      });
+      $('#caQueue .btn-screen-complexity').on('click', function () {
+        openComplexityModal(decodeURIComponent($(this).data('id')));
       });
     }
 
@@ -338,12 +388,93 @@
             .then(({ error }) => { if (error) console.warn('บันทึกคณะที่มอบหมายลง Supabase ไม่สำเร็จ:', error); });
         }
         ECMIS.toastOk(`ส่งสำนวน ${kase.id} เข้า ${team} เรียบร้อย`);
-        renderKPI(); render();
+        renderKPI(); render(); updateQueueCounts();
+      });
+    }
+
+    /* ── modal: คัดกรองความยุ่งยาก (gate ใหม่ 2026-09-17 ก่อนถึงประธานฯ) ──────────────
+       ยุ่งยาก → SCREEN_COMPLEX(_72) เข้า IN_SCREENING(_72) เหมือนเดิม (ข้ามประธานฯ)
+       ไม่ยุ่งยาก → SCREEN_ASSIGN(_72) เข้า PENDING_CHAIRMAN_ASSIGN(_72) — ต้องกรอกความเห็นเสนอ
+       เพราะจะถูกใช้เป็น kase.subOpinion ให้ chairman-agenda.html แสดงตอนประธานฯ ลงนามมอบหมาย */
+    function openComplexityModal(caseId) {
+      const kase = CASES.find(c => c.id === caseId);
+      if (!kase) return;
+      const is72 = ECMIS.isCase72(kase);
+      Swal.fire({
+        title: 'คัดกรองความยุ่งยากของสำนวน',
+        html: `<div class="text-start small">
+            <div class="mb-3">สำนวน <strong>${kase.id}</strong> — ${is72 ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</div>
+            <label class="form-label fw-semibold d-block mb-2">ผลการคัดกรอง</label>
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="radio" name="caComplex" id="caComplexYes" value="YES" checked>
+              <label class="form-check-label" for="caComplexYes">ยุ่งยาก — ส่งเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘ (ข้ามประธานฯ ไปก่อน)</label>
+            </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="caComplex" id="caComplexNo" value="NO">
+              <label class="form-check-label" for="caComplexNo">ไม่ยุ่งยาก — ทำความเห็นเสนอประธานฯ ลงนามมอบหมาย (ทางลัด)</label>
+            </div>
+            <div id="caOpinionWrap" class="d-none">
+              <label class="form-label fw-semibold">ความเห็นเสนอ <span style="color:#DB2626">*</span></label>
+              <textarea id="caOpinion" class="form-control form-control-sm" rows="3" placeholder="ระบุความเห็นเสนอประธานฯ พิจารณาสั่งการ (ใช้แทนความเห็นคณะอนุกลั่นกรองฯ ในเส้นทางนี้)"></textarea>
+            </div>
+          </div>`,
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยันผลคัดกรอง',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#0F2A62',
+        didOpen: () => {
+          const toggle = () => document.getElementById('caOpinionWrap').classList.toggle('d-none', document.getElementById('caComplexNo').checked === false);
+          document.getElementById('caComplexYes').addEventListener('change', toggle);
+          document.getElementById('caComplexNo').addEventListener('change', toggle);
+        },
+        preConfirm: () => {
+          const complex = document.getElementById('caComplexYes').checked;
+          const opinion = (document.getElementById('caOpinion').value || '').trim();
+          if (!complex && !opinion) {
+            Swal.showValidationMessage('กรุณากรอกความเห็นเสนอเมื่อคัดกรองว่าไม่ยุ่งยาก');
+            return false;
+          }
+          return { complex, opinion };
+        }
+      }).then(res => {
+        if (!res.isConfirmed) return;
+        const { complex, opinion } = res.value;
+        const fromStatus = kase.status;
+        let updates;
+        if (complex) {
+          const nextStatus = is72 ? 'IN_SCREENING_72' : 'IN_SCREENING';
+          ECMIS.pushCaseHistory(kase, {
+            event: is72 ? 'SCREEN_COMPLEX_72' : 'SCREEN_COMPLEX', from: fromStatus, to: nextStatus,
+            note: 'กบค. คัดกรองว่าสำนวนยุ่งยาก — ส่งเข้าคณะอนุกลั่นกรองฯ (ข้ามขั้นตอนประธานฯ)'
+          });
+          updates = { status: nextStatus, history: kase.history };
+        } else {
+          const nextStatus = is72 ? 'PENDING_CHAIRMAN_ASSIGN_72' : 'PENDING_CHAIRMAN_ASSIGN';
+          ECMIS.pushCaseHistory(kase, {
+            event: is72 ? 'SCREEN_ASSIGN_72' : 'SCREEN_ASSIGN', from: fromStatus, to: nextStatus,
+            note: 'กบค. คัดกรองว่าไม่ยุ่งยาก — เสนอความเห็นให้ประธานฯ ลงนามมอบหมาย (ทางลัด ไม่ผ่านคณะอนุกลั่นกรอง)'
+          });
+          updates = { status: nextStatus, subOpinion: opinion, subCommittee: null, directAssign: true, history: kase.history };
+        }
+        const { status: nextStatus, ...rest } = updates;
+        Object.assign(kase, rest);
+        ECMIS.Model.CaseStore.update(kase.id, rest);
+        (async () => {
+          await ECMIS.updateCaseStatus(kase, nextStatus, sb);
+          ECMIS.toastOk(complex ? `ส่งสำนวน ${kase.id} เข้าคณะอนุกลั่นกรองฯ เรียบร้อย` : `บันทึกความเห็นเสนอสำนวน ${kase.id} และส่งประธานฯ ลงนามมอบหมายเรียบร้อย`);
+          renderKPI(); render(); updateQueueCounts();
+        })();
       });
     }
 
     $(document).ready(function () {
-      renderKPI(); render();
+      renderKPI(); render(); updateQueueCounts();
+      $('#queueSwitcher .btn').on('click', function () {
+        queueMode = $(this).data('queue');
+        kpiFilter = 'WAIT';
+        currentPage = 1;
+        updateQueueCounts(); renderKPI(); render();
+      });
       $('#searchInput').on('input', function () { currentPage = 1; render(); });
       $('#typeFilter').on('change', function () { currentPage = 1; render(); });
       $('#btnClearFilter').on('click', function () {
@@ -364,7 +495,7 @@
         if (live && live.length) {
           CASES = live;
           currentPage = 1;
-          renderKPI(); render();
+          renderKPI(); render(); updateQueueCounts();
         }
       })();
     });

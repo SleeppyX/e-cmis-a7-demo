@@ -230,6 +230,8 @@ function isChairActionable(c) {
   return c.status === 'PENDING_CHAIRMAN' ||
          c.status === 'PENDING_CHAIRMAN_72' ||
          c.status === 'PENDING_CHAIRMAN_URGENT_72' ||
+         c.status === 'PENDING_CHAIRMAN_ASSIGN' ||
+         c.status === 'PENDING_CHAIRMAN_ASSIGN_72' ||
          c.status === 'PENDING_SIGN_AGENDA_72' ||
          c.status === 'PENDING_SIGN_RULING_72' ||
          c.status === 'PENDING_SIGN_ORDER_CHAIRMAN';
@@ -450,7 +452,8 @@ function renderKPICards() {
     /* เคส 7.1 ด่วน: ผอ.กบค. รับรองใบด่วนแล้ว state จะ merge กลับเป็น PENDING_CHAIRMAN
        (ไม่มีสถานะ urgent แยกเหมือนสาย 7.2) — จัดเข้าการ์ด "วาระด่วน" ด้วย c.urgent
        และตัดออกจาก "รอสั่งการวาระปกติ" ให้สองการ์ดแยกขาดจากกัน */
-    const pendingNormalCount = allCasesCombined.filter(c => (c.status === 'PENDING_CHAIRMAN' && !c.urgent) || c.status === 'PENDING_CHAIRMAN_72').length;
+    const pendingNormalCount = allCasesCombined.filter(c => (c.status === 'PENDING_CHAIRMAN' && !c.urgent) || c.status === 'PENDING_CHAIRMAN_72' ||
+      c.status === 'PENDING_CHAIRMAN_ASSIGN' || c.status === 'PENDING_CHAIRMAN_ASSIGN_72').length;
     const pendingUrgentCount = allCasesCombined.filter(c => c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent)).length;
     const pendingSignAgendaCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_AGENDA_72').length;
     const pendingRulingCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_RULING_72').length;
@@ -716,6 +719,7 @@ function row(c){
     if (c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent)) catBadge = `<span class="meet-badge meet-urgent"><i class="fa-solid fa-bolt me-1"></i>วาระด่วน</span>`;
     else if (c.status === 'PENDING_SIGN_RULING_72') catBadge = `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามรายงานชี้มูล</span>`;
     else if (c.status === 'PENDING_SIGN_ORDER_CHAIRMAN') catBadge = `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามคำสั่ง ม.24</span>`;
+    else if (c.status === 'PENDING_CHAIRMAN_ASSIGN' || c.status === 'PENDING_CHAIRMAN_ASSIGN_72') catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-bolt-lightning me-1"></i>รอลงนามมอบหมาย (ทางลัด กจ.)</span>`;
     else catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-hourglass-half me-1"></i>รอสั่งการวาระปกติ</span>`;
 
     /* กำหนดหน้าเป้าหมายสำหรับประธานฯ ให้ตรงกับงานแต่ละประเภท:
@@ -918,7 +922,8 @@ function applyFilters() {
     let matchSt = true;
     if (role.id === 'chairman') {
       if (st !== 'ALL') {
-        if (st === 'PENDING_NORMAL') matchSt = ((c.status === 'PENDING_CHAIRMAN' && !c.urgent) || c.status === 'PENDING_CHAIRMAN_72');
+        if (st === 'PENDING_NORMAL') matchSt = ((c.status === 'PENDING_CHAIRMAN' && !c.urgent) || c.status === 'PENDING_CHAIRMAN_72' ||
+          c.status === 'PENDING_CHAIRMAN_ASSIGN' || c.status === 'PENDING_CHAIRMAN_ASSIGN_72');
         else if (st === 'PENDING_URGENT') matchSt = (c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent));
         else if (st === 'PENDING_SIGN_AGENDA') matchSt = (c.status === 'PENDING_SIGN_AGENDA_72');
         else if (st === 'PENDING_RULING') matchSt = (c.status === 'PENDING_SIGN_RULING_72');

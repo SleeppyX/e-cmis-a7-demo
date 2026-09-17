@@ -425,6 +425,7 @@ if(ECMIS.isUpstreamRole(role.id)){
     sf.innerHTML = `
       <option value="ALL">ทั้งหมด</option>
       <option value="PENDING_URGENT">รอรับรองเหตุผลเร่งด่วน</option>
+      <option value="PENDING_SECGEN_URGENT_CONFIRM">รับรองแล้ว (รอเลขาธิการฯ ยืนยันซ้ำ)</option>
     `;
   }
 } else if (role.id === 'secgen') {
@@ -535,10 +536,12 @@ function renderKPICards() {
 
   if (role.id === 'dir_case') {
     const pendingUrgentCount = allCasesCombined.filter(c => c.status === 'PENDING_URGENT' || c.status === 'PENDING_URGENT_72').length;
+    const certifiedCount = allCasesCombined.filter(c => c.status === 'PENDING_SECGEN_URGENT_CONFIRM' || c.status === 'PENDING_SECGEN_URGENT_CONFIRM_72').length;
 
     const kpis = [
       { id:'ALL', n: allCasesCombined.length, l:'รายการทั้งหมด', i:'fa-folder-open', c:'#0F2A62' },
-      { id:'PENDING_URGENT', n: pendingUrgentCount, l:'รอรับรองเหตุผลเร่งด่วน', i:'fa-bolt', c:'#DB2626' }
+      { id:'PENDING_URGENT', n: pendingUrgentCount, l:'รอรับรองเหตุผลเร่งด่วน', i:'fa-bolt', c:'#DB2626' },
+      { id:'PENDING_SECGEN_URGENT_CONFIRM', n: certifiedCount, l:'รับรองแล้ว (รอเลขาธิการฯ ยืนยันซ้ำ)', i:'fa-circle-check', c:'#16A34A' }
     ];
 
     document.getElementById('kpiRow').innerHTML = kpis.map(k => {
@@ -685,11 +688,15 @@ function getAffairsActionBadge(c) {
   return ECMIS.statusBadge(c.status);
 }
 
-/* ป้ายงานของ ผอ.กบค. (dir_case) — คิวมีแค่สถานะเดียว (PENDING_URGENT / _72) จึงไม่ต้องแยกเงื่อนไข
+/* ป้ายงานของ ผอ.กบค. (dir_case) — คิวหลักมีสถานะเดียว (PENDING_URGENT / _72) และเคสที่ตนรับรอง
+   ไปแล้วรอเลขาธิการฯ ยืนยันซ้ำ (PENDING_SECGEN_URGENT_CONFIRM / _72) จึงไม่ต้องแยกเงื่อนไข
    เยอะเหมือน affairs/secgen แต่แยกฟังก์ชันไว้เพื่อให้ข้อความตรงกับงานจริงของ role นี้เท่านั้น */
 function getDirCaseActionBadge(c) {
   if (c.status === 'PENDING_URGENT' || c.status === 'PENDING_URGENT_72') {
     return `<span class="meet-badge meet-urgent"><i class="fa-solid fa-bolt me-1"></i>รอรับรองเหตุผลเร่งด่วน</span>`;
+  }
+  if (c.status === 'PENDING_SECGEN_URGENT_CONFIRM' || c.status === 'PENDING_SECGEN_URGENT_CONFIRM_72') {
+    return `<span class="meet-badge" style="background:#DCFCE7;color:#166534"><i class="fa-solid fa-circle-check me-1"></i>รับรองแล้ว — รอเลขาธิการฯ ยืนยันซ้ำ</span>`;
   }
   return ECMIS.statusBadge(c.status);
 }
@@ -975,7 +982,8 @@ function applyFilters() {
         else matchSt = (c.status === st);
       }
     } else if (role.id === 'dir_case') {
-      if (st !== 'ALL') matchSt = (c.status === 'PENDING_URGENT' || c.status === 'PENDING_URGENT_72');
+      if (st === 'PENDING_URGENT') matchSt = (c.status === 'PENDING_URGENT' || c.status === 'PENDING_URGENT_72');
+      else if (st === 'PENDING_SECGEN_URGENT_CONFIRM') matchSt = (c.status === 'PENDING_SECGEN_URGENT_CONFIRM' || c.status === 'PENDING_SECGEN_URGENT_CONFIRM_72');
     } else if (st !== 'ALL') {
       if (st === 'MINE_PENDING') {
         matchSt = (getSecgenStatusCategory(c) === 'PENDING');

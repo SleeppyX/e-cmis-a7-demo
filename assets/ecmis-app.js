@@ -145,11 +145,12 @@ function canViewCase(kase, roleId){
   const r = getRole(roleId || currentRoleId());
   if(can('view.all', r.id)) return true;
   if(can('view.assigned', r.id)) {
-    /* dir_case (ผอ.กบค.) เห็นเฉพาะสำนวนด่วนที่ "กำลัง" รอการรับรองของตนจริง — เช็คจาก status
+    /* dir_case (ผอ.กบค.) เห็นสำนวนด่วนที่ "กำลัง" รอการรับรองของตนจริง — เช็คจาก status
        ปัจจุบัน (เหมือน inboxFor() ที่ใช้ STATUS[c.status].owner==='dir_case') ไม่ใช่ flag
        kase.urgent/urgent72 ที่ตั้งครั้งเดียวแล้วไม่เคยเคลียร์ ไม่งั้นเคสเก่าที่ผ่านขั้นนี้ไปนาน
-       แล้วจะค้างโผล่ในลิสต์ตลอดไป */
-    if (r.id === 'dir_case') return kase.status === 'PENDING_URGENT' || kase.status === 'PENDING_URGENT_72';
+       แล้วจะค้างโผล่ในลิสต์ตลอดไป — รวม PENDING_SECGEN_URGENT_CONFIRM(_72) ด้วยเพื่อให้เห็น KPI
+       "รับรองแล้ว" (เคสที่ตนรับรองไปแล้ว รอเลขาธิการฯ ยืนยันซ้ำ) ไม่ใช่แค่คิวที่ยังไม่ได้ทำ */
+    if (r.id === 'dir_case') return ['PENDING_URGENT', 'PENDING_URGENT_72', 'PENDING_SECGEN_URGENT_CONFIRM', 'PENDING_SECGEN_URGENT_CONFIRM_72'].includes(kase.status);
     return !!kase.subCommittee || kase.complex;
   }
   if(can('view.own', r.id)) return kase.owner === r.name || kase.ownerOrg === r.org;

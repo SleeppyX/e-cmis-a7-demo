@@ -145,11 +145,7 @@
       // actions
       const stage = caseAdminStage(k);
       const acts = document.getElementById('headActions');
-      if (ECMIS.isCaseAdminComplexityQueue(k)) {
-        acts.innerHTML = `<button id="btnComplexity" class="btn btn-navy btn-sm px-3"><i class="fa-solid fa-scale-unbalanced me-1"></i>คัดกรองความยุ่งยาก</button>
-          <span class="small text-muted">— ตัดสินว่าสำนวนยุ่งยากหรือไม่ ก่อนถึงคิวประธานฯ (gate ใหม่ 2026-09-17)</span>`;
-        document.getElementById('btnComplexity').addEventListener('click', openComplexityModal);
-      } else if (stage === 'current') {
+      if (stage === 'current') {
         acts.innerHTML = `<button id="btnRoute" class="btn btn-navy btn-sm px-3"><i class="fa-solid fa-share-from-square me-1"></i>ส่งเข้าคณะอนุกลั่นกรองฯ</button>
           <span class="small text-muted">— กระจายสำนวนเข้าคณะที่ ๑–๘ เพื่อพิจารณาให้ความเห็นก่อนบรรจุวาระ</span>`;
         document.getElementById('btnRoute').addEventListener('click', openRouteModal);

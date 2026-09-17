@@ -241,8 +241,12 @@ function isChairActionable(c) {
    อยู่ในนี้ (เลื่อน/ถอนวาระ รอเลขวาระใหม่) แต่การจัดวาระใหม่เป็นงานของกลุ่มมติ (board_sec) ผ่านคิว
    "รอบรรจุวาระ" ใน agenda-registry.html อยู่แล้ว (bucket "กลับมาอีก") จึงตัดออกจากที่นี่ — และเดิม
    ไม่มี 'RESOLVED' อยู่เลยทั้งที่ comment ใน mine (ด้านล่าง) บอกว่า affairs ต้องเห็นเคส RESOLVED
-   เพื่อจัดทำคำสั่ง ม.24 ต่อ (เป็น dead code มาตลอด — ไม่มีสำนวนไหนขึ้นคิวนี้จริงเลย) เพิ่มกลับเข้ามา */
-const AFFAIRS_STATUSES = ['RESOLVED', 'RESOLVED_PENDING_72', 'PENDING_DISPATCH_GUILTY_72'];
+   เพื่อจัดทำคำสั่ง ม.24 ต่อ (เป็น dead code มาตลอด — ไม่มีสำนวนไหนขึ้นคิวนี้จริงเลย) เพิ่มกลับเข้ามา —
+   PENDING_CASE_ADMIN_SCREEN(_72) เพิ่มเมื่อ 2026-09-17 แก้ไข (ย้าย gate คัดกรองความยุ่งยากก่อนถึง
+   ประธานฯ จาก case_admin มา affairs — ดู docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md
+   ชื่อสถานะยังขึ้นต้นด้วย CASE_ADMIN เพราะเป็นคีย์เดิมที่ผูกกับรหัส Supabase ที่ migrate ไปแล้ว) */
+const AFFAIRS_STATUSES = ['RESOLVED', 'RESOLVED_PENDING_72', 'PENDING_DISPATCH_GUILTY_72',
+  'PENDING_CASE_ADMIN_SCREEN', 'PENDING_CASE_ADMIN_SCREEN_72'];
 /* RESOLVED ใช้ร่วมกันทั้งสาย 7.1 (ต้องจัดทำคำสั่ง ม.24 ต่อ) และสาย 7.3 (เรื่องของ กกม./ทั่วไป ซึ่ง
    ไม่มีคำสั่ง ม.24 — จบที่แจ้งมติ/ปิดเรื่องแทน ดู FLOW_STEPS_73 ใน ecmis-app.js) — งานแจ้งมติของ
    สาย 7.3 ยังไม่ได้ออกแบบหน้าจอ/สถานะเฉพาะ จึงยังไม่ดึงเข้าคิวนี้ ป้องกันป้ายผิดว่า "รอจัดทำคำสั่ง"
@@ -409,6 +413,7 @@ if(ECMIS.isUpstreamRole(role.id)){
   if (sf) {
     sf.innerHTML = `
       <option value="ALL">ทั้งหมด</option>
+      <option value="SCREEN_COMPLEXITY">รอคัดกรองความยุ่งยาก</option>
       <option value="RESOLVED">รอจัดทำคำสั่ง</option>
       <option value="RESOLVED_PENDING_72">รอจัดทำรายงานชี้มูล / หนังสือลงโทษทางวินัย</option>
       <option value="PENDING_DISPATCH_GUILTY_72">รอส่งดำเนินคดี</option>
@@ -494,9 +499,13 @@ function renderKPICards() {
     const orderCount     = allCasesCombined.filter(c => c.status === 'RESOLVED').length;
     const rulingCount    = allCasesCombined.filter(c => c.status === 'RESOLVED_PENDING_72').length;
     const dispatchCount  = allCasesCombined.filter(c => c.status === 'PENDING_DISPATCH_GUILTY_72').length;
+    /* gate คัดกรองความยุ่งยากก่อนถึงประธานฯ (ย้ายมาเป็นของ affairs เมื่อ 2026-09-17 แก้ไข) —
+       รวม 7.1/7.2 เข้าการ์ดเดียว เหมือน pattern "PENDING_NORMAL" ของ chairman ด้านบน */
+    const screenComplexityCount = allCasesCombined.filter(c => ECMIS.isAffairsComplexityQueue(c)).length;
 
     const kpis = [
       { id:'ALL', n: allCasesCombined.length, l:'รายการทั้งหมด', i:'fa-folder-open', c:'#0F2A62' },
+      { id:'SCREEN_COMPLEXITY', n: screenComplexityCount, l:'รอคัดกรองความยุ่งยาก', i:'fa-scale-unbalanced', c:'#7E22CE' },
       { id:'RESOLVED', n: orderCount, l:'รอจัดทำคำสั่ง', i:'fa-file-signature', c:'#DB2626' },
       { id:'RESOLVED_PENDING_72', n: rulingCount, l:'รอจัดทำรายงานชี้มูล / หนังสือลงโทษทางวินัย', i:'fa-file-pen', c:'#D0A830' },
       { id:'PENDING_DISPATCH_GUILTY_72', n: dispatchCount, l:'รอส่งดำเนินคดี', i:'fa-paper-plane', c:'#0284C7' }
@@ -661,6 +670,9 @@ function getSecgenActionBadge(c) {
    ทำตามรูปแบบเดียวกับ getSecgenActionBadge()/chairman catBadge — ป้ายเฉพาะของ affairs 3 แบบ
    ตรงกับงาน 3 อย่างที่กลุ่มกิจการฯ ต้องทำต่อจริง ๆ */
 function getAffairsActionBadge(c) {
+  if (c.status === 'PENDING_CASE_ADMIN_SCREEN' || c.status === 'PENDING_CASE_ADMIN_SCREEN_72') {
+    return `<span class="meet-badge meet-review"><i class="fa-solid fa-scale-unbalanced me-1"></i>รอคัดกรองความยุ่งยาก</span>`;
+  }
   if (c.status === 'RESOLVED') {
     return `<span class="meet-badge meet-pending"><i class="fa-solid fa-file-signature me-1"></i>รอจัดทำคำสั่ง</span>`;
   }
@@ -769,6 +781,28 @@ function row(c){
   const statusBadgeHtml = getActionBadge(c);
   const typeTag = typeBadge(c, is72);
 
+  /* gate คัดกรองความยุ่งยากของ affairs (ย้ายมาจาก case_admin เมื่อ 2026-09-17 แก้ไข) — เป็นการ
+     ตัดสินใจในโมดัลตรงนี้เลย ไม่ใช่การเปิดหน้าเอกสารเหมือนแถวอื่น จึงต้องใช้ปุ่มเรียก
+     openComplexityModal() แทน <a href> ปกติ (ดู pattern เดิมที่ case-admin-inbox.html ใช้กับ
+     openRouteModal()/openComplexityModal() ก่อนย้ายมาที่นี่) */
+  if (role.id === 'affairs' && ECMIS.isAffairsComplexityQueue(c)) {
+    return `<tr>
+      <td class="case-no">${c.id}${(c.urgent || c.urgent72)?' <span class="st st-urgent ms-1">ด่วน</span>':''}</td>
+      <td>${typeTag}</td>
+      <td style="max-width:300px">
+        <div class="text-truncate fw-medium" title="${c.subject}">${c.subject}</div>
+        <small class="text-muted d-block" style="font-size:0.75rem">${c.ownerOrg}</small>
+      </td>
+      <td>${statusBadgeHtml}</td>
+      <td>${ECMIS.slaBadge(c)}</td>
+      <td class="text-end">
+        <button type="button" class="btn btn-sm btn-navy px-3 btn-screen-complexity" data-id="${encodeURIComponent(c.id)}">
+          <i class="fa-solid fa-scale-unbalanced me-1"></i>คัดกรองความยุ่งยาก
+        </button>
+      </td>
+    </tr>`;
+  }
+
   return `<tr>
     <td class="case-no">${c.id}${(c.urgent || c.urgent72)?' <span class="st st-urgent ms-1">ด่วน</span>':''}</td>
     <td>${typeTag}</td>
@@ -853,6 +887,12 @@ function renderMyQueue(loading = false) {
          ไม่มีรายการสำนวนตามเงื่อนไขการค้นหา<br>
          <small>ลองเปลี่ยนข้อความค้นหาหรือตัวกรองสถานะ</small></td></tr>`;
 
+  if (role.id === 'affairs') {
+    tbodyPrimary.querySelectorAll('.btn-screen-complexity').forEach(btn => {
+      btn.addEventListener('click', () => openComplexityModal(decodeURIComponent(btn.dataset.id)));
+    });
+  }
+
 
   const paginUl = document.getElementById('queuePagination');
   let paginHtml = `
@@ -930,7 +970,10 @@ function applyFilters() {
         else if (st === 'PENDING_ORDER') matchSt = (c.status === 'PENDING_SIGN_ORDER_CHAIRMAN');
       }
     } else if (role.id === 'affairs') {
-      if (st !== 'ALL') matchSt = (c.status === st);
+      if (st !== 'ALL') {
+        if (st === 'SCREEN_COMPLEXITY') matchSt = ECMIS.isAffairsComplexityQueue(c);
+        else matchSt = (c.status === st);
+      }
     } else if (role.id === 'dir_case') {
       if (st !== 'ALL') matchSt = (c.status === 'PENDING_URGENT' || c.status === 'PENDING_URGENT_72');
     } else if (st !== 'ALL') {
@@ -962,26 +1005,19 @@ document.getElementById('btnClearFilter').addEventListener('click', () => {
   applyFilters();
 });
 
-(async function main() {
-  try {
-    const live = await loadCasesFromSupabase();
-    CASES = (live && live.length) ? live : ECMIS.CASES.slice();
-    if (live && live.length && typeof ECMIS.cacheLiveCases === 'function') {
-      ECMIS.cacheLiveCases(live);
-    }
-  } catch (err) {
-    console.error('โหลดข้อมูลจากฐานข้อมูลไม่สำเร็จ:', err);
-    CASES = ECMIS.CASES.slice();
-  }
-  /* เลขาธิการฯ: "ทั้งหมด" ควรมีเฉพาะสำนวนที่คลิก "ดำเนินการ" แล้วเข้าหน้า approval-review.html
-     จริง (หน้าที่เลขาธิการฯ มี process จริงๆ) — สำนวนสาย 213/644 ไปหน้านี้เสมอไม่ว่าสถานะใด
-     ส่วนสายรายงานวินิจฉัยชี้มูล (_72) ไปหน้านี้เฉพาะช่วงก่อนถึง/รอเลขาธิการฯ ลงนามเท่านั้น
-     (พ้นจากนั้นไปหน้าเฉพาะทาง เช่น 72-08/72-09) จึงตัดออกจากมุมมองนี้เช่นกัน */
-  function routesToApprovalReview(c) {
-    return ECMIS.isCase72(c)
-      ? ECMIS.pageForCase72(c) === 'approval-review.html'
-      : (PAGE_FOR['secgen'] === 'approval-review.html');
-  }
+/* เลขาธิการฯ: "ทั้งหมด" ควรมีเฉพาะสำนวนที่คลิก "ดำเนินการ" แล้วเข้าหน้า approval-review.html
+   จริง (หน้าที่เลขาธิการฯ มี process จริงๆ) — สำนวนสาย 213/644 ไปหน้านี้เสมอไม่ว่าสถานะใด
+   ส่วนสายรายงานวินิจฉัยชี้มูล (_72) ไปหน้านี้เฉพาะช่วงก่อนถึง/รอเลขาธิการฯ ลงนามเท่านั้น
+   (พ้นจากนั้นไปหน้าเฉพาะทาง เช่น 72-08/72-09) จึงตัดออกจากมุมมองนี้เช่นกัน */
+function routesToApprovalReview(c) {
+  return ECMIS.isCase72(c)
+    ? ECMIS.pageForCase72(c) === 'approval-review.html'
+    : (PAGE_FOR['secgen'] === 'approval-review.html');
+}
+
+/* คำนวณ all/mine/allCasesCombined/filteredCombined ใหม่จาก CASES ปัจจุบัน — แยกเป็นฟังก์ชันเพื่อให้
+   openComplexityModal() เรียกซ้ำได้หลังบันทึกผลคัดกรอง โดยไม่ต้อง reload จาก Supabase ใหม่ทั้งหน้า */
+function computeQueues() {
   /* ประธานฯ: "ทั้งหมด" เหลือเฉพาะสำนวนที่ประธานฯ ต้องดำเนินการ (isChairActionable) เท่านั้น —
      ตัดมุมมองแบบเห็นทุกสำนวนในระบบ (view.all) ออก เพราะไม่ใช่ process ของประธานฯ โดยตรง
      เหมือนหลักการเดียวกับ secgen ด้านล่าง */
@@ -1011,7 +1047,100 @@ document.getElementById('btnClearFilter').addEventListener('click', () => {
     if (mine.length) navBadge.textContent = mine.length;
     else navBadge.remove();
   }
+}
 
+/* ── modal: คัดกรองความยุ่งยาก (gate ก่อนถึงประธานฯ) ──────────────────────────────
+   ย้ายมาจาก case-admin-inbox.html เมื่อ 2026-09-17 แก้ไข (เปลี่ยน owner จาก case_admin เป็น
+   affairs) — เนื้อหา/validation/ผลลัพธ์เหมือนเดิมทุกประการ ดู
+   docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md
+   ยุ่งยาก → SCREEN_COMPLEX(_72) เข้า IN_SCREENING(_72) เหมือนเดิม (ข้ามประธานฯ)
+   ไม่ยุ่งยาก → SCREEN_ASSIGN(_72) เข้า PENDING_CHAIRMAN_ASSIGN(_72) — ต้องกรอกความเห็นเสนอ
+   เพราะจะถูกใช้เป็น kase.subOpinion ให้ chairman-agenda.html แสดงตอนประธานฯ ลงนามมอบหมาย */
+function openComplexityModal(caseId) {
+  const kase = CASES.find(c => c.id === caseId);
+  if (!kase) return;
+  const is72 = ECMIS.isCase72(kase);
+  Swal.fire({
+    title: 'คัดกรองความยุ่งยากของสำนวน',
+    html: `<div class="text-start small">
+        <div class="mb-3">สำนวน <strong>${kase.id}</strong> — ${is72 ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</div>
+        <label class="form-label fw-semibold d-block mb-2">ผลการคัดกรอง</label>
+        <div class="form-check mb-1">
+          <input class="form-check-input" type="radio" name="caComplex" id="caComplexYes" value="YES" checked>
+          <label class="form-check-label" for="caComplexYes">ยุ่งยาก — ส่งเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘ (ข้ามประธานฯ ไปก่อน)</label>
+        </div>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="radio" name="caComplex" id="caComplexNo" value="NO">
+          <label class="form-check-label" for="caComplexNo">ไม่ยุ่งยาก — ทำความเห็นเสนอประธานฯ ลงนามมอบหมาย (ทางลัด)</label>
+        </div>
+        <div id="caOpinionWrap" class="d-none">
+          <label class="form-label fw-semibold">ความเห็นเสนอ <span style="color:#DB2626">*</span></label>
+          <textarea id="caOpinion" class="form-control form-control-sm" rows="3" placeholder="ระบุความเห็นเสนอประธานฯ พิจารณาสั่งการ (ใช้แทนความเห็นคณะอนุกลั่นกรองฯ ในเส้นทางนี้)"></textarea>
+        </div>
+      </div>`,
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันผลคัดกรอง',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#0F2A62',
+    didOpen: () => {
+      const toggle = () => document.getElementById('caOpinionWrap').classList.toggle('d-none', document.getElementById('caComplexNo').checked === false);
+      document.getElementById('caComplexYes').addEventListener('change', toggle);
+      document.getElementById('caComplexNo').addEventListener('change', toggle);
+    },
+    preConfirm: () => {
+      const complex = document.getElementById('caComplexYes').checked;
+      const opinion = (document.getElementById('caOpinion').value || '').trim();
+      if (!complex && !opinion) {
+        Swal.showValidationMessage('กรุณากรอกความเห็นเสนอเมื่อคัดกรองว่าไม่ยุ่งยาก');
+        return false;
+      }
+      return { complex, opinion };
+    }
+  }).then(res => {
+    if (!res.isConfirmed) return;
+    const { complex, opinion } = res.value;
+    const fromStatus = kase.status;
+    let updates;
+    if (complex) {
+      const nextStatus = is72 ? 'IN_SCREENING_72' : 'IN_SCREENING';
+      ECMIS.pushCaseHistory(kase, {
+        event: is72 ? 'SCREEN_COMPLEX_72' : 'SCREEN_COMPLEX', from: fromStatus, to: nextStatus,
+        note: 'กจ. คัดกรองว่าสำนวนยุ่งยาก — ส่งเข้าคณะอนุกลั่นกรองฯ (ข้ามขั้นตอนประธานฯ)'
+      });
+      updates = { status: nextStatus, history: kase.history };
+    } else {
+      const nextStatus = is72 ? 'PENDING_CHAIRMAN_ASSIGN_72' : 'PENDING_CHAIRMAN_ASSIGN';
+      ECMIS.pushCaseHistory(kase, {
+        event: is72 ? 'SCREEN_ASSIGN_72' : 'SCREEN_ASSIGN', from: fromStatus, to: nextStatus,
+        note: 'กจ. คัดกรองว่าไม่ยุ่งยาก — เสนอความเห็นให้ประธานฯ ลงนามมอบหมาย (ทางลัด ไม่ผ่านคณะอนุกลั่นกรอง)'
+      });
+      updates = { status: nextStatus, subOpinion: opinion, subCommittee: null, directAssign: true, history: kase.history };
+    }
+    const { status: nextStatus, ...rest } = updates;
+    Object.assign(kase, rest);
+    ECMIS.Model.CaseStore.update(kase.id, rest);
+    (async () => {
+      await ECMIS.updateCaseStatus(kase, nextStatus, sb);
+      ECMIS.toastOk(complex ? `ส่งสำนวน ${kase.id} เข้าคณะอนุกลั่นกรองฯ เรียบร้อย` : `บันทึกความเห็นเสนอสำนวน ${kase.id} และส่งประธานฯ ลงนามมอบหมายเรียบร้อย`);
+      computeQueues();
+      renderKPICards();
+      applyFilters();
+    })();
+  });
+}
+
+(async function main() {
+  try {
+    const live = await loadCasesFromSupabase();
+    CASES = (live && live.length) ? live : ECMIS.CASES.slice();
+    if (live && live.length && typeof ECMIS.cacheLiveCases === 'function') {
+      ECMIS.cacheLiveCases(live);
+    }
+  } catch (err) {
+    console.error('โหลดข้อมูลจากฐานข้อมูลไม่สำเร็จ:', err);
+    CASES = ECMIS.CASES.slice();
+  }
+  computeQueues();
   renderKPICards();
   applyFilters();
 })();

@@ -102,6 +102,20 @@ Primary user roles in `ECMIS.ROLES`:
   ประธานฯ) หรือไม่เห็นด้วยว่าด่วน (ตีกลับเข้าเส้นทางพิจารณา/กลั่นกรองปกติ) ทำงานผ่าน
   `approval-review.html` (สาย 7.1) และ `urgent-agenda.html` (สาย 7.2) เดิม ไม่มีคิว assign
   อนุสนับสนุนฯ แยกต่างหาก และไม่มีหน้าใหม่เฉพาะทาง
+- `case_admin`: กองบริหารคดี (กลุ่มงานบริหารคดีและบริหารทั่วไป) — Home: `case-admin-inbox.html`
+  (`case-admin-detail.html` เป็นหน้ารายละเอียด). มี 2 คิวงานแยกกันชัดเจนทั้งสาย 7.1/7.2 (สลับดูได้จาก
+  ปุ่ม queue switcher บน `case-admin-inbox.html`):
+  1. **คัดกรองความยุ่งยากก่อนถึงประธานฯ** (gate ใหม่ เพิ่ม 2026-09-17) — สถานะ
+     `PENDING_CASE_ADMIN_SCREEN(_72)` แทรกอยู่หลังเลขาธิการฯ ลงนามปกติ (`SIGN_NORMAL(_72)`) ก่อนถึงคิว
+     ประธานฯ เดิม: ยุ่งยาก (`SCREEN_COMPLEX(_72)`) → เข้า `IN_SCREENING(_72)` ตามเดิม (ข้ามประธานฯ ไป
+     ก่อน) / ไม่ยุ่งยาก (`SCREEN_ASSIGN(_72)`, ต้องกรอกความเห็นเสนอ) → `PENDING_CHAIRMAN_ASSIGN(_72)`
+     ให้ประธานฯ ลงนามมอบหมายทางลัดที่ `chairman-agenda.html` (ใช้ UI เดิมที่อ่าน
+     `subOpinion`/`subOutcome`) แล้วลัดตรงไปยังปลายทางเดียวกับฝั่งอนุกลั่นกรองจริง
+     (`AGENDA_SET` สาย 7.1 / `PENDING_INVITE_72` สาย 7.2)
+  2. **กระจายสำนวนเข้าคณะอนุกลั่นกรองฯ** (งานเดิม) — สำนวนที่ถึงชั้นกลั่นกรองแล้ว
+     (`IN_SCREENING`/`IN_SCREENING_72`) กระจายเข้าคณะที่ ๑–๘ ตาม round-robin
+     (`nextSubcommitteeTeam`)
+  ดู `docs/memory/plans/2026-09-17-case-admin-complexity-gate.md` สำหรับดีไซน์เต็มของ gate ใหม่
 
 Unauthorized access automatically redirects to `ECMIS.homeHref(role.id)` with a Toast notification.
 

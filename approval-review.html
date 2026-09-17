@@ -420,8 +420,27 @@
       document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
       document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS, ECMIS.STATUS_STEP);
 
+      const deadlineChips = (() => {
+        const rows = [
+          { label: 'ครบกำหนดอายุความ', iso: kase.prescription },
+          { label: 'ครบกำหนด 60 วัน (ม.23)', iso: kase.deadline60 },
+          { label: 'ครบกำหนด 2 ปี (ม.23)', iso: kase.deadline2y }
+        ].filter(r => r.iso);
+        if (!rows.length) return '';
+        return `<div class="d-flex flex-wrap gap-2 mb-3">${rows.map(r => {
+          const days = ECMIS.daysUntilFakeIso(r.iso);
+          const soon = days <= 30;
+          return `<span class="chip" style="${soon ? 'background:#FEE2E2;color:#991B1B;border-color:#FCA5A5' : ''}" title="${r.label}">
+            <i class="fa-solid ${soon ? 'fa-triangle-exclamation' : 'fa-calendar'} me-1"></i>${r.label}: ${ECMIS.toThaiDigits(ECMIS.thaiDate(r.iso))}
+            ${days >= 0 ? `(อีก ${ECMIS.toThaiDigits(days)} วัน)` : `(เลยกำหนด ${ECMIS.toThaiDigits(-days)} วัน)`}
+          </span>`;
+        }).join('')}</div>`;
+      })();
+
       const bodyHtml = isCertifyStep
-        ? `<label class="form-label field-req">เหตุผลความเร่งด่วน</label>
+        ? `<div class="mb-2 text-muted" style="font-size:.78rem"><i class="fa-solid fa-circle-info me-1"></i>ตรวจสอบวันครบกำหนดด้านล่างประกอบการพิจารณาว่าเหตุผลความเร่งด่วนที่อ้างสอดคล้องกับข้อเท็จจริงหรือไม่</div>
+           ${deadlineChips}
+           <label class="form-label field-req">เหตุผลความเร่งด่วน</label>
            <textarea class="form-control" id="urgentReason" rows="5"
              placeholder="ระบุเหตุผลความจำเป็นเร่งด่วน เช่น ใกล้ครบกำหนดอายุความ / มีความเสี่ยงต่อพยานหลักฐาน...">${kase.urgentReason || ''}</textarea>
            <div class="val-msg val-err" data-for="urgentReason">กรุณาระบุเหตุผลความเร่งด่วนก่อนรับรอง</div>`

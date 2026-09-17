@@ -34,7 +34,7 @@
     </div>
 
     <div class="document-workspace" id="docWorkspace">
-      <div>
+      <div id="docLeftCol">
 
         <div class="ws-card mb-3">
           <div class="card-header"><i class="fa-solid fa-list-ol"></i> ที่มาของสำนวน — การเสนอตามลำดับชั้นภายในกอง/เขต
@@ -413,6 +413,7 @@
     function initUrgentGateScreen() {
       const dirCase = ECMIS.getRole('dir_case');
       const isCertifyStep = kase.status === 'PENDING_URGENT';
+      docType = ECMIS.DOC_TYPES[kase.docType];
       document.querySelector('.page-head h1').innerHTML =
         `<i class="fa-solid fa-bolt me-2"></i>${isCertifyStep ? 'รับรองเหตุผลเร่งด่วน (ผอ.กบค.)' : 'ยืนยันวาระด่วน (เลขาธิการฯ)'}`;
       document.querySelector('.flow-ref').innerHTML = 'ด่านรับรองความเร่งด่วน (T7) — ก่อนส่งเข้าคิวประธานฯ';
@@ -430,13 +431,45 @@
              <i class="fa-solid fa-circle-check me-1"></i>${dirCase.title} รับรองเหตุผลเร่งด่วนแล้ว — กรุณายืนยันอีกครั้งก่อนส่งเข้าคิวประธานฯ
            </div>`;
 
-      document.getElementById('docWorkspace').innerHTML = `
-        <div>
-          <div class="ws-card mb-3">
-            <div class="card-header"><i class="fa-solid fa-bolt"></i> ${isCertifyStep ? 'รับรองเหตุผลเร่งด่วน' : 'ยืนยันวาระด่วน'}</div>
-            <div class="card-body">${bodyHtml}</div>
-          </div>
+      document.getElementById('docLeftCol').innerHTML = `
+        <div class="ws-card mb-3">
+          <div class="card-header"><i class="fa-solid fa-bolt"></i> ${isCertifyStep ? 'รับรองเหตุผลเร่งด่วน' : 'ยืนยันวาระด่วน'}</div>
+          <div class="card-body">${bodyHtml}</div>
         </div>`;
+
+      /* เดิมโค้ดนี้แทนที่ docWorkspace ทั้งหมด ทำให้ผู้ใช้ (ผอ.กบค./เลขาธิการฯ) มองไม่เห็นเอกสาร
+         สำนวนที่เลขาธิการฯ ลงนามไปแล้วเลยระหว่างตัดสินใจเรื่องความเร่งด่วน — แก้โดยแทนที่แค่
+         docLeftCol แล้วเรนเดอร์เอกสารแบบอ่านอย่างเดียว (mayEdit:false) ในแผงเอกสารเดิม */
+      renderReadOnlyDoc();
+      ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: false });
+
+      function renderReadOnlyDoc() {
+        const M = ECMIS.mergeField;
+        const priorOpinions = (kase.chainOpinions || []).map(o =>
+          `<div>${ECMIS.getRole(o.roleId).title}: เห็นชอบ — ${M(o.note)}
+            <span style="font-size:11px;color:#666">(${ECMIS.toThaiDigits(ECMIS.thaiDate(o.date))})</span></div>`).join('');
+        const docTarget = document.getElementById('docPaperPage') || document.getElementById('docPaper');
+        docTarget.innerHTML = `
+          <div class="doc-secret">ลับ</div>
+          <div class="doc-title">${docType.label}</div>
+          <div class="doc-sub">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
+          <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+          <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
+          <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(kase.owner)}</div>
+          <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
+          ${(kase.accused && kase.accused.length) ? `<div class="doc-h">ผู้ถูกกล่าวหา</div>${kase.accused.map(a => `<div>${a.no}. ${M(a.name)} ${M(a.pos)} ${M(a.agency)}</div>`).join('')}` : ''}
+          <div class="doc-h">ข้อกล่าวหา</div>
+          <div class="doc-indent">${M(kase.allegation)}</div>
+          <div class="doc-h">ความเห็นตามสายอนุมัติ</div>
+          <div class="doc-indent">${priorOpinions || '<span class="text-muted">— ยังไม่มีข้อมูล —</span>'}</div>
+          <div class="doc-sign" id="docSign">
+            <img class="doc-sig-img" src="${SECGEN_SIG_IMG}" alt="ลายมือชื่อ">
+            <span style="color:#166434"><i class="fa-solid fa-signature"></i> ลงนามดิจิทัลแล้ว</span><br>
+            (นายอภิชาติ สุจริตกุล)<br>เลขาธิการคณะกรรมการ ป.ป.ท.
+          </div>`;
+        updatePaginationUI();
+        applyZoom();
+      }
 
       const buttons = isCertifyStep
         ? [

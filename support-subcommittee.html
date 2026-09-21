@@ -333,7 +333,7 @@
     const currentGroup = ECMIS.currentSupportGroup();
     const returnInboxUrl = 'support-subcommittee-inbox.html';
     let kase = null, docType, isRuling;
-    let isReadOnly = false;
+    let pageReadOnly = false;
 
     const TEAMS = [
       { code: 'TEAM1', label: 'คณะที่ 1' },
@@ -342,7 +342,7 @@
 
     (async function main() {
       const caseParam = params.get('case') || '2015/2569';
-      isReadOnly = (params.get('readonly') === 'true');
+      pageReadOnly = (params.get('readonly') === 'true');
 
       // ลองโหลดจาก Supabase ก่อน ถ้าไม่มี fallback เป็น mock
       try {
@@ -361,8 +361,8 @@
       isRuling = (kase.docType === 'RULING');
 
       // ตรวจสอบว่าสำนวนได้รับการกลั่นกรองและส่งต่อแล้ว หรือส่งคืนต้นทางแล้ว หรือรอข้อมูลเพิ่มหรือไม่ ถ้าใช่ให้เปิดโหมด Read-only ล็อกข้อมูล
-      if (kase.status === 'PENDING_SECGEN' || kase.status === 'PENDING_SECGEN_72' || kase.status === 'SIGNED' || kase.status === 'DONE' || kase.status === 'RETURNED' || kase.status === 'RETURNED_72' || isReadOnly) {
-        isReadOnly = true;
+      if (kase.status === 'PENDING_SECGEN' || kase.status === 'PENDING_SECGEN_72' || kase.status === 'SIGNED' || kase.status === 'DONE' || kase.status === 'RETURNED' || kase.status === 'RETURNED_72' || pageReadOnly) {
+        pageReadOnly = true;
       } else if (kase.status !== 'IN_SUPPORT_SUB' && kase.status !== 'IN_SUPPORT_SUB_72') {
         kase.status = isRuling ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB';
       }
@@ -548,7 +548,7 @@
         if (moreRadio) moreRadio.checked = true;
       }
 
-      if (isReadOnly) {
+      if (pageReadOnly) {
         const banner = document.getElementById('readOnlyBanner');
         banner.classList.remove('d-none');
         if (kase.statusCat === 'MORE_INFO' || kase.triggerType === 'MORE_INFO') {
@@ -588,7 +588,7 @@
         btnSubmit.addEventListener('click', handleFileUpload);
       }
 
-      if (isReadOnly) {
+      if (pageReadOnly) {
         if (btnToggle) btnToggle.classList.add('d-none');
         if (uploadBox) uploadBox.classList.add('d-none');
       }
@@ -624,7 +624,7 @@
 
       const rows = kase.attachments.map((a, idx) => {
         const icon = getFileIcon(a.name);
-        const delBtn = !isReadOnly
+        const delBtn = !pageReadOnly
           ? `<button type="button" class="btn btn-link text-danger p-0 ms-auto text-decoration-none btn-del-file" data-idx="${idx}" title="ลบไฟล์"><i class="fa-solid fa-trash-can" style="font-size:0.75rem"></i></button>`
           : '';
 
@@ -782,7 +782,7 @@
     }
 
     function renderActionButtons() {
-      if (isReadOnly) {
+      if (pageReadOnly) {
         let buttons = [
           { act: 'back', label: 'ย้อนกลับหน้ารายการ', icon: 'fa-arrow-left', cls: 'btn-outline-secondary' },
           { act: 'print', label: 'พิมพ์เอกสารความเห็น', icon: 'fa-print', cls: 'btn-navy' }

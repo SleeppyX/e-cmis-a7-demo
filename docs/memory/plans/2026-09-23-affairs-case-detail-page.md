@@ -52,3 +52,9 @@
 - **Completed Date:** 2026-09-23
 - **Commit Reference:** see `git log` — commit created by this task
 - **Notes:** ไม่มีการเปลี่ยน STATUS_CODE/DB ใดๆ เป็นแค่การเปลี่ยน UI/routing ล้วนๆ — live testing พบบั๊กจริง 1 จุด: `affairs-case-detail.html` ไม่ได้โหลด `@supabase/supabase-js` CDN script (มีแค่ case-admin-detail.html/inbox.html เป็นต้นแบบที่ไม่ต้องใช้ ตัวนี้ต้องใช้เพราะเรียก `ECMIS.updateCaseStatus(k, nextStatus, sb)` ตรง) ทำให้ `ECMIS.getSupabaseClient()` คืนค่า null และ Supabase write เงียบหาย (แต่ local mutation/`saveCases()` ยังทำงาน ทำให้ดูเหมือนสำเร็จใน UI จนกว่าจะ reload) — แก้แล้วโดยเพิ่ม script tag และ verify ผ่าน Supabase query ตรงว่า `trr_status` เปลี่ยนจริง ทั้งกิ่งยุ่งยาก (121→108) ยืนยันแล้ว
+
+### ส่วนต่อขยาย 2026-09-23 (รอบสอง /grilling): เพิ่มความเห็นเลขาธิการฯ
+- ผู้ใช้ถามว่าต้องมี preview เอกสารที่เลขาลงนามด้วยไหม — วิจัยพบว่าไม่มีเอกสาร A4 ที่ freeze ตอนเซ็นจริง (`renderDoc()` ใน approval-review.html เป็น inline re-render จาก kase สดทุกครั้ง ไม่ใช่ shared helper, ไม่มี recordedDocHtml ผูกกับขั้นนี้) สิ่งที่ขาดจริงคือแค่ฟิลด์ `kase.secgenOpinion` ยังไม่โชว์ในหน้านี้
+- เพิ่ม `k.secgenOpinion` ต่อท้ายการ์ด "ความเห็นตามสายอนุมัติ" ใน `affairs-case-detail.html`
+- **พบบั๊กจริงเพิ่มอีก 1 จุดระหว่าง live testing:** `inbox.html`'s `loadCasesFromSupabase()` มี dead code — `if (row.trr_resolution_data) Object.assign(kase, ...)` อยู่หลัง `return {...};` ของ arrow function จึงไม่เคยรันเลย ทำให้ `secgenOpinion`/`g1Reason`/ฟิลด์อื่นใน `trr_resolution_data` ไม่เคยถูก merge เข้า case object ที่โหลดจากหน้านี้เลยตั้งแต่ไหนแต่ไรมา (ไม่เกี่ยวกับงานนี้โดยตรง แต่บล็อกฟีเจอร์ใหม่โดยตรงจึงต้องแก้พร้อมกัน) — แก้โดยเปลี่ยน `return {...}` เป็น `const kase = {...}` แล้วให้ resolution-data merge บล็อกรันได้จริงก่อน `return kase`
+- verify ผ่าน browser จริง (hard reload บังคับเพราะ inline `<script>` ถูก cache) เห็นข้อความ "เห็นชอบตามความเห็นและข้อเสนอของเจ้าหน้าที่รับเรื่อง" ใต้ "เลขาธิการฯ" ในการ์ดความเห็นถูกต้อง

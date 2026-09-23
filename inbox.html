@@ -200,7 +200,7 @@ async function loadCasesFromSupabase() {
     .filter(row => row.tbl_cmp_case)
     .map(row => {
       const cc = row.tbl_cmp_case;
-      return {
+      const kase = {
         trr_id: row.trr_id, tcc_id: cc.tcc_id,
         id: cc.tcc_no, subject: cc.tcc_subject, allegation: cc.tcc_allegation,
         legalBase: cc.tcc_legal_base, complainant: cc.tcc_complainant,
@@ -218,6 +218,9 @@ async function loadCasesFromSupabase() {
         urgent: !!row.trr_urgent, urgent72: !!row.trr_urgent,
         signedBySecgen: !!row.trr_signed_secgen, subCommittee: row.trr_sub_committee
       };
+      /* trr_resolution_data เก็บ secgenOpinion/g1Reason ฯลฯ (payload มติแบบเต็มของสาย 7.2) — เดิม
+         บล็อกนี้อยู่หลัง return {...} จึงเป็น dead code ไม่เคยรันจริง (แก้ 2026-09-23 ตอนพบว่า
+         affairs-case-detail.html อ่าน kase.secgenOpinion ไม่ได้เลยเพราะบั๊กนี้) */
       if (row.trr_resolution_data) Object.assign(kase, row.trr_resolution_data);
       kase.status = ECMIS.CODE_STATUS[row.trr_status] || row.trr_status;
       return kase;

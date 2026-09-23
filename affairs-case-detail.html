@@ -108,21 +108,34 @@
       document.getElementById('btnScreen').addEventListener('click', () => openComplexityModal(k.id));
 
       const opinions = Array.isArray(k.chainOpinions) ? k.chainOpinions : [];
-      document.getElementById('opinionBox').innerHTML = opinions.length
-        ? opinions.map(o => {
-          const label = OPINION_LABEL[o.roleId] || o.roleId || '—';
-          const typeLabel = OPINION_TYPE_LABEL[o.type] || o.type || '—';
-          const badgeCls = o.type === 'RETURN' ? 'bg-danger-subtle text-danger-emphasis' : (o.type === 'MORE' ? 'bg-warning-subtle text-warning-emphasis' : 'bg-success-subtle text-success-emphasis');
-          return `<div class="opinion-row">
-            <span class="chip flex-shrink-0" style="align-self:flex-start">${esc(label)}</span>
-            <div>
-              <span class="badge ${badgeCls} border mb-1">${esc(typeLabel)}</span>
-              ${o.date ? '<span class="text-muted ms-2" style="font-size:.75rem">' + ECMIS.thaiDate(o.date) + '</span>' : ''}
-              <div>${esc(o.note || '—')}</div>
-            </div>
-          </div>`;
-        }).join('')
-        : '<div class="text-muted small">ยังไม่มีความเห็นตามสายอนุมัติของสำนวนนี้ในระบบ</div>';
+      const chainHtml = opinions.map(o => {
+        const label = OPINION_LABEL[o.roleId] || o.roleId || '—';
+        const typeLabel = OPINION_TYPE_LABEL[o.type] || o.type || '—';
+        const badgeCls = o.type === 'RETURN' ? 'bg-danger-subtle text-danger-emphasis' : (o.type === 'MORE' ? 'bg-warning-subtle text-warning-emphasis' : 'bg-success-subtle text-success-emphasis');
+        return `<div class="opinion-row">
+          <span class="chip flex-shrink-0" style="align-self:flex-start">${esc(label)}</span>
+          <div>
+            <span class="badge ${badgeCls} border mb-1">${esc(typeLabel)}</span>
+            ${o.date ? '<span class="text-muted ms-2" style="font-size:.75rem">' + ECMIS.thaiDate(o.date) + '</span>' : ''}
+            <div>${esc(o.note || '—')}</div>
+          </div>
+        </div>`;
+      }).join('');
+
+      /* ความเห็นเลขาธิการฯ (kase.secgenOpinion) — เขียนกำกับตอนเซ็นส่งเข้าคิวนี้ที่ approval-review.html
+         (SIGN_NORMAL_72) ไม่ใช่ chainOpinions รายการทั่วไป จึงต่อท้ายแยกต่างหากเสมอเมื่อมีค่า —
+         ต้องเห็นก่อนตัดสินใจตามเกณฑ์ข้อ 2 (ความเห็นไม่ตรงกันในสายบังคับบัญชา) เพราะเป็นความเห็นล่าสุด
+         ก่อนถึงขั้นนี้ ดู docs/memory/plans/2026-09-23-affairs-case-detail-page.md */
+      const secgenHtml = k.secgenOpinion ? `<div class="opinion-row">
+        <span class="chip flex-shrink-0" style="align-self:flex-start">เลขาธิการฯ</span>
+        <div>
+          <span class="badge bg-success-subtle text-success-emphasis border mb-1">เห็นชอบ — เสนอตามขั้นตอนปกติ</span>
+          <div>${esc(k.secgenOpinion)}</div>
+        </div>
+      </div>` : '';
+
+      document.getElementById('opinionBox').innerHTML = (chainHtml + secgenHtml) ||
+        '<div class="text-muted small">ยังไม่มีความเห็นตามสายอนุมัติของสำนวนนี้ในระบบ</div>';
     }
 
     /* ── modal: คัดกรองความยุ่งยาก (gate ก่อนถึงประธานฯ) ──────────────────────────────

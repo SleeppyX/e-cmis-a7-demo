@@ -1456,7 +1456,7 @@ h1,h2,h3,h4,h5,h6{font-weight:700}
   width: min(100%, 794px) !important;
   min-height: 1123px !important;
   box-sizing: border-box !important;
-  padding: 25mm 20mm 20mm 25mm !important;
+  padding: 15mm 15mm 18mm 20mm !important;
   flex-shrink: 0 !important;
   font-family: 'TH Sarabun IT9', 'TH Sarabun New', 'TH Sarabun PSK', 'Sarabun', 'Noto Serif Thai', serif, sans-serif !important;
   font-size: 16pt !important;
@@ -1631,7 +1631,7 @@ h1,h2,h3,h4,h5,h6{font-weight:700}
     width: 210mm !important;
     min-height: 297mm !important;
     margin: 0 auto !important;
-    padding: 25mm 20mm 20mm 25mm !important;
+    padding: 15mm 15mm 18mm 20mm !important;
     box-sizing: border-box !important;
     box-shadow: none !important;
     border: none !important;

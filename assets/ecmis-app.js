@@ -2626,7 +2626,7 @@ const CASES = [
     allegation:'พยานบุคคลสำคัญถูกข่มขู่คุกคามสวัสดิภาพและความปลอดภัยจากการให้ถ้อยคำในคดีจัดซื้อจัดจ้าง เข้าเกณฑ์ตามมาตรา ๕๔ แห่ง พ.ร.บ. มาตรการของฝ่ายบริหารฯ จึงเสนอขออนุมัติมาตรการคุ้มครองความปลอดภัยขั้นพิเศษ',
     receivedDate:'2569-05-20', deadline60:'2569-07-19', deadline2y:'2571-05-20', prescription:'-',
     docRef:'กจ 0001/0109 ลงวันที่ 20 พฤษภาคม 2569',
-    urgent:true, complex:false, dupWarning:false,
+    urgent:false, complex:false, dupWarning:false,
     slaDays:1, slaLimit:5, subCommittee:'-',
     docType:'GENERAL', signPhase:'IN_PROGRESS',
     chainOpinions:[

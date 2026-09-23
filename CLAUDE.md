@@ -97,16 +97,21 @@ Primary user roles in `ECMIS.ROLES`:
 - `board`: กรรมการ ป.ป.ท. (Home: `board-inbox.html`, attends `board-room.html`)
 - `affairs`: กลุ่มงานกิจการคณะกรรมการ (Home: `inbox.html`, handles drafting). นอกจากงานจัดทำคำสั่ง
   ม.24 / ร่างรายงานวินิจฉัยชี้มูล ยังทำหน้าที่ **คัดกรองความยุ่งยากก่อนถึงประธานฯ** (gate เพิ่ม
-  2026-09-17, ย้าย owner จาก `case_admin` มาที่นี่เมื่อ 2026-09-17 แก้ไข ตามผังจริงของผู้ใช้) — สถานะ
-  `PENDING_CASE_ADMIN_SCREEN(_72)` (คีย์ยังขึ้นต้นด้วย `CASE_ADMIN` เพราะผูกกับรหัส Supabase 023/121
-  ที่ migrate ไปแล้ว ไม่ใช่ตัวบ่งชี้ owner จริง) แทรกอยู่หลังเลขาธิการฯ ลงนามปกติ (`SIGN_NORMAL(_72)`)
-  ก่อนถึงคิวประธานฯ เดิม: ยุ่งยาก (`SCREEN_COMPLEX(_72)`) → เข้า `IN_SCREENING(_72)` ตามเดิม (ข้าม
+  2026-09-17, ย้าย owner จาก `case_admin` มาที่นี่เมื่อ 2026-09-17 แก้ไข ตามผังจริงของผู้ใช้) —
+  **ใช้เฉพาะสาย 7.2 (วินิจฉัยชี้มูล) เท่านั้น** (จำกัด scope เมื่อ 2026-09-23 — สาย 7.1 ไต่สวนเบื้องต้น
+  ไม่ผ่าน gate นี้เลย เข้าคิวประธานฯ ตรงจากเลขาธิการฯ ผ่าน `SIGN_NORMAL` → `PENDING_CHAIRMAN` เหมือนก่อน
+  มีฟีเจอร์นี้ ดู `docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md`) — สถานะ
+  `PENDING_CASE_ADMIN_SCREEN_72` (คีย์ยังขึ้นต้นด้วย `CASE_ADMIN` เพราะผูกกับรหัส Supabase 121
+  ที่ migrate ไปแล้ว ไม่ใช่ตัวบ่งชี้ owner จริง) แทรกอยู่หลังเลขาธิการฯ ลงนามปกติ (`SIGN_NORMAL_72`)
+  ก่อนถึงคิวประธานฯ เดิม: ยุ่งยาก (`SCREEN_COMPLEX_72`) → เข้า `IN_SCREENING_72` ตามเดิม (ข้าม
   ประธานฯ ไปก่อน — จากนั้นไปโผล่ในคิว "กระจายเข้าคณะ" ของ `case_admin` เองอัตโนมัติ) / ไม่ยุ่งยาก
-  (`SCREEN_ASSIGN(_72)`, ต้องกรอกความเห็นเสนอ) → `PENDING_CHAIRMAN_ASSIGN(_72)` ให้ประธานฯ ลงนาม
+  (`SCREEN_ASSIGN_72`, ต้องกรอกความเห็นเสนอ) → `PENDING_CHAIRMAN_ASSIGN_72` ให้ประธานฯ ลงนาม
   มอบหมายทางลัดที่ `chairman-agenda.html` (ใช้ UI เดิมที่อ่าน `subOpinion`/`subOutcome`) แล้วลัดตรงไป
-  ยังปลายทางเดียวกับฝั่งอนุกลั่นกรองจริง (`AGENDA_SET` สาย 7.1 / `PENDING_INVITE_72` สาย 7.2) — UI
-  คัดกรอง (modal + KPI card "รอคัดกรองความยุ่งยาก") อยู่ใน `inbox.html` ผูกกับ role นี้เท่านั้น ดู
-  `docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md`
+  ยังปลายทางเดียวกับฝั่งอนุกลั่นกรองจริง (`PENDING_INVITE_72`) — UI คัดกรอง (modal + KPI card
+  "รอคัดกรองความยุ่งยาก") อยู่ใน `inbox.html` ผูกกับ role นี้เท่านั้น และตั้งแต่ 2026-09-23 กรองเฉพาะ
+  เคส 7.2 (`AFFAIRS_COMPLEXITY_STATUSES`/`isAffairsComplexityQueue` ใน `assets/ecmis-app.js` เหลือแค่
+  `PENDING_CASE_ADMIN_SCREEN_72`) ดู `docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md`
+  และ `docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md`
 - `dir_case`: ผู้อำนวยการกองบริหารคดี (ผอ.กบค.) — Home: `inbox.html`. ขอบเขตแคบ: เฉพาะ "ด่านรับรอง
   ความเร่งด่วน" (T7) ของสำนวนที่เลขาธิการฯ เสนอว่าด่วน (สถานะ `PENDING_URGENT` / `PENDING_URGENT_72`)
   — รับรอง (เข้าสู่ `PENDING_SECGEN_URGENT_CONFIRM(_72)` ให้เลขาธิการฯ ยืนยันซ้ำก่อนเข้าคิว

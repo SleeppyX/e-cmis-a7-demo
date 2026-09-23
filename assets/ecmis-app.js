@@ -169,14 +169,10 @@ const STATUS = {
   IN_SUPPORT_SUB:   { label:'ส่งให้คณะอนุสนับสนุนฯ พิจารณาแล้ว', cls:'st-review', owner:'support_sub' },
   PENDING_URGENT:   { label:'รอ ผอ.กบค. รับรองใบด่วน',     cls:'st-urgent',   owner:'dir_case' },
   PENDING_SECGEN_URGENT_CONFIRM: { label:'รอเลขาธิการฯ ยืนยันวาระด่วน (กบค. รับรองแล้ว)', cls:'st-pending', owner:'secgen' },
-  /* gate คัดกรองความยุ่งยากใหม่ (2026-09-17, แก้ owner เป็น affairs เมื่อ 2026-09-17) — แทรกระหว่าง
-     เลขาฯ เซ็นแบบปกติ กับคิวประธานฯ เดิม กลุ่มงานกิจการคณะกรรมการ (role affairs) ตัดสินว่ายุ่งยากหรือไม่
-     ก่อนถึงประธานฯ — ยุ่งยาก → เข้า IN_SCREENING ตามเดิม (ข้ามประธานฯ) ไม่ยุ่งยาก → PENDING_CHAIRMAN_ASSIGN
-     (ทางลัดประธานฯ ลงนามมอบหมายแบบไม่ผ่านคณะอนุกลั่นกรอง) ดู
-     docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md (คีย์สถานะยังคงชื่อเดิม
-     PENDING_CASE_ADMIN_SCREEN ไว้เพื่อไม่กระทบรหัส Supabase ที่ migrate ไปแล้ว แม้ owner จะเปลี่ยนแล้วก็ตาม) */
-  PENDING_CASE_ADMIN_SCREEN: { label:'รอ กจ. คัดกรองความยุ่งยาก',  cls:'st-pending', owner:'affairs' },
-  PENDING_CHAIRMAN_ASSIGN:   { label:'รอประธานฯ ลงนามมอบหมาย (ทางลัด กบค.)', cls:'st-pending', owner:'chairman' },
+  /* 2026-09-23: gate คัดกรองความยุ่งยากของ affairs ถูกจำกัดให้เหลือเฉพาะสาย 7.2 เท่านั้น (ดู
+     docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md) — สาย 7.1 กลับไปยิงตรงเข้า
+     PENDING_CHAIRMAN เหมือนก่อนมีงาน 2026-09-17 แล้ว PENDING_CASE_ADMIN_SCREEN/PENDING_CHAIRMAN_ASSIGN
+     (ไม่มี _72) จึงถูกลบออกจากที่นี่ — ดู entry คู่ขนาน _72 ด้านล่างซึ่งยังใช้งานอยู่ */
   PENDING_CHAIRMAN: { label:'รอประธานฯ สั่งการ',           cls:'st-pending',  owner:'chairman' },
   IN_SCREENING:     { label:'อยู่อนุกลั่นกรองฯ',           cls:'st-review',   owner:'subcommittee' },
   SCREENING_MORE_INFO: { label:'อนุกลั่นกรองฯ ขอข้อมูลเพิ่มเติม', cls:'st-review', owner:'subcommittee' },
@@ -209,9 +205,9 @@ const STATUS = {
   PENDING_URGENT_72:   { label:'รอ ผอ.กบค. รับรองเหตุผลเร่งด่วน',                cls:'st-urgent',  owner:'dir_case' },
   PENDING_SECGEN_URGENT_CONFIRM_72: { label:'รอเลขาธิการฯ ยืนยันวาระด่วน (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'secgen' },
   PENDING_CHAIRMAN_URGENT_72: { label:'รอประธานฯ ลงนามมอบหมาย / บรรจุวาระด่วน',  cls:'st-pending', owner:'chairman' },
-  /* gate คัดกรองความยุ่งยากใหม่สาย 7.2 (2026-09-17, แก้ owner เป็น affairs เมื่อ 2026-09-17) — คู่กับ
-     PENDING_CASE_ADMIN_SCREEN/PENDING_CHAIRMAN_ASSIGN ของสายหลัก ดูคอมเมนต์ที่นิยาม
-     PENDING_CASE_ADMIN_SCREEN ด้านบน */
+  /* gate คัดกรองความยุ่งยากสาย 7.2 (2026-09-17, แก้ owner เป็น affairs เมื่อ 2026-09-17) — ตั้งแต่
+     2026-09-23 gate นี้ใช้เฉพาะสาย 7.2 เท่านั้น (สาย 7.1 ถูกตัดออกแล้ว ดูคอมเมนต์ที่ PENDING_CHAIRMAN
+     ด้านบน และ docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md) */
   PENDING_CASE_ADMIN_SCREEN_72: { label:'รอ กจ. คัดกรองความยุ่งยาก (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'affairs' },
   PENDING_CHAIRMAN_ASSIGN_72:   { label:'รอประธานฯ ลงนามมอบหมาย (ทางลัด กบค. — วินิจฉัยชี้มูล)', cls:'st-pending', owner:'chairman' },
   PENDING_CHAIRMAN_72: { label:'รอประธานฯ ลงนามมอบหมาย (ส่งคณะอนุกลั่นกรองฯ)',   cls:'st-pending', owner:'chairman' },
@@ -237,7 +233,9 @@ const STATUS_CODE = {
   RESOLVED_PENDING:'014', RESOLVED:'015', DISPATCHING:'016', CLOSED:'017',
   PENDING_SIGN_ORDER_CHAIRMAN:'018', PENDING_SIGN_ORDER_SECGEN:'019', UNDER_INVESTIGATION:'020',
   SCREENING_MORE_INFO:'021', PENDING_SECGEN_URGENT_CONFIRM:'022',
-  PENDING_CASE_ADMIN_SCREEN:'023', PENDING_CHAIRMAN_ASSIGN:'024',
+  // 023/024 (PENDING_CASE_ADMIN_SCREEN/PENDING_CHAIRMAN_ASSIGN, สาย 7.1) เลิกใช้แล้วตั้งแต่ 2026-09-23
+  // (ดู docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md) — โค้ดคีย์ถูกลบออก แต่ไม่ต้อง
+  // แตะ Supabase CHECK constraint เพราะไม่มีผลเสีย
 
   PENDING_SECTION_72:'100', PENDING_DIRECTOR_72:'101', PENDING_DEPUTY_72:'102', RETURNED_72:'103',
   PENDING_SECGEN_72:'104', IN_SUPPORT_SUB_72:'105', PENDING_URGENT_72:'106', PENDING_CHAIRMAN_URGENT_72:'107',
@@ -257,21 +255,13 @@ const TRANSITIONS = [
   { from:'PENDING_SECGEN', to:'PENDING_URGENT', event:'SIGN_URGENT', actor:'secgen',
     ref:'เสนอขอเพิ่มวาระด่วน', guard:k => !g1Triggers(k).required && !!k.urgent,
     note:'กรณีไม่ใช่เรื่องซับซ้อน และมีใบด่วน — รอ ผอ.กบค. รับรองเหตุผลเร่งด่วนก่อน' },
-  { from:'PENDING_SECGEN', to:'PENDING_CASE_ADMIN_SCREEN', event:'SIGN_NORMAL', actor:'secgen',
+  { from:'PENDING_SECGEN', to:'PENDING_CHAIRMAN', event:'SIGN_NORMAL', actor:'secgen',
     ref:'เสนอตามขั้นตอนปกติ', guard:k => !g1Triggers(k).required && !k.urgent,
-    note:'กรณีไม่ใช่เรื่องซับซ้อน และไม่มีใบด่วน — เข้า gate คัดกรองความยุ่งยากของ affairs ก่อนถึงประธานฯ (เพิ่ม 2026-09-17)' },
+    note:'กรณีไม่ใช่เรื่องซับซ้อน และไม่มีใบด่วน — เข้าคิวประธานฯ ตรงๆ (2026-09-23: ตัด gate คัดกรอง ' +
+         'ความยุ่งยากของ affairs ออกจากสาย 7.1 แล้ว gate นี้เหลือเฉพาะสาย 7.2 — ดู ' +
+         'docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md)' },
   { from:'PENDING_SECGEN', to:'RETURNED', event:'RETURN_TO_SOURCE', actor:'secgen',
     ref:'ส่งคืนสายงานต้นทาง', note:'ส่งคืนเรื่องกลับสายงานต้นทาง' },
-
-  /* gate คัดกรองความยุ่งยากโดยกลุ่มงานกิจการคณะกรรมการ (affairs) — เพิ่ม 2026-09-17 ก่อนถึงคิวประธานฯ
-     (ย้าย owner จาก case_admin มา affairs เมื่อ 2026-09-17 แก้ไข — ดู
-     docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md) */
-  { from:'PENDING_CASE_ADMIN_SCREEN', to:'IN_SCREENING', event:'SCREEN_COMPLEX', actor:'affairs',
-    ref:'กจ. คัดกรองว่ายุ่งยาก', note:'สำนวนยุ่งยาก — ส่งเข้าคณะอนุกลั่นกรองฯ ตามเดิม ข้ามขั้นตอนประธานฯ ไปเลย' },
-  { from:'PENDING_CASE_ADMIN_SCREEN', to:'PENDING_CHAIRMAN_ASSIGN', event:'SCREEN_ASSIGN', actor:'affairs',
-    ref:'กจ. คัดกรองว่าไม่ยุ่งยาก + เสนอความเห็น', note:'ไม่ยุ่งยาก — กจ. ทำความเห็นเสนอ เสนอประธานฯ ลงนามมอบหมาย (ทางลัด ไม่ผ่านคณะอนุกลั่นกรอง)' },
-  { from:'PENDING_CHAIRMAN_ASSIGN', to:'AGENDA_SET', event:'SIGN_ASSIGN', actor:'chairman',
-    ref:'ประธานฯ ลงนามมอบหมาย', note:'ลงนามมอบหมายตามความเห็นของ กบค. — บรรจุวาระทันที (จุดเดียวกับปลายทางฝั่งอนุกลั่นกรอง)' },
 
   { from:'IN_SUPPORT_SUB', to:'PENDING_CHAIRMAN', event:'SUPPORT_ALIGNED', actor:'support_sub',
     ref:'อนุกรรมการฯ เห็นชอบตามเสนอ', note:'ความเห็นสอดคล้อง — เสนอประธานฯ สั่งการ' },
@@ -544,11 +534,13 @@ const CASE_ADMIN_INTAKE = [
 ];
 /* สถานะที่สำนวนอยู่ในชั้นกลั่นกรอง (ทั้ง 7.1 และ 7.2) */
 const CASE_ADMIN_SCREEN_STATUSES = ['IN_SCREENING', 'IN_SCREENING_72'];
-/* สถานะ gate คัดกรองความยุ่งยากใหม่ (2026-09-17, ย้าย owner ไป affairs เมื่อ 2026-09-17 แก้ไข) —
+/* สถานะ gate คัดกรองความยุ่งยาก (2026-09-17, ย้าย owner ไป affairs เมื่อ 2026-09-17 แก้ไข) —
    นี่คือคิวของ "กลุ่มงานกิจการคณะกรรมการ" (role affairs) ไม่ใช่ของ กบค. (case_admin) อีกต่อไป
    ใช้ใน inbox.html: ตัดสินยุ่งยากหรือไม่ก่อนถึงประธานฯ — คนละคิวกับ CASE_ADMIN_SCREEN_STATUSES ด้านบน
-   ซึ่งยังเป็นของ case_admin เหมือนเดิม (กระจายสำนวนที่ถึงชั้นกลั่นกรองแล้วเข้าคณะ 1-8) */
-const AFFAIRS_COMPLEXITY_STATUSES = ['PENDING_CASE_ADMIN_SCREEN', 'PENDING_CASE_ADMIN_SCREEN_72'];
+   ซึ่งยังเป็นของ case_admin เหมือนเดิม (กระจายสำนวนที่ถึงชั้นกลั่นกรองแล้วเข้าคณะ 1-8)
+   2026-09-23: จำกัดเหลือเฉพาะสาย 7.2 — สาย 7.1 (PENDING_CASE_ADMIN_SCREEN ไม่มี _72) ถูกตัดออกแล้ว
+   ดู docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md */
+const AFFAIRS_COMPLEXITY_STATUSES = ['PENDING_CASE_ADMIN_SCREEN_72'];
 /* คิวคัดกรองความยุ่งยากของ affairs — ทุกสำนวนที่อยู่ในสถานะนี้ถือว่า "รอดำเนินการ" เสมอ (ไม่มีเงื่อนไขย่อย) */
 function isAffairsComplexityQueue(kase){
   return !!kase && AFFAIRS_COMPLEXITY_STATUSES.includes(kase.status);
@@ -655,7 +647,6 @@ const STATUS_STEP = {
   PENDING_SECTION:'secgen', PENDING_DIRECTOR:'secgen', PENDING_DEPUTY:'secgen',
   PENDING_SECGEN:'secgen', IN_SUPPORT_SUB:'secgen',
   PENDING_URGENT:'urgent', PENDING_SECGEN_URGENT_CONFIRM:'urgent',
-  PENDING_CASE_ADMIN_SCREEN:'chairman', PENDING_CHAIRMAN_ASSIGN:'chairman',
   PENDING_CHAIRMAN:'chairman',
   IN_SCREENING:'screening', SCREENING_MORE_INFO:'screening',
   AGENDA_SET:'agenda',
@@ -741,8 +732,7 @@ function pageForCaseByStatus(kase) {
   }
   if (st === 'IN_SUPPORT_SUB') return resolvePage('support-subcommittee.html');
   if (st === 'IN_SCREENING' || st === 'SCREENING_MORE_INFO') return resolvePage('subcommittee-screening.html');
-  if (st === 'PENDING_CASE_ADMIN_SCREEN') return resolvePage('inbox.html');
-  if (st === 'PENDING_CHAIRMAN' || st === 'PENDING_CHAIRMAN_ASSIGN') {
+  if (st === 'PENDING_CHAIRMAN') {
     return resolvePage('chairman-agenda.html');
   }
   if (st === 'AGENDA_SET') return resolvePage('agenda-registry.html');

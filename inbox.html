@@ -230,7 +230,6 @@ function isChairActionable(c) {
   return c.status === 'PENDING_CHAIRMAN' ||
          c.status === 'PENDING_CHAIRMAN_72' ||
          c.status === 'PENDING_CHAIRMAN_URGENT_72' ||
-         c.status === 'PENDING_CHAIRMAN_ASSIGN' ||
          c.status === 'PENDING_CHAIRMAN_ASSIGN_72' ||
          c.status === 'PENDING_SIGN_AGENDA_72' ||
          c.status === 'PENDING_SIGN_RULING_72' ||
@@ -242,11 +241,12 @@ function isChairActionable(c) {
    "รอบรรจุวาระ" ใน agenda-registry.html อยู่แล้ว (bucket "กลับมาอีก") จึงตัดออกจากที่นี่ — และเดิม
    ไม่มี 'RESOLVED' อยู่เลยทั้งที่ comment ใน mine (ด้านล่าง) บอกว่า affairs ต้องเห็นเคส RESOLVED
    เพื่อจัดทำคำสั่ง ม.24 ต่อ (เป็น dead code มาตลอด — ไม่มีสำนวนไหนขึ้นคิวนี้จริงเลย) เพิ่มกลับเข้ามา —
-   PENDING_CASE_ADMIN_SCREEN(_72) เพิ่มเมื่อ 2026-09-17 แก้ไข (ย้าย gate คัดกรองความยุ่งยากก่อนถึง
-   ประธานฯ จาก case_admin มา affairs — ดู docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md
-   ชื่อสถานะยังขึ้นต้นด้วย CASE_ADMIN เพราะเป็นคีย์เดิมที่ผูกกับรหัส Supabase ที่ migrate ไปแล้ว) */
+   PENDING_CASE_ADMIN_SCREEN_72 เพิ่มเมื่อ 2026-09-17 แก้ไข (ย้าย gate คัดกรองความยุ่งยากก่อนถึง
+   ประธานฯ จาก case_admin มา affairs — ดู docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md)
+   — 2026-09-23: gate นี้จำกัดเหลือเฉพาะสาย 7.2 แล้ว (PENDING_CASE_ADMIN_SCREEN ไม่มี _72 ถูกตัดออก
+   ดู docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md) */
 const AFFAIRS_STATUSES = ['RESOLVED', 'RESOLVED_PENDING_72', 'PENDING_DISPATCH_GUILTY_72',
-  'PENDING_CASE_ADMIN_SCREEN', 'PENDING_CASE_ADMIN_SCREEN_72'];
+  'PENDING_CASE_ADMIN_SCREEN_72'];
 /* RESOLVED ใช้ร่วมกันทั้งสาย 7.1 (ต้องจัดทำคำสั่ง ม.24 ต่อ) และสาย 7.3 (เรื่องของ กกม./ทั่วไป ซึ่ง
    ไม่มีคำสั่ง ม.24 — จบที่แจ้งมติ/ปิดเรื่องแทน ดู FLOW_STEPS_73 ใน ecmis-app.js) — งานแจ้งมติของ
    สาย 7.3 ยังไม่ได้ออกแบบหน้าจอ/สถานะเฉพาะ จึงยังไม่ดึงเข้าคิวนี้ ป้องกันป้ายผิดว่า "รอจัดทำคำสั่ง"
@@ -459,7 +459,7 @@ function renderKPICards() {
        (ไม่มีสถานะ urgent แยกเหมือนสาย 7.2) — จัดเข้าการ์ด "วาระด่วน" ด้วย c.urgent
        และตัดออกจาก "รอสั่งการวาระปกติ" ให้สองการ์ดแยกขาดจากกัน */
     const pendingNormalCount = allCasesCombined.filter(c => (c.status === 'PENDING_CHAIRMAN' && !c.urgent) || c.status === 'PENDING_CHAIRMAN_72' ||
-      c.status === 'PENDING_CHAIRMAN_ASSIGN' || c.status === 'PENDING_CHAIRMAN_ASSIGN_72').length;
+      c.status === 'PENDING_CHAIRMAN_ASSIGN_72').length;
     const pendingUrgentCount = allCasesCombined.filter(c => c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent)).length;
     const pendingSignAgendaCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_AGENDA_72').length;
     const pendingRulingCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_RULING_72').length;
@@ -673,7 +673,7 @@ function getSecgenActionBadge(c) {
    ทำตามรูปแบบเดียวกับ getSecgenActionBadge()/chairman catBadge — ป้ายเฉพาะของ affairs 3 แบบ
    ตรงกับงาน 3 อย่างที่กลุ่มกิจการฯ ต้องทำต่อจริง ๆ */
 function getAffairsActionBadge(c) {
-  if (c.status === 'PENDING_CASE_ADMIN_SCREEN' || c.status === 'PENDING_CASE_ADMIN_SCREEN_72') {
+  if (c.status === 'PENDING_CASE_ADMIN_SCREEN_72') {
     return `<span class="meet-badge meet-review"><i class="fa-solid fa-scale-unbalanced me-1"></i>รอคัดกรองความยุ่งยาก</span>`;
   }
   if (c.status === 'RESOLVED') {
@@ -738,7 +738,7 @@ function row(c){
     if (c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent)) catBadge = `<span class="meet-badge meet-urgent"><i class="fa-solid fa-bolt me-1"></i>วาระด่วน</span>`;
     else if (c.status === 'PENDING_SIGN_RULING_72') catBadge = `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามรายงานชี้มูล</span>`;
     else if (c.status === 'PENDING_SIGN_ORDER_CHAIRMAN') catBadge = `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามคำสั่ง ม.24</span>`;
-    else if (c.status === 'PENDING_CHAIRMAN_ASSIGN' || c.status === 'PENDING_CHAIRMAN_ASSIGN_72') catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-bolt-lightning me-1"></i>รอลงนามมอบหมาย (ทางลัด กจ.)</span>`;
+    else if (c.status === 'PENDING_CHAIRMAN_ASSIGN_72') catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-bolt-lightning me-1"></i>รอลงนามมอบหมาย (ทางลัด กจ.)</span>`;
     else catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-hourglass-half me-1"></i>รอสั่งการวาระปกติ</span>`;
 
     /* กำหนดหน้าเป้าหมายสำหรับประธานฯ ให้ตรงกับงานแต่ละประเภท:
@@ -970,7 +970,7 @@ function applyFilters() {
     if (role.id === 'chairman') {
       if (st !== 'ALL') {
         if (st === 'PENDING_NORMAL') matchSt = ((c.status === 'PENDING_CHAIRMAN' && !c.urgent) || c.status === 'PENDING_CHAIRMAN_72' ||
-          c.status === 'PENDING_CHAIRMAN_ASSIGN' || c.status === 'PENDING_CHAIRMAN_ASSIGN_72');
+          c.status === 'PENDING_CHAIRMAN_ASSIGN_72');
         else if (st === 'PENDING_URGENT') matchSt = (c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent));
         else if (st === 'PENDING_SIGN_AGENDA') matchSt = (c.status === 'PENDING_SIGN_AGENDA_72');
         else if (st === 'PENDING_RULING') matchSt = (c.status === 'PENDING_SIGN_RULING_72');
@@ -1061,13 +1061,17 @@ function computeQueues() {
    ย้ายมาจาก case-admin-inbox.html เมื่อ 2026-09-17 แก้ไข (เปลี่ยน owner จาก case_admin เป็น
    affairs) — เนื้อหา/validation/ผลลัพธ์เหมือนเดิมทุกประการ ดู
    docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md
-   ยุ่งยาก → SCREEN_COMPLEX(_72) เข้า IN_SCREENING(_72) เหมือนเดิม (ข้ามประธานฯ)
-   ไม่ยุ่งยาก → SCREEN_ASSIGN(_72) เข้า PENDING_CHAIRMAN_ASSIGN(_72) — ต้องกรอกความเห็นเสนอ
+   2026-09-23: gate นี้จำกัดเหลือเฉพาะสาย 7.2 แล้ว (AFFAIRS_COMPLEXITY_STATUSES/isAffairsComplexityQueue
+   ใน ecmis-app.js เหลือแค่ PENDING_CASE_ADMIN_SCREEN_72 เท่านั้น) — modal นี้จึงเปิดได้เฉพาะเคส 7.2
+   เสมอ ดู docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md
+   ยุ่งยาก → SCREEN_COMPLEX_72 เข้า IN_SCREENING_72 เหมือนเดิม (ข้ามประธานฯ)
+   ไม่ยุ่งยาก → SCREEN_ASSIGN_72 เข้า PENDING_CHAIRMAN_ASSIGN_72 — ต้องกรอกความเห็นเสนอ
    เพราะจะถูกใช้เป็น kase.subOpinion ให้ chairman-agenda.html แสดงตอนประธานฯ ลงนามมอบหมาย */
 function openComplexityModal(caseId) {
   const kase = CASES.find(c => c.id === caseId);
   if (!kase) return;
   const is72 = ECMIS.isCase72(kase);
+  if (!is72) return; // gate นี้ใช้เฉพาะสาย 7.2 — ไม่ควรเปิดได้กับ 7.1 อีกต่อไป
   Swal.fire({
     title: 'คัดกรองความยุ่งยากของสำนวน',
     html: `<div class="text-start small">

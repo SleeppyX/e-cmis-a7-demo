@@ -338,10 +338,13 @@
            affairs เมื่อ 2026-09-17 แก้ไข) — เคสที่กลุ่มงานกิจการคณะกรรมการ (role affairs)
            คัดกรองแล้วว่าไม่ยุ่งยาก และทำความเห็นเสนอไว้ใน kase.subOpinion แทนความเห็นของ
            คณะอนุกลั่นกรองฯ (เพราะเส้นทางนี้ไม่เคยผ่านคณะอนุกลั่นกรองเลย) ใช้ UI เดียวกับ isDocketSignStep()
-           เพียงแต่ปลายทางหลังลงนามคือ AGENDA_SET(7.1)/PENDING_INVITE_72(7.2) จุดเดียวกับปลายทางฝั่ง
-           อนุกลั่นกรองจริง ดู docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md */
+           เพียงแต่ปลายทางหลังลงนามคือ PENDING_INVITE_72 จุดเดียวกับปลายทางฝั่งอนุกลั่นกรองจริง ดู
+           docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md — 2026-09-23: gate นี้จำกัด
+           เหลือเฉพาะสาย 7.2 แล้ว (PENDING_CHAIRMAN_ASSIGN ไม่มี _72 ถูกตัดออกจาก STATUS ใน
+           ecmis-app.js ไปแล้ว สาย 7.1 กลับไปเข้า PENDING_CHAIRMAN ตรงๆ เหมือนเดิม) ดู
+           docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md */
         function isDirectAssignSignStep() {
-            return kase.status === 'PENDING_CHAIRMAN_ASSIGN' || kase.status === 'PENDING_CHAIRMAN_ASSIGN_72';
+            return kase.status === 'PENDING_CHAIRMAN_ASSIGN_72';
         }
 
         /* ---------- Live A4 Document Rendering ---------- */
@@ -814,8 +817,10 @@
             if (act === 'sign_assign') {
                 // gate คัดกรองความยุ่งยากใหม่ (2026-09-17, ย้าย owner มา affairs เมื่อ 2026-09-17
                 // แก้ไข) — ประธานฯ ลงนามมอบหมายตามความเห็นของกลุ่มงานกิจการคณะกรรมการ (role affairs)
-                // (ทางลัด ไม่ผ่านคณะอนุกลั่นกรอง) ปลายทางเดียวกับที่ฝั่งอนุกลั่นกรองจริงไปถึงในที่สุด:
-                // 7.1 → AGENDA_SET ตรง ๆ, 7.2 → PENDING_INVITE_72 ตรง ๆ (ข้าม PENDING_SIGN_AGENDA_72)
+                // (ทางลัด ไม่ผ่านคณะอนุกลั่นกรอง) ปลายทางเดียวกับที่ฝั่งอนุกลั่นกรองจริงไปถึงในที่สุด —
+                // 2026-09-23: gate นี้จำกัดเหลือเฉพาะสาย 7.2 แล้ว (isDirectAssignSignStep() รับประกันว่า
+                // เข้ามาถึงตรงนี้ได้เฉพาะเคส 7.2 เท่านั้น) → PENDING_INVITE_72 ตรง ๆ (ข้าม
+                // PENDING_SIGN_AGENDA_72) — เก็บ branch is72 ไว้เป็น safety net เฉยๆ ไม่ควรถูกใช้จริง
                 const is72 = ECMIS.isCase72(kase);
                 const nextStatus = is72 ? 'PENDING_INVITE_72' : 'AGENDA_SET';
                 const event = is72 ? 'SIGN_ASSIGN_72' : 'SIGN_ASSIGN';

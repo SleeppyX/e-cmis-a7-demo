@@ -707,7 +707,7 @@ const PAGE_FOR_72 = {
   PENDING_CHAIRMAN_URGENT_72:'urgent-agenda.html',
   PENDING_CHAIRMAN_72:'chairman-agenda.html',
   PENDING_SIGN_AGENDA_72:'chairman-agenda.html',
-  PENDING_CASE_ADMIN_SCREEN_72:'inbox.html',
+  PENDING_CASE_ADMIN_SCREEN_72:'affairs-case-detail.html',
   PENDING_CHAIRMAN_ASSIGN_72:'chairman-agenda.html',
   IN_SCREENING_72:'subcommittee-screening.html',
   SCREENING_MORE_INFO_72:'subcommittee-screening.html',
@@ -3460,6 +3460,7 @@ const PAGE_PERMISSIONS = {
   // หน้ารายการ/รายละเอียดของ role กองบริหารคดี (case_admin)
   'case-admin-inbox.html': ['case_admin'],
   'case-admin-detail.html': ['case_admin'],
+  'affairs-case-detail.html': ['affairs'],
 
   // Registry Screens (Strictly removed for chairman & affairs per rules — case_admin ก็ไม่ให้ เพื่อความปลอดภัย มี home ของตัวเองแล้ว)
   'agenda-registry.html': ['board_sec', 'board', 'board_ex', 'support_sub'],

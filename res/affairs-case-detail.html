@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>คัดกรองความยุ่งยากของสำนวน | E-CMIS</title>
+  <link rel="icon" type="image/png" href="../assets/pacc_logo.png">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <link href="../assets/ecmis-app.css" rel="stylesheet">
+  <style>
+    .kv { display: grid; grid-template-columns: 150px 1fr; gap: .3rem .8rem; font-size: .86rem; }
+    .kv dt { color: var(--ecmis-muted); font-weight: 600; }
+    .kv dd { margin: 0; }
+    .opinion-row { display: flex; gap: .6rem; padding: .5rem 0; border-bottom: 1px dashed var(--border-divider); font-size: .84rem; }
+    .opinion-row:last-child { border-bottom: none; }
+    @media(max-width:700px){ .kv { grid-template-columns: 1fr; } }
+  </style>
+</head>
+
+<body>
+
+  <main class="app-main">
+    <div class="page-head d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <a href="inbox.html" class="text-decoration-none small d-block mb-1"
+          style="color:var(--ecmis-muted)"><i class="fa-solid fa-arrow-left me-1"></i>กลับรายการเรื่องที่ต้องจัดทำ</a>
+        <h1><i class="fa-solid fa-scale-unbalanced me-2" style="color:#0F2A62"></i><span id="pageTitle">คัดกรองความยุ่งยากของสำนวน</span></h1>
+      </div>
+      <div class="ms-auto"></div>
+    </div>
+
+    <div id="notFoundBox" class="alert alert-warning d-none">ไม่พบสำนวนนี้ในระบบ — <a href="inbox.html">กลับรายการ</a></div>
+
+    <div id="detailWrap" class="d-none">
+
+      <!-- 1. หัวสำนวน -->
+      <div class="card card-ecmis mb-3">
+        <div class="card-header d-flex align-items-center flex-wrap gap-2">
+          <i class="fa-solid fa-circle-info text-primary"></i><span class="fw-bold">หัวสำนวน</span>
+          <span class="ms-auto d-flex align-items-center gap-2" id="headBadges"></span>
+        </div>
+        <div class="card-body">
+          <dl class="kv" id="headKv"></dl>
+          <div class="mt-3 d-flex align-items-center gap-2 flex-wrap" id="headActions"></div>
+        </div>
+      </div>
+
+      <!-- 2. ความเห็นตามสายอนุมัติ -->
+      <div class="card card-ecmis mb-4">
+        <div class="card-header"><i class="fa-solid fa-comments text-primary"></i> <span class="fw-bold">ความเห็นตามสายอนุมัติ</span>
+          <span class="ms-2 small text-muted">(ใช้ประกอบการพิจารณาเกณฑ์ข้อ ๒ — ความเห็นไม่ตรงกันในสายบังคับบัญชา)</span>
+        </div>
+        <div class="card-body" id="opinionBox"></div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="../assets/ecmis-app.js"></script>
+  <script src="../assets/ecmis-model.js"></script>
+  <script>
+    ECMIS.renderShell('inbox.html');
+
+    const sb = ECMIS.getSupabaseClient();
+    const params = new URLSearchParams(location.search);
+    let kase = ECMIS.getCase(params.get('case') || '');
+
+    if (!kase || !ECMIS.isAffairsComplexityQueue(kase)) {
+      document.getElementById('notFoundBox').classList.remove('d-none');
+    } else {
+      document.getElementById('detailWrap').classList.remove('d-none');
+      renderDetail();
+    }
+
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+    const OPINION_LABEL = { section_head: 'หัวหน้ากลุ่มงาน', director: 'ผู้อำนวยการกอง', deputy: 'รองเลขาธิการฯ' };
+    const OPINION_TYPE_LABEL = { ACCEPT: 'เห็นชอบ', MORE: 'ให้แก้ไข/เพิ่มเติม', RETURN: 'ตีกลับ' };
+
+    function renderDetail() {
+      const k = kase;
+      document.getElementById('pageTitle').textContent = 'คัดกรองความยุ่งยากของสำนวน ' + k.id;
+      document.getElementById('headBadges').innerHTML = ECMIS.typeBadge(k) + ' ' + ECMIS.statusBadge(k.status) + ' ' + ECMIS.slaBadge(k);
+
+      const accused = (k.accused || []).map(a => `${esc(a.name || '')}${a.pos ? ' — ' + esc(a.pos) : ''}`).join('<br>') || '—';
+      document.getElementById('headKv').innerHTML = `
+        <dt>เลขสำนวน</dt><dd>${esc(k.id)}</dd>
+        <dt>ประเภทเรื่อง</dt><dd>${ECMIS.isCase72(k) ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</dd>
+        <dt>ผู้ถูกกล่าวหา</dt><dd>${accused}</dd>
+        <dt>เจ้าของสำนวน</dt><dd>${esc(k.owner || '—')}${k.ownerOrg ? ' · ' + esc(k.ownerOrg) : ''}</dd>
+        <dt>ข้อกล่าวหา</dt><dd>${esc(k.allegation || k.subject || '—')}</dd>
+        <dt>เลขรับ / อ้างอิง</dt><dd>${esc(k.docRef || '—')}</dd>
+        <dt>วันที่รับเรื่อง</dt><dd>${k.receivedDate ? ECMIS.thaiDate(k.receivedDate) : '—'}</dd>`;
+
+      document.getElementById('headActions').innerHTML =
+        `<button id="btnScreen" class="btn btn-navy btn-sm px-3"><i class="fa-solid fa-scale-unbalanced me-1"></i>ดำเนินการคัดกรอง</button>
+         <span class="small text-muted">— ประเมินว่าสำนวนนี้ยุ่งยากหรือไม่ ก่อนส่งเข้าคณะอนุกลั่นกรองฯ หรือเสนอประธานฯ ลงนามมอบหมาย</span>`;
+      document.getElementById('btnScreen').addEventListener('click', () => openComplexityModal(k.id));
+
+      const opinions = Array.isArray(k.chainOpinions) ? k.chainOpinions : [];
+      document.getElementById('opinionBox').innerHTML = opinions.length
+        ? opinions.map(o => {
+          const label = OPINION_LABEL[o.roleId] || o.roleId || '—';
+          const typeLabel = OPINION_TYPE_LABEL[o.type] || o.type || '—';
+          const badgeCls = o.type === 'RETURN' ? 'bg-danger-subtle text-danger-emphasis' : (o.type === 'MORE' ? 'bg-warning-subtle text-warning-emphasis' : 'bg-success-subtle text-success-emphasis');
+          return `<div class="opinion-row">
+            <span class="chip flex-shrink-0" style="align-self:flex-start">${esc(label)}</span>
+            <div>
+              <span class="badge ${badgeCls} border mb-1">${esc(typeLabel)}</span>
+              ${o.date ? '<span class="text-muted ms-2" style="font-size:.75rem">' + ECMIS.thaiDate(o.date) + '</span>' : ''}
+              <div>${esc(o.note || '—')}</div>
+            </div>
+          </div>`;
+        }).join('')
+        : '<div class="text-muted small">ยังไม่มีความเห็นตามสายอนุมัติของสำนวนนี้ในระบบ</div>';
+    }
+
+    /* ── modal: คัดกรองความยุ่งยาก (gate ก่อนถึงประธานฯ) ──────────────────────────────
+       ย้ายมาจาก inbox.html เมื่อ 2026-09-23 (สร้างหน้าแยกนี้เพื่อให้ affairs เห็นข้อมูล
+       ข้อกล่าวหา/ผู้ถูกกล่าวหา/ความเห็นสายอนุมัติก่อนตัดสินใจ — ดู
+       docs/memory/plans/2026-09-23-affairs-case-detail-page.md) เนื้อหา/validation/
+       transition เหมือนเดิมทุกประการกับตอนอยู่ใน inbox.html เปลี่ยนแค่ปลายทางหลังยืนยัน
+       จาก re-render ในหน้าเดิม เป็น redirect กลับ inbox.html
+       ยุ่งยาก → SCREEN_COMPLEX_72 เข้า IN_SCREENING_72 (ข้ามประธานฯ)
+       ไม่ยุ่งยาก → SCREEN_ASSIGN_72 เข้า PENDING_CHAIRMAN_ASSIGN_72 — ต้องกรอกความเห็นเสนอ */
+    function openComplexityModal(caseId) {
+      const k = ECMIS.getCase(caseId);
+      if (!k) return;
+      const is72 = ECMIS.isCase72(k);
+      if (!is72) return; // gate นี้ใช้เฉพาะสาย 7.2 เท่านั้น
+      Swal.fire({
+        title: 'คัดกรองความยุ่งยากของสำนวน',
+        html: `<div class="text-start small">
+            <div class="mb-3">สำนวน <strong>${k.id}</strong> — ${is72 ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</div>
+            <div class="p-2 mb-3 rounded-3" style="background:#F8FAFC; border:1px solid #E2E8F0; font-size:.78rem; color:#475569;">
+              <div class="fw-semibold mb-1" style="color:#1E293B;"><i class="fa-solid fa-clipboard-check me-1"></i>เกณฑ์พิจารณาว่า "ยุ่งยาก" (เข้าข่ายข้อใดข้อหนึ่งถือว่ายุ่งยาก)</div>
+              <div>1) มีประเด็นข้อกฎหมายหรือข้อเท็จจริงซับซ้อน</div>
+              <div>2) มีความเห็นไม่ตรงกันในสายบังคับบัญชาของสำนวนนี้</div>
+            </div>
+            <label class="form-label fw-semibold d-block mb-2">ผลการคัดกรอง</label>
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="radio" name="caComplex" id="caComplexYes" value="YES" checked>
+              <label class="form-check-label" for="caComplexYes">ยุ่งยาก — ส่งเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘ (ข้ามประธานฯ ไปก่อน)</label>
+            </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="caComplex" id="caComplexNo" value="NO">
+              <label class="form-check-label" for="caComplexNo">ไม่ยุ่งยาก — ทำความเห็นเสนอประธานฯ ลงนามมอบหมาย (ทางลัด)</label>
+            </div>
+            <div id="caOpinionWrap" class="d-none">
+              <label class="form-label fw-semibold">ความเห็นเสนอ <span style="color:#DB2626">*</span></label>
+              <textarea id="caOpinion" class="form-control form-control-sm" rows="3" placeholder="ระบุความเห็นเสนอประธานฯ พิจารณาสั่งการ (ใช้แทนความเห็นคณะอนุกลั่นกรองฯ ในเส้นทางนี้)"></textarea>
+            </div>
+          </div>`,
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยันผลคัดกรอง',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#0F2A62',
+        didOpen: () => {
+          const toggle = () => document.getElementById('caOpinionWrap').classList.toggle('d-none', document.getElementById('caComplexNo').checked === false);
+          document.getElementById('caComplexYes').addEventListener('change', toggle);
+          document.getElementById('caComplexNo').addEventListener('change', toggle);
+        },
+        preConfirm: () => {
+          const complex = document.getElementById('caComplexYes').checked;
+          const opinion = (document.getElementById('caOpinion').value || '').trim();
+          if (!complex && !opinion) {
+            Swal.showValidationMessage('กรุณากรอกความเห็นเสนอเมื่อคัดกรองว่าไม่ยุ่งยาก');
+            return false;
+          }
+          return { complex, opinion };
+        }
+      }).then(res => {
+        if (!res.isConfirmed) return;
+        const { complex, opinion } = res.value;
+        const fromStatus = k.status;
+        let updates;
+        if (complex) {
+          const nextStatus = 'IN_SCREENING_72';
+          ECMIS.pushCaseHistory(k, {
+            event: 'SCREEN_COMPLEX_72', from: fromStatus, to: nextStatus,
+            note: 'กจ. คัดกรองว่าสำนวนยุ่งยาก — ส่งเข้าคณะอนุกลั่นกรองฯ (ข้ามขั้นตอนประธานฯ)'
+          });
+          updates = { status: nextStatus, history: k.history };
+        } else {
+          const nextStatus = 'PENDING_CHAIRMAN_ASSIGN_72';
+          ECMIS.pushCaseHistory(k, {
+            event: 'SCREEN_ASSIGN_72', from: fromStatus, to: nextStatus,
+            note: 'กจ. คัดกรองว่าไม่ยุ่งยาก — เสนอความเห็นให้ประธานฯ ลงนามมอบหมาย (ทางลัด ไม่ผ่านคณะอนุกลั่นกรอง)'
+          });
+          updates = { status: nextStatus, subOpinion: opinion, subCommittee: null, directAssign: true, history: k.history };
+        }
+        const { status: nextStatus, ...rest } = updates;
+        Object.assign(k, rest);
+        ECMIS.Model.CaseStore.update(k.id, rest);
+        (async () => {
+          await ECMIS.updateCaseStatus(k, nextStatus, sb);
+          ECMIS.toastOk(complex ? `ส่งสำนวน ${k.id} เข้าคณะอนุกลั่นกรองฯ เรียบร้อย` : `บันทึกความเห็นเสนอสำนวน ${k.id} และส่งประธานฯ ลงนามมอบหมายเรียบร้อย`);
+          location.href = 'inbox.html';
+        })();
+      });
+    }
+  </script>
+</body>
+
+</html>

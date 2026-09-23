@@ -788,27 +788,10 @@ function row(c){
   const statusBadgeHtml = getActionBadge(c);
   const typeTag = typeBadge(c, is72);
 
-  /* gate คัดกรองความยุ่งยากของ affairs (ย้ายมาจาก case_admin เมื่อ 2026-09-17 แก้ไข) — เป็นการ
-     ตัดสินใจในโมดัลตรงนี้เลย ไม่ใช่การเปิดหน้าเอกสารเหมือนแถวอื่น จึงต้องใช้ปุ่มเรียก
-     openComplexityModal() แทน <a href> ปกติ (ดู pattern เดิมที่ case-admin-inbox.html ใช้กับ
-     openRouteModal()/openComplexityModal() ก่อนย้ายมาที่นี่) */
-  if (role.id === 'affairs' && ECMIS.isAffairsComplexityQueue(c)) {
-    return `<tr>
-      <td class="case-no">${c.id}${(c.urgent || c.urgent72)?' <span class="st st-urgent ms-1">ด่วน</span>':''}</td>
-      <td>${typeTag}</td>
-      <td style="max-width:300px">
-        <div class="text-truncate fw-medium" title="${c.subject}">${c.subject}</div>
-        <small class="text-muted d-block" style="font-size:0.75rem">${c.ownerOrg}</small>
-      </td>
-      <td>${statusBadgeHtml}</td>
-      <td>${ECMIS.slaBadge(c)}</td>
-      <td class="text-end">
-        <button type="button" class="btn btn-sm btn-navy px-3 btn-screen-complexity" data-id="${encodeURIComponent(c.id)}">
-          <i class="fa-solid fa-pen-to-square me-1"></i>ดำเนินการ
-        </button>
-      </td>
-    </tr>`;
-  }
+  /* gate คัดกรองความยุ่งยากของ affairs — ตั้งแต่ 2026-09-23 เปิดหน้าแยก affairs-case-detail.html
+     แทน modal ลอยจากแถวนี้โดยตรง (ให้เห็นข้อกล่าวหา/ผู้ถูกกล่าวหา/ความเห็นสายอนุมัติก่อนตัดสินใจ)
+     — จึงใช้ <a href> ปกติเหมือนแถวอื่นทุกประการ ผ่าน PAGE_FOR_72 -> target ด้านบน ไม่ต้อง
+     special-case ที่นี่อีกต่อไป ดู docs/memory/plans/2026-09-23-affairs-case-detail-page.md */
 
   return `<tr>
     <td class="case-no">${c.id}${(c.urgent || c.urgent72)?' <span class="st st-urgent ms-1">ด่วน</span>':''}</td>
@@ -894,11 +877,6 @@ function renderMyQueue(loading = false) {
          ไม่มีรายการสำนวนตามเงื่อนไขการค้นหา<br>
          <small>ลองเปลี่ยนข้อความค้นหาหรือตัวกรองสถานะ</small></td></tr>`;
 
-  if (role.id === 'affairs') {
-    tbodyPrimary.querySelectorAll('.btn-screen-complexity').forEach(btn => {
-      btn.addEventListener('click', () => openComplexityModal(decodeURIComponent(btn.dataset.id)));
-    });
-  }
 
 
   const paginUl = document.getElementById('queuePagination');
@@ -1024,7 +1002,7 @@ function routesToApprovalReview(c) {
 }
 
 /* คำนวณ all/mine/allCasesCombined/filteredCombined ใหม่จาก CASES ปัจจุบัน — แยกเป็นฟังก์ชันเพื่อให้
-   openComplexityModal() เรียกซ้ำได้หลังบันทึกผลคัดกรอง โดยไม่ต้อง reload จาก Supabase ใหม่ทั้งหน้า */
+   หน้าอื่นที่ import ไฟล์นี้ผ่าน main() เรียกซ้ำได้หลังอัปเดตสถานะ โดยไม่ต้อง reload จาก Supabase ใหม่ทั้งหน้า */
 function computeQueues() {
   /* ประธานฯ: "ทั้งหมด" เหลือเฉพาะสำนวนที่ประธานฯ ต้องดำเนินการ (isChairActionable) เท่านั้น —
      ตัดมุมมองแบบเห็นทุกสำนวนในระบบ (view.all) ออก เพราะไม่ใช่ process ของประธานฯ โดยตรง
@@ -1057,94 +1035,9 @@ function computeQueues() {
   }
 }
 
-/* ── modal: คัดกรองความยุ่งยาก (gate ก่อนถึงประธานฯ) ──────────────────────────────
-   ย้ายมาจาก case-admin-inbox.html เมื่อ 2026-09-17 แก้ไข (เปลี่ยน owner จาก case_admin เป็น
-   affairs) — เนื้อหา/validation/ผลลัพธ์เหมือนเดิมทุกประการ ดู
-   docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md
-   2026-09-23: gate นี้จำกัดเหลือเฉพาะสาย 7.2 แล้ว (AFFAIRS_COMPLEXITY_STATUSES/isAffairsComplexityQueue
-   ใน ecmis-app.js เหลือแค่ PENDING_CASE_ADMIN_SCREEN_72 เท่านั้น) — modal นี้จึงเปิดได้เฉพาะเคส 7.2
-   เสมอ ดู docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md
-   ยุ่งยาก → SCREEN_COMPLEX_72 เข้า IN_SCREENING_72 เหมือนเดิม (ข้ามประธานฯ)
-   ไม่ยุ่งยาก → SCREEN_ASSIGN_72 เข้า PENDING_CHAIRMAN_ASSIGN_72 — ต้องกรอกความเห็นเสนอ
-   เพราะจะถูกใช้เป็น kase.subOpinion ให้ chairman-agenda.html แสดงตอนประธานฯ ลงนามมอบหมาย */
-function openComplexityModal(caseId) {
-  const kase = CASES.find(c => c.id === caseId);
-  if (!kase) return;
-  const is72 = ECMIS.isCase72(kase);
-  if (!is72) return; // gate นี้ใช้เฉพาะสาย 7.2 — ไม่ควรเปิดได้กับ 7.1 อีกต่อไป
-  Swal.fire({
-    title: 'คัดกรองความยุ่งยากของสำนวน',
-    html: `<div class="text-start small">
-        <div class="mb-3">สำนวน <strong>${kase.id}</strong> — ${is72 ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</div>
-        <div class="p-2 mb-3 rounded-3" style="background:#F8FAFC; border:1px solid #E2E8F0; font-size:.78rem; color:#475569;">
-          <div class="fw-semibold mb-1" style="color:#1E293B;"><i class="fa-solid fa-clipboard-check me-1"></i>เกณฑ์พิจารณาว่า "ยุ่งยาก" (เข้าข่ายข้อใดข้อหนึ่งถือว่ายุ่งยาก)</div>
-          <div>1) มีประเด็นข้อกฎหมายหรือข้อเท็จจริงซับซ้อน</div>
-          <div>2) มีความเห็นไม่ตรงกันในสายบังคับบัญชาของสำนวนนี้</div>
-        </div>
-        <label class="form-label fw-semibold d-block mb-2">ผลการคัดกรอง</label>
-        <div class="form-check mb-1">
-          <input class="form-check-input" type="radio" name="caComplex" id="caComplexYes" value="YES" checked>
-          <label class="form-check-label" for="caComplexYes">ยุ่งยาก — ส่งเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘ (ข้ามประธานฯ ไปก่อน)</label>
-        </div>
-        <div class="form-check mb-2">
-          <input class="form-check-input" type="radio" name="caComplex" id="caComplexNo" value="NO">
-          <label class="form-check-label" for="caComplexNo">ไม่ยุ่งยาก — ทำความเห็นเสนอประธานฯ ลงนามมอบหมาย (ทางลัด)</label>
-        </div>
-        <div id="caOpinionWrap" class="d-none">
-          <label class="form-label fw-semibold">ความเห็นเสนอ <span style="color:#DB2626">*</span></label>
-          <textarea id="caOpinion" class="form-control form-control-sm" rows="3" placeholder="ระบุความเห็นเสนอประธานฯ พิจารณาสั่งการ (ใช้แทนความเห็นคณะอนุกลั่นกรองฯ ในเส้นทางนี้)"></textarea>
-        </div>
-      </div>`,
-    showCancelButton: true,
-    confirmButtonText: 'ยืนยันผลคัดกรอง',
-    cancelButtonText: 'ยกเลิก',
-    confirmButtonColor: '#0F2A62',
-    didOpen: () => {
-      const toggle = () => document.getElementById('caOpinionWrap').classList.toggle('d-none', document.getElementById('caComplexNo').checked === false);
-      document.getElementById('caComplexYes').addEventListener('change', toggle);
-      document.getElementById('caComplexNo').addEventListener('change', toggle);
-    },
-    preConfirm: () => {
-      const complex = document.getElementById('caComplexYes').checked;
-      const opinion = (document.getElementById('caOpinion').value || '').trim();
-      if (!complex && !opinion) {
-        Swal.showValidationMessage('กรุณากรอกความเห็นเสนอเมื่อคัดกรองว่าไม่ยุ่งยาก');
-        return false;
-      }
-      return { complex, opinion };
-    }
-  }).then(res => {
-    if (!res.isConfirmed) return;
-    const { complex, opinion } = res.value;
-    const fromStatus = kase.status;
-    let updates;
-    if (complex) {
-      const nextStatus = is72 ? 'IN_SCREENING_72' : 'IN_SCREENING';
-      ECMIS.pushCaseHistory(kase, {
-        event: is72 ? 'SCREEN_COMPLEX_72' : 'SCREEN_COMPLEX', from: fromStatus, to: nextStatus,
-        note: 'กจ. คัดกรองว่าสำนวนยุ่งยาก — ส่งเข้าคณะอนุกลั่นกรองฯ (ข้ามขั้นตอนประธานฯ)'
-      });
-      updates = { status: nextStatus, history: kase.history };
-    } else {
-      const nextStatus = is72 ? 'PENDING_CHAIRMAN_ASSIGN_72' : 'PENDING_CHAIRMAN_ASSIGN';
-      ECMIS.pushCaseHistory(kase, {
-        event: is72 ? 'SCREEN_ASSIGN_72' : 'SCREEN_ASSIGN', from: fromStatus, to: nextStatus,
-        note: 'กจ. คัดกรองว่าไม่ยุ่งยาก — เสนอความเห็นให้ประธานฯ ลงนามมอบหมาย (ทางลัด ไม่ผ่านคณะอนุกลั่นกรอง)'
-      });
-      updates = { status: nextStatus, subOpinion: opinion, subCommittee: null, directAssign: true, history: kase.history };
-    }
-    const { status: nextStatus, ...rest } = updates;
-    Object.assign(kase, rest);
-    ECMIS.Model.CaseStore.update(kase.id, rest);
-    (async () => {
-      await ECMIS.updateCaseStatus(kase, nextStatus, sb);
-      ECMIS.toastOk(complex ? `ส่งสำนวน ${kase.id} เข้าคณะอนุกลั่นกรองฯ เรียบร้อย` : `บันทึกความเห็นเสนอสำนวน ${kase.id} และส่งประธานฯ ลงนามมอบหมายเรียบร้อย`);
-      computeQueues();
-      renderKPICards();
-      applyFilters();
-    })();
-  });
-}
+/* คัดกรองความยุ่งยาก (gate ก่อนถึงประธานฯ) — modal ที่เคยอยู่ในไฟล์นี้ย้ายไปที่
+   affairs-case-detail.html แล้วตั้งแต่ 2026-09-23 (ให้เห็นข้อกล่าวหา/ผู้ถูกกล่าวหา/ความเห็น
+   สายอนุมัติก่อนตัดสินใจ) ดู docs/memory/plans/2026-09-23-affairs-case-detail-page.md */
 
 (async function main() {
   try {

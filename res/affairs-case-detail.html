@@ -21,6 +21,19 @@
     .opinion-row { display: flex; gap: .6rem; padding: .5rem 0; border-bottom: 1px dashed var(--border-divider); font-size: .84rem; }
     .opinion-row:last-child { border-bottom: none; }
     @media(max-width:700px){ .kv { grid-template-columns: 1fr; } }
+
+    /* หน้านี้ไม่ดึง ECMIS.initDocEditor()/applyZoom() มาใช้ (อ่านอย่างเดียว ไม่มี toolbar/pagination)
+       จึงย่อขนาดกระดาษ A4 ด้วย zoom ธรรมดาแทน — เทียบ pattern เดียวกับ officer-preview-viewport
+       ใน assets/a4-ecmis-workspace.css (บรรทัด ~423-430) ที่ใช้แก้ปัญหาเดียวกัน (โชว์ A4 หน้าเดียว
+       ในกรอบที่เล็กกว่าตัวเอกสารจริง โดยไม่ต้องพึ่ง JS pagination engine) */
+    #docPaperStage .a4-paper { zoom: .72; margin: 0 auto; }
+    @media(max-width:900px){ #docPaperStage .a4-paper { zoom: .58; } }
+    @media(max-width:620px){ #docPaperStage .a4-paper { zoom: .42; } }
+    /* ws-paper-stage ของระบบใช้ align-items:center !important (a4-ecmis-workspace.css:1342) ซึ่ง
+       ปกติโอเคเมื่อ JS pagination engine คำนวณ zoom ให้พอดีกรอบเสมอ — แต่หน้านี้ไม่มี engine นั้น
+       (fixed zoom ตายตัว) กระดาษ A4 เต็มหน้าจึงมักสูงกว่ากรอบเสมอ ถ้า center จะโดนตัดขอบบนแบบไม่สมมาตร
+       เห็นเป็นแถบพื้นหลังเข้มโผล่ด้านบน จึงเปลี่ยนเป็นชิดบนแทนสำหรับหน้านี้เท่านั้น */
+    #docPaperStage { align-items: flex-start !important; }
   </style>
 </head>
 
@@ -76,6 +89,8 @@
         </div>
       </aside>
     </div>
+
+    <div id="actionBarSlot"></div>
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
@@ -88,6 +103,7 @@
     ECMIS.renderShell('inbox.html');
 
     const M = ECMIS.mergeField;
+    const role = ECMIS.currentRole();
     const sb = ECMIS.getSupabaseClient();
     const params = new URLSearchParams(location.search);
     let kase = ECMIS.getCase(params.get('case') || '');
@@ -120,9 +136,9 @@
         <dt>วันที่รับเรื่อง</dt><dd>${k.receivedDate ? ECMIS.thaiDate(k.receivedDate) : '—'}</dd>`;
 
       document.getElementById('headActions').innerHTML =
-        `<button id="btnScreen" class="btn btn-navy btn-sm px-3"><i class="fa-solid fa-scale-unbalanced me-1"></i>ดำเนินการคัดกรอง</button>
-         <span class="small text-muted">— ประเมินว่าสำนวนนี้ยุ่งยากหรือไม่ ก่อนส่งเข้าคณะอนุกลั่นกรองฯ หรือเสนอประธานฯ ลงนามมอบหมาย</span>`;
-      document.getElementById('btnScreen').addEventListener('click', () => openComplexityModal(k.id));
+        `<span class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>ประเมินว่าสำนวนนี้ยุ่งยากหรือไม่ ก่อนส่งเข้าคณะอนุกลั่นกรองฯ หรือเสนอประธานฯ ลงนามมอบหมาย — กดดำเนินการที่แถบด้านล่าง</span>`;
+
+      renderActionButtons(k);
 
       const opinions = Array.isArray(k.chainOpinions) ? k.chainOpinions : [];
       const chainHtml = opinions.map(o => {
@@ -155,6 +171,16 @@
         '<div class="text-muted small">ยังไม่มีความเห็นตามสายอนุมัติของสำนวนนี้ในระบบ</div>';
 
       renderAffairsDoc(k);
+    }
+
+    /* ปุ่ม "ดำเนินการคัดกรอง" ย้ายมาเป็น sticky action bar ด้านล่างจอผ่าน ECMIS.actionBar() เหมือน
+       หน้าอื่นๆ ในระบบ (approval-review.html ฯลฯ) แทนที่จะฝังอยู่ในการ์ด "หัวสำนวน" ด้านบน —
+       ดู docs/memory/plans/2026-09-23-affairs-case-detail-a4-preview.md */
+    function renderActionButtons(k) {
+      document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(k, role.id,
+        [{ act: 'screen', label: 'ดำเนินการคัดกรอง', icon: 'fa-scale-unbalanced', cls: 'btn-navy' }]);
+      document.querySelectorAll('.action-bar [data-act]').forEach(b =>
+        b.addEventListener('click', () => { if (b.dataset.act === 'screen') openComplexityModal(k.id); }));
     }
 
     /* A4 preview อ่านอย่างเดียว — adapt จาก renderDoc() ของ approval-review.html (บรรทัด 1663-1699)

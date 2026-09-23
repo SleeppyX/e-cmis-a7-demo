@@ -13,6 +13,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
+  <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
   <style>
     .kv { display: grid; grid-template-columns: 150px 1fr; gap: .3rem .8rem; font-size: .86rem; }
     .kv dt { color: var(--ecmis-muted); font-weight: 600; }
@@ -37,28 +38,43 @@
 
     <div id="notFoundBox" class="alert alert-warning d-none">ไม่พบสำนวนนี้ในระบบ — <a href="inbox.html">กลับรายการ</a></div>
 
-    <div id="detailWrap" class="d-none">
+    <div id="detailWrap" class="d-none document-workspace">
+      <div id="docLeftCol">
 
-      <!-- 1. หัวสำนวน -->
-      <div class="card card-ecmis mb-3">
-        <div class="card-header d-flex align-items-center flex-wrap gap-2">
-          <i class="fa-solid fa-circle-info text-primary"></i><span class="fw-bold">หัวสำนวน</span>
-          <span class="ms-auto d-flex align-items-center gap-2" id="headBadges"></span>
+        <!-- 1. หัวสำนวน -->
+        <div class="card card-ecmis mb-3">
+          <div class="card-header d-flex align-items-center flex-wrap gap-2">
+            <i class="fa-solid fa-circle-info text-primary"></i><span class="fw-bold">หัวสำนวน</span>
+            <span class="ms-auto d-flex align-items-center gap-2" id="headBadges"></span>
+          </div>
+          <div class="card-body">
+            <dl class="kv" id="headKv"></dl>
+            <div class="mt-3 d-flex align-items-center gap-2 flex-wrap" id="headActions"></div>
+          </div>
         </div>
-        <div class="card-body">
-          <dl class="kv" id="headKv"></dl>
-          <div class="mt-3 d-flex align-items-center gap-2 flex-wrap" id="headActions"></div>
+
+        <!-- 2. ความเห็นตามสายอนุมัติ -->
+        <div class="card card-ecmis mb-4">
+          <div class="card-header"><i class="fa-solid fa-comments text-primary"></i> <span class="fw-bold">ความเห็นตามสายอนุมัติ</span>
+            <span class="ms-2 small text-muted">(ใช้ประกอบการพิจารณาเกณฑ์ข้อ ๒ — ความเห็นไม่ตรงกันในสายบังคับบัญชา)</span>
+          </div>
+          <div class="card-body" id="opinionBox"></div>
         </div>
+
       </div>
 
-      <!-- 2. ความเห็นตามสายอนุมัติ -->
-      <div class="card card-ecmis mb-4">
-        <div class="card-header"><i class="fa-solid fa-comments text-primary"></i> <span class="fw-bold">ความเห็นตามสายอนุมัติ</span>
-          <span class="ms-2 small text-muted">(ใช้ประกอบการพิจารณาเกณฑ์ข้อ ๒ — ความเห็นไม่ตรงกันในสายบังคับบัญชา)</span>
+      <!-- 3. เอกสารประกอบการพิจารณา (อ่านอย่างเดียว — กจ. ไม่ใช่เจ้าของสำนวน จึงไม่มีปุ่มพิมพ์/ส่งออก/แก้ไข
+           ดู docs/memory/plans/2026-09-23-affairs-case-detail-a4-preview.md) -->
+      <aside class="ws-doc-pane" style="top:calc(var(--topbar-h) + 14px)">
+        <div class="ws-doc-toolbar">
+          <span class="name"><i class="fa-solid fa-file-lines"></i> เอกสารประกอบการพิจารณา (อ่านอย่างเดียว)</span>
         </div>
-        <div class="card-body" id="opinionBox"></div>
-      </div>
-
+        <div class="ws-paper-stage" id="docPaperStage">
+          <div id="docPaper">
+            <div class="doc-paper a4-paper" id="docPaperPage"></div>
+          </div>
+        </div>
+      </aside>
     </div>
   </main>
 
@@ -71,6 +87,7 @@
   <script>
     ECMIS.renderShell('inbox.html');
 
+    const M = ECMIS.mergeField;
     const sb = ECMIS.getSupabaseClient();
     const params = new URLSearchParams(location.search);
     let kase = ECMIS.getCase(params.get('case') || '');
@@ -136,6 +153,36 @@
 
       document.getElementById('opinionBox').innerHTML = (chainHtml + secgenHtml) ||
         '<div class="text-muted small">ยังไม่มีความเห็นตามสายอนุมัติของสำนวนนี้ในระบบ</div>';
+
+      renderAffairsDoc(k);
+    }
+
+    /* A4 preview อ่านอย่างเดียว — adapt จาก renderDoc() ของ approval-review.html (บรรทัด 1663-1699)
+       ตัดส่วนที่ผูกกับ UI state ของ secgen ออก (checkbox ซับซ้อน/เร่งด่วนที่เลือกอยู่ตอนนั้น ไม่มี
+       ความหมายในหน้านี้) ใช้ k.secgenOpinion ที่บันทึกไว้แล้วแทน ไม่มี doc-sign (ไม่ใช่หน้าลงนาม)
+       ไม่เรียก updatePaginationUI()/applyZoom() เพราะไม่มี toolbar/pagination ในหน้านี้
+       ดู docs/memory/plans/2026-09-23-affairs-case-detail-a4-preview.md */
+    function renderAffairsDoc(k) {
+      const docType = ECMIS.DOC_TYPES[k.docType] || ECMIS.DOC_TYPES['213'];
+      const priorOpinions = (k.chainOpinions || []).map(o =>
+        `<div>${ECMIS.getRole(o.roleId).title}: เห็นชอบ — ${M(o.note)}
+          <span style="font-size:11px;color:#666">(${ECMIS.toThaiDigits(ECMIS.thaiDate(o.date))})</span></div>`).join('');
+
+      document.getElementById('docPaperPage').innerHTML = `
+        <div class="doc-secret">ลับ</div>
+        <div class="doc-title">${docType.label}</div>
+        <div class="doc-sub">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
+        <div class="doc-row"><span class="k">เรื่องที่</span> ${M(k.id)}</div>
+        <div class="doc-row"><span class="k">เรื่อง</span> ${M(k.subject)}</div>
+        <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(k.owner)}</div>
+        <div class="doc-row"><span class="k">สังกัด</span> ${M(k.ownerOrg)}</div>
+        ${(k.accused && k.accused.length) ? `<div class="doc-h">ผู้ถูกกล่าวหา</div>${k.accused.map(a => `<div>${a.no}. ${M(a.name)} ${M(a.pos)} ${M(a.agency)}</div>`).join('')}` : ''}
+        <div class="doc-h">${ECMIS.isCase73(k) ? 'สาระสำคัญ / ข้อเสนอ' : 'ข้อกล่าวหา'}</div>
+        <div class="doc-indent">${M(k.allegation)}</div>
+        <div class="doc-h">ความเห็นตามสายอนุมัติ</div>
+        <div class="doc-indent">${priorOpinions || '<span class="text-muted">— ยังไม่มีข้อมูล —</span>'}</div>
+        <div class="doc-h">ความเห็นของเลขาธิการฯ</div>
+        <div class="doc-indent">${k.secgenOpinion ? M(k.secgenOpinion) : '<span class="text-muted">— ยังไม่มีข้อมูล —</span>'}</div>`;
     }
 
     /* ── modal: คัดกรองความยุ่งยาก (gate ก่อนถึงประธานฯ) ──────────────────────────────

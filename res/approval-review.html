@@ -414,8 +414,12 @@
       const dirCase = ECMIS.getRole('dir_case');
       const isCertifyStep = kase.status === 'PENDING_URGENT';
       docType = ECMIS.DOC_TYPES[kase.docType];
-      document.querySelector('.page-head h1').innerHTML =
-        `<i class="fa-solid fa-bolt me-2"></i>${isCertifyStep ? 'รับรองเหตุผลเร่งด่วน (ผอ.กบค.)' : 'ยืนยันวาระด่วน (เลขาธิการฯ)'}`;
+      const urgentGateTitle = isCertifyStep ? 'รับรองเหตุผลเร่งด่วน (ผอ.กบค.)' : 'ยืนยันวาระด่วน (เลขาธิการฯ)';
+      document.querySelector('.page-head h1').innerHTML = `<i class="fa-solid fa-bolt me-2"></i>${urgentGateTitle}`;
+      /* <title> ของหน้านี้ตั้งเป็น "เลขาธิการฯ พิจารณา / ลงนาม" แบบตายตัวใน <head> — ไม่เคยอัปเดต
+         ตามโหมดที่แสดงจริงเลย ตอนเข้าโหมด ผอ.กบค. รับรองด่วน ชื่อแท็บเบราว์เซอร์เลยค้างคำว่า "เลขาธิการฯ"
+         ทั้งที่เนื้อหาในหน้าไม่ใช่ของเลขาธิการฯ แล้ว (พบจาก /grill-me 2026-09-24) */
+      document.title = urgentGateTitle + ' | E-CMIS';
       document.querySelector('.flow-ref').innerHTML = 'ด่านรับรองความเร่งด่วน (T7) — ก่อนส่งเข้าคิวประธานฯ';
       document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
       document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS, ECMIS.STATUS_STEP);

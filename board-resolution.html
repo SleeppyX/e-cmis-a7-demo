@@ -1182,6 +1182,12 @@
         const r = selectedRes();
         const signerName = document.getElementById('signerName')?.value || 'นายวิชัย ยุติธรรม';
         const signerTitle = document.getElementById('signerTitle')?.value || 'ประธานกรรมการ ป.ป.ท.';
+        /* ข้อความ dialog เดิมเขียนตายตัวว่าจะเปลี่ยนสถานะเป็น "จัดทำมติแล้วเสร็จ" (stage 2) เสมอ
+           ทั้งที่ resolutionStage จริงคำนวณจากรหัสมติ (r.code) — มติกลุ่ม ACCEPT/ม.24 ข้าม stage 2
+           ไปที่ stage 3 ตรงๆ ทำให้ dialog พูดผิดจากผลจริงที่จะเห็นใน resolution-inbox.html
+           คำนวณ stage ล่วงหน้าตรงนี้แล้วใช้ label จริงแทน (พบจาก /grill-me 2026-09-24) */
+        const previewStage = ECMIS.computeResolutionStage(Object.assign({}, kase, { status: 'RESOLVED', resolution: r.code }));
+        const previewStageLabel = ECMIS.resolutionStageLabel(previewStage) || 'จัดทำมติแล้วเสร็จ';
 
         ECMIS.confirmAction({
           title: 'ยืนยันบันทึกมติที่ประชุม',
@@ -1190,7 +1196,7 @@
         <div style="background:#fdf7e8;border-left:4px solid #D0A830;padding:.6rem .8rem;border-radius:0 6px 6px 0;font-size:.83rem">
           เมื่อบันทึกแล้วระบบจะ:<br>
           • บันทึกมติที่ประชุมเข้าสู่ระบบ<br>
-          • ปรับปรุงสถานะสำนวนเป็น <strong>จัดทำมติแล้วเสร็จ</strong><br>
+          • ปรับปรุงสถานะสำนวนเป็น <strong>${previewStageLabel}</strong><br>
           • สร้างเอกสาร <strong>${r.doc}</strong> จาก Template อัตโนมัติ<br>
           • ส่งผลมติกลับไปยังกล่องงาน (Inbox) เพื่อดำเนินการตามขั้นตอนถัดไป
         </div></div>`,
@@ -1213,10 +1219,10 @@
           const recordedDocHtml = document.getElementById('docPaper').innerHTML;
           /* resolutionStage เคยถูก hardcode เป็น 1 ตรงนี้เสมอ ไม่ว่ามติจะเป็นรหัสอะไร ทำให้
              resolution-inbox.html (ซึ่ง getStage() เชื่อค่า resolutionStage ที่บันทึกไว้มากกว่าจะ
-             คำนวณใหม่) ค้างแสดง "อยู่ระหว่างการจัดทำมติ" ตลอดแม้บันทึกมติสำเร็จแล้วจริง — ต้องคำนวณ
-             จาก ECMIS.computeResolutionStage() ด้วยรหัสมติที่เพิ่งเลือกก่อนบันทึก (พบจาก /grill-me
-             2026-09-24) */
-          const newStage = ECMIS.computeResolutionStage(Object.assign({}, kase, { status: 'RESOLVED', resolution: r.code }));
+             คำนวณใหม่) ค้างแสดง "อยู่ระหว่างการจัดทำมติ" ตลอดแม้บันทึกมติสำเร็จแล้วจริง — ใช้ค่าที่
+             คำนวณไว้แล้วตอนสร้าง dialog ยืนยัน (previewStage) เพื่อไม่ต้องคำนวณซ้ำและให้ตรงกับ
+             ข้อความที่ dialog บอกไว้เป๊ะ (พบจาก /grill-me 2026-09-24) */
+          const newStage = previewStage;
           const t = tally();
           const otherText = (document.getElementById('otherResText')?.value || '').trim();
           const agendaTitle = document.getElementById('caseSubject')?.value?.trim() || kase.subject || '';

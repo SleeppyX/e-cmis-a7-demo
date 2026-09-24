@@ -1211,6 +1211,12 @@
 
           const fromStatus = kase.status;
           const recordedDocHtml = document.getElementById('docPaper').innerHTML;
+          /* resolutionStage เคยถูก hardcode เป็น 1 ตรงนี้เสมอ ไม่ว่ามติจะเป็นรหัสอะไร ทำให้
+             resolution-inbox.html (ซึ่ง getStage() เชื่อค่า resolutionStage ที่บันทึกไว้มากกว่าจะ
+             คำนวณใหม่) ค้างแสดง "อยู่ระหว่างการจัดทำมติ" ตลอดแม้บันทึกมติสำเร็จแล้วจริง — ต้องคำนวณ
+             จาก ECMIS.computeResolutionStage() ด้วยรหัสมติที่เพิ่งเลือกก่อนบันทึก (พบจาก /grill-me
+             2026-09-24) */
+          const newStage = ECMIS.computeResolutionStage(Object.assign({}, kase, { status: 'RESOLVED', resolution: r.code }));
           const t = tally();
           const otherText = (document.getElementById('otherResText')?.value || '').trim();
           const agendaTitle = document.getElementById('caseSubject')?.value?.trim() || kase.subject || '';
@@ -1225,7 +1231,7 @@
             resolvedAt: new Date().toLocaleString('th-TH'),
             resolvedAtIso: new Date().toISOString(),
             recordedDocHtml,
-            resolutionStage: 1,
+            resolutionStage: newStage,
             boardAttendance: t.attendanceMap,
             boardVotes: t.votesMap,
             otherResolutionText: otherText,
@@ -1238,7 +1244,7 @@
           if (sb && kase.trr_id) {
             const { error } = await sb.from('tbl_res_request').update({
               trr_status: ECMIS.STATUS_CODE['RESOLVED'],
-              trr_resolution_stage: 1,
+              trr_resolution_stage: newStage,
               trr_recorded_doc_html: recordedDocHtml,
               trr_resolution_data: {
                 code: r.code,

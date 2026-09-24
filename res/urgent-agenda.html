@@ -293,8 +293,8 @@
     function buildButtons() {
       if (isCertifyStep) {
         return [
-          { act: 'certify', label: 'รับรองและส่งเลขาธิการฯ ยืนยัน', icon: 'fa-check', cls: 'btn-navy' },
-          { act: 'certifyReject', label: 'ไม่เห็นด้วยว่าด่วน', icon: 'fa-xmark', cls: 'btn-outline-danger' }
+          { act: 'certifyReject', label: 'ไม่เห็นด้วยว่าด่วน', icon: 'fa-xmark', cls: 'btn-outline-danger' },
+          { act: 'certify', label: 'รับรองและส่งเลขาธิการฯ ยืนยัน', icon: 'fa-check', cls: 'btn-navy' }
         ];
       }
       if (isConfirmStep) {
@@ -302,9 +302,9 @@
       }
       if (isSignStep) {
         return [
-          { act: 'sign', label: 'ลงนามมอบหมาย/บรรจุวาระด่วน', icon: 'fa-signature', cls: 'btn-gold' },
+          { act: 'returnOwner', label: 'ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข', icon: 'fa-rotate-left', cls: 'btn-outline-danger' },
           { act: 'sendScreening', label: 'ส่งเข้าคณะอนุกลั่นกรองฯ (ยังไม่ด่วนจริง)', icon: 'fa-people-arrows', cls: 'btn-navy' },
-          { act: 'returnOwner', label: 'ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข', icon: 'fa-rotate-left', cls: 'btn-outline-danger' }
+          { act: 'sign', label: 'ลงนามมอบหมาย/บรรจุวาระด่วน', icon: 'fa-signature', cls: 'btn-gold' }
         ];
       }
       return [];

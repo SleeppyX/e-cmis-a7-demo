@@ -509,8 +509,8 @@
 
       const buttons = isCertifyStep
         ? [
-            { act: 'certify', label: 'รับรองและส่งเลขาธิการฯ ยืนยัน', icon: 'fa-check', cls: 'btn-navy' },
-            { act: 'certifyReject', label: 'ไม่เห็นด้วยว่าด่วน', icon: 'fa-xmark', cls: 'btn-outline-danger' }
+            { act: 'certifyReject', label: 'ไม่เห็นด้วยว่าด่วน', icon: 'fa-xmark', cls: 'btn-outline-danger' },
+            { act: 'certify', label: 'รับรองและส่งเลขาธิการฯ ยืนยัน', icon: 'fa-check', cls: 'btn-navy' }
           ]
         : [{ act: 'confirm', label: 'ยืนยันและส่งประธานฯ', icon: 'fa-check-double', cls: 'btn-gold' }];
       document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(kase, role.id, buttons);

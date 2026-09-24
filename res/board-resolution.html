@@ -1161,7 +1161,9 @@
 
     function handle(act) {
       if (act === 'back_inbox') {
-        location.href = 'inbox.html';
+        location.href = (role.id === 'board_sec' || role.id === 'affairs')
+          ? ECMIS.resolvePage('resolution-inbox.html')
+          : ECMIS.homeHref(role.id);
         return;
       }
 
@@ -1295,7 +1297,15 @@
           }
 
           ECMIS.toastOk('บันทึกมติที่ประชุมเรียบร้อย');
-          setTimeout(() => location.href = 'inbox.html', 1200);
+          /* เดิม redirect ไป inbox.html ตายตัว ทั้งที่ role หลักของหน้านี้ (board_sec) ไม่มี inbox.html
+             เป็นหน้าแรกด้วยซ้ำ (home จริงคือ agenda-registry.html) — ขัดกับ convention ที่มีอยู่แล้วใน
+             ECMIS.renderBackButton() ซึ่ง route board_sec/affairs กลับ resolution-inbox.html เสมอ
+             เมื่ออยู่หน้านี้ (assets/ecmis-app.js:7477-7483) จึงย้ายกลับให้ตรงกัน (พบจาก /grill-me
+             2026-09-24) */
+          const postSaveHref = (role.id === 'board_sec' || role.id === 'affairs')
+            ? ECMIS.resolvePage('resolution-inbox.html')
+            : ECMIS.homeHref(role.id);
+          setTimeout(() => location.href = postSaveHref, 1200);
         });
         return;
       }

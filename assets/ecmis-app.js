@@ -1358,7 +1358,7 @@ const CASES = [
     allegation:'พยานในคดีทุจริตจัดซื้อจัดจ้างเรื่องที่ 1547/2568 ได้รับการข่มขู่จากบุคคลที่เกี่ยวข้องกับผู้ถูกกล่าวหา เห็นควรจัดให้มีมาตรการคุ้มครองตามกฎหมายว่าด้วยการคุ้มครองพยานในคดีอาญา (ตามระเบียบฯ ข้อ 14, ม.๕๔)',
     receivedDate:'2569-08-10', deadline60:'—', deadline2y:'—', prescription:'—',
     docRef:'ปป 0018/1122 ลงวันที่ 10 สิงหาคม 2569',
-    urgent:true, complex:false, dupWarning:false,
+    urgent:false, complex:false, dupWarning:false,
     docType:'GENERAL', signPhase:'COMPLETE',
     slaDays:2, slaLimit:5, subCommittee:null,
     meetingNo:'37/2569', agendaNo:'4.4', meetingDate:'2569-08-20',

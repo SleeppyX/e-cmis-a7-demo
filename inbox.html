@@ -238,6 +238,18 @@ function isChairActionable(c) {
          c.status === 'PENDING_SIGN_RULING_72' ||
          c.status === 'PENDING_SIGN_ORDER_CHAIRMAN';
 }
+/* "สั่งการบรรจุวาระเรียบร้อย" — ทุกสถานะปลายทางที่หลุดออกจากมือประธานฯ ไปแล้ว (นับตามสถานะปัจจุบัน
+   ตรงๆ เหมือน KPI อื่นในไฟล์นี้ ไม่ได้ตรวจ history ว่าผ่านมือประธานฯ จริงหรือไม่ — งานนี้เป็นเดโม
+   ยอมรับการประมาณนี้ตามที่ตกลงกันใน /grill-me 2026-09-24) ครอบคลุมทุกปลายทางจาก TRANSITIONS ที่
+   actor:'chairman' ส่งออกไป ทั้งสาย 7.1/7.2 */
+function isChairDone(c) {
+  return c.status === 'IN_SCREENING' || c.status === 'AGENDA_SET' ||
+         c.status === 'IN_SCREENING_72' || c.status === 'RETURNED_72' ||
+         c.status === 'PENDING_INVITE_72' || c.status === 'PENDING_SECTION_72' ||
+         c.status === 'PENDING_AREA_NOTICE_72' || c.status === 'DISPATCHING_NACC_72' ||
+         c.status === 'PENDING_DISPATCH_GUILTY_72' ||
+         c.status === 'UNDER_INVESTIGATION' || c.status === 'CLOSED';
+}
 
 /* รายการสถานะงานที่ต้องจัดทำของเจ้าหน้าที่กลุ่มงานกิจการคณะกรรมการ (affairs) — เดิมมี 'DEFERRED'
    อยู่ในนี้ (เลื่อน/ถอนวาระ รอเลขวาระใหม่) แต่การจัดวาระใหม่เป็นงานของกลุ่มมติ (board_sec) ผ่านคิว
@@ -409,6 +421,7 @@ if(ECMIS.isUpstreamRole(role.id)){
       <option value="PENDING_SIGN_AGENDA">รอลงนามบรรจุวาระ</option>
       <option value="PENDING_RULING">รอลงนามรายงานชี้มูล</option>
       <option value="PENDING_ORDER">รอลงนามคำสั่ง ม.24</option>
+      <option value="CHAIR_DONE">สั่งการบรรจุวาระเรียบร้อย</option>
     `;
   }
 } else if (role.id === 'affairs') {
@@ -467,6 +480,7 @@ function renderKPICards() {
     const pendingSignAgendaCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_AGENDA_72').length;
     const pendingRulingCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_RULING_72').length;
     const pendingOrderCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_ORDER_CHAIRMAN').length;
+    const doneCount = allCasesCombined.filter(c => isChairDone(c)).length;
 
     const kpis = [
       { id:'ALL', n: allCasesCombined.length, l:'รายการทั้งหมด', i:'fa-folder-open', c:'#0F2A62' },
@@ -474,7 +488,8 @@ function renderKPICards() {
       { id:'PENDING_URGENT', n: pendingUrgentCount, l:'วาระด่วน', i:'fa-bolt', c:'#DB2626' },
       { id:'PENDING_SIGN_AGENDA', n: pendingSignAgendaCount, l:'รอลงนามบรรจุวาระ', i:'fa-calendar-check', c:'#0F766E' },
       { id:'PENDING_RULING', n: pendingRulingCount, l:'รอลงนามชี้มูล', i:'fa-file-signature', c:'#0284C7' },
-      { id:'PENDING_ORDER', n: pendingOrderCount, l:'รอลงนามคำสั่ง ม.24', i:'fa-file-signature', c:'#7E22CE' }
+      { id:'PENDING_ORDER', n: pendingOrderCount, l:'รอลงนามคำสั่ง ม.24', i:'fa-file-signature', c:'#7E22CE' },
+      { id:'CHAIR_DONE', n: doneCount, l:'สั่งการบรรจุวาระเรียบร้อย', i:'fa-circle-check', c:'#16A34A' }
     ];
 
     document.getElementById('kpiRow').innerHTML = kpis.map(k => {
@@ -742,6 +757,7 @@ function row(c){
     else if (c.status === 'PENDING_SIGN_RULING_72') catBadge = `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามรายงานชี้มูล</span>`;
     else if (c.status === 'PENDING_SIGN_ORDER_CHAIRMAN') catBadge = `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามคำสั่ง ม.24</span>`;
     else if (c.status === 'PENDING_CHAIRMAN_ASSIGN_72') catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-bolt-lightning me-1"></i>รอลงนามมอบหมาย (ทางลัด กจ.)</span>`;
+    else if (isChairDone(c)) catBadge = `<span class="meet-badge" style="background:#DCFCE7;color:#166534"><i class="fa-solid fa-circle-check me-1"></i>สั่งการบรรจุวาระเรียบร้อย</span>`;
     else catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-hourglass-half me-1"></i>รอสั่งการวาระปกติ</span>`;
 
     /* กำหนดหน้าเป้าหมายสำหรับประธานฯ ให้ตรงกับงานแต่ละประเภท:
@@ -956,6 +972,7 @@ function applyFilters() {
         else if (st === 'PENDING_SIGN_AGENDA') matchSt = (c.status === 'PENDING_SIGN_AGENDA_72');
         else if (st === 'PENDING_RULING') matchSt = (c.status === 'PENDING_SIGN_RULING_72');
         else if (st === 'PENDING_ORDER') matchSt = (c.status === 'PENDING_SIGN_ORDER_CHAIRMAN');
+        else if (st === 'CHAIR_DONE') matchSt = isChairDone(c);
       }
     } else if (role.id === 'affairs') {
       if (st !== 'ALL') {
@@ -1007,15 +1024,17 @@ function routesToApprovalReview(c) {
 /* คำนวณ all/mine/allCasesCombined/filteredCombined ใหม่จาก CASES ปัจจุบัน — แยกเป็นฟังก์ชันเพื่อให้
    หน้าอื่นที่ import ไฟล์นี้ผ่าน main() เรียกซ้ำได้หลังอัปเดตสถานะ โดยไม่ต้อง reload จาก Supabase ใหม่ทั้งหน้า */
 function computeQueues() {
-  /* ประธานฯ: "ทั้งหมด" เหลือเฉพาะสำนวนที่ประธานฯ ต้องดำเนินการ (isChairActionable) เท่านั้น —
+  /* ประธานฯ: "ทั้งหมด" เหลือเฉพาะสำนวนที่ประธานฯ ต้องดำเนินการ (isChairActionable) บวกสำนวนที่
+     สั่งการ/บรรจุวาระเสร็จไปแล้ว (isChairDone) เพื่อให้การ์ด "สั่งการบรรจุวาระเรียบร้อย" นับได้ —
      ตัดมุมมองแบบเห็นทุกสำนวนในระบบ (view.all) ออก เพราะไม่ใช่ process ของประธานฯ โดยตรง
-     เหมือนหลักการเดียวกับ secgen ด้านล่าง */
+     เหมือนหลักการเดียวกับ secgen ด้านล่าง (secgen เองก็รวมเคสที่ลงนามแล้วไว้ใน all เช่นกัน —
+     ดู /grill-me 2026-09-24) */
   all = role.id === 'affairs'
     ? CASES.filter(c => isAffairsQueueCase(c) && ECMIS.canViewCase(c, role.id))
     : role.id === 'secgen'
       ? CASES.filter(c => ECMIS.canViewCase(c, role.id) && routesToApprovalReview(c) && !UPSTREAM_STATUSES.includes(c.status))
       : role.id === 'chairman'
-        ? CASES.filter(c => isChairActionable(c) && ECMIS.canViewCase(c, role.id))
+        ? CASES.filter(c => (isChairActionable(c) || isChairDone(c)) && ECMIS.canViewCase(c, role.id))
         : CASES.filter(c => ECMIS.canViewCase(c, role.id));
   mine = role.id === 'chairman'
     ? CASES.filter(c => isChairActionable(c))

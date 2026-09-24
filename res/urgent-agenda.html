@@ -135,14 +135,23 @@
       return data ? ECMIS.supabaseRowToCase(data) : null;
     }
 
-    /* urgentReason/urgentCertifiedDate72/agendaUrgentSignedDate72 ไม่มีคอลัมน์ใน Supabase จึงคง
-       set บน kase ในหน่วยความจำไว้เหมือนเดิม เพียงแต่ไม่ถูกบันทึกข้ามหน้า/ข้ามอุปกรณ์ — ตามรูปแบบ
-       เดียวกับ persistCase ใน support-subcommittee.html / resolution.html */
+    /* urgentReason/urgentCertifiedDate72/agendaUrgentSignedDate72 ไม่มีคอลัมน์ตรงตัวใน Supabase
+       แต่มีที่เก็บ (trr_resolution_data JSON เหมือนที่ approval-review.html/board-resolution.html
+       ใช้อยู่แล้ว) — เดิมฟังก์ชันนี้เขียนแค่ trr_status เท่านั้น ทำให้ 3 ฟิลด์นี้หายทุกครั้งที่เปลี่ยนหน้า
+       เพราะหน้าถัดไปโหลดจาก Supabase ใหม่ทับของในหน่วยความจำเสมอ (พบจาก /grill-me 2026-09-24) —
+       แก้ให้ merge เข้า trr_resolution_data แล้วเขียนจริงเหมือนไฟล์อื่น */
     async function persistCase(kase, patch) {
       const dbPatch = {};
       if ('status' in patch) {
         const code = ECMIS.STATUS_CODE[patch.status];
         if (code) dbPatch.trr_status = code;
+      }
+      const RES_KEYS = ['urgentReason', 'urgentCertified', 'urgentCertifiedDate72', 'urgentConfirmedDate72', 'agendaUrgentSignedDate72'];
+      const extraRes = {};
+      RES_KEYS.forEach(k => { if (k in patch) extraRes[k] = patch[k]; });
+      if (Object.keys(extraRes).length) {
+        const currentResData = kase.resolutionData || {};
+        dbPatch.trr_resolution_data = Object.assign({}, currentResData, extraRes);
       }
       if (kase.trr_id && Object.keys(dbPatch).length) {
         try {
@@ -153,6 +162,7 @@
         }
       }
       Object.assign(kase, patch);
+      if (dbPatch.trr_resolution_data) kase.resolutionData = dbPatch.trr_resolution_data;
       const memCase = ECMIS.CASES.find(x => x.id === kase.id);
       if (memCase) Object.assign(memCase, patch);
       ECMIS.saveCases();
@@ -187,10 +197,31 @@
     isConfirmStep = kase.status === 'PENDING_SECGEN_URGENT_CONFIRM_72';
     isSignStep = kase.status === 'PENDING_CHAIRMAN_URGENT_72';
 
+    /* chip กำหนดเวลาตามกฎหมาย — เหมือน pattern ใน approval-review.html initUrgentGateScreen()
+       (deadlineChips) แต่ตอนนี้ไม่มีเลยสักขั้นในหน้านี้ ทั้งที่เป็นข้อมูลสำคัญประกอบการรับรอง/ยืนยัน/
+       ลงนามว่าเรื่องด่วนจริงหรือไม่ (พบจาก /grill-me 2026-09-24) */
+    function deadlineChips() {
+      const rows = [
+        { label: 'ครบกำหนดอายุความ', iso: kase.prescription },
+        { label: 'ครบกำหนด 60 วัน (ม.23)', iso: kase.deadline60 },
+        { label: 'ครบกำหนด 2 ปี (ม.23)', iso: kase.deadline2y }
+      ].filter(r => r.iso);
+      if (!rows.length) return '';
+      return `<div class="d-flex flex-wrap gap-2 mb-3">${rows.map(r => {
+        const days = ECMIS.daysUntilFakeIso(r.iso);
+        const soon = days <= 30;
+        return `<span class="chip" style="${soon ? 'background:#FEE2E2;color:#991B1B;border-color:#FCA5A5' : ''}" title="${r.label}">
+          <i class="fa-solid ${soon ? 'fa-triangle-exclamation' : 'fa-calendar'} me-1"></i>${r.label}: ${ECMIS.toThaiDigits(ECMIS.thaiDate(r.iso))}
+          ${days >= 0 ? `(อีก ${ECMIS.toThaiDigits(days)} วัน)` : `(เลยกำหนด ${ECMIS.toThaiDigits(-days)} วัน)`}
+        </span>`;
+      }).join('')}</div>`;
+    }
+
     function renderStepCard() {
       if (isCertifyStep) {
         document.getElementById('stepCardTitle').textContent = 'รับรองเหตุผลเร่งด่วน (ผอ.กบค.)';
         document.getElementById('stepCardBody').innerHTML = `
+      ${deadlineChips()}
       <label class="form-label field-req">เหตุผลความเร่งด่วน</label>
       <textarea class="form-control" id="urgentReason" rows="5"
         placeholder="ระบุเหตุผลความจำเป็นเร่งด่วน เช่น ใกล้ครบกำหนดอายุความ / มีความเสี่ยงต่อพยานหลักฐาน...">${kase.urgentReason ? kase.urgentReason : ''}</textarea>
@@ -198,15 +229,21 @@
       } else if (isConfirmStep) {
         document.getElementById('stepCardTitle').textContent = 'ยืนยันวาระด่วน (เลขาธิการฯ)';
         document.getElementById('stepCardBody').innerHTML = `
+      ${deadlineChips()}
       <label class="form-label">เหตุผลความเร่งด่วนที่ ${dirCase.title} รับรองไว้แล้ว</label>
       <textarea class="form-control" rows="5" readonly>${kase.urgentReason || ''}</textarea>
       <div class="alert alert-success py-2 px-3 mt-2 mb-0" style="font-size:.82rem">
-        <i class="fa-solid fa-circle-check me-1"></i>${dirCase.title} รับรองเหตุผลเร่งด่วนแล้วเมื่อ ${ECMIS.thaiDate ? ECMIS.thaiDate(kase.urgentCertifiedDate72) : (kase.urgentCertifiedDate72 || '-')}
+        <i class="fa-solid fa-circle-check me-1"></i>${dirCase.name} — ${dirCase.title} รับรองเหตุผลเร่งด่วนแล้วเมื่อ ${ECMIS.thaiDate ? ECMIS.thaiDate(kase.urgentCertifiedDate72) : (kase.urgentCertifiedDate72 || '-')}
         — กรุณายืนยันอีกครั้งก่อนส่งเข้าคิวประธานฯ
       </div>`;
       } else if (isSignStep) {
         document.getElementById('stepCardTitle').textContent = 'ลงนามมอบหมาย/บรรจุวาระด่วน (ประธานฯ)';
         document.getElementById('stepCardBody').innerHTML = `
+      ${deadlineChips()}
+      <div class="p-2 mb-3 rounded-3" style="background:#F8FAFC; border:1px solid #E2E8F0; font-size:.78rem; color:#475569;">
+        <div><i class="fa-solid fa-user-check me-1"></i>${dirCase.name} — ${dirCase.title} รับรองเหตุผลเร่งด่วนเมื่อ ${kase.urgentCertifiedDate72 ? ECMIS.thaiDate(kase.urgentCertifiedDate72) : '—'}</div>
+        <div><i class="fa-solid fa-user-check me-1"></i>เลขาธิการคณะกรรมการ ป.ป.ท. ยืนยันซ้ำเมื่อ ${kase.urgentConfirmedDate72 ? ECMIS.thaiDate(kase.urgentConfirmedDate72) : '—'}</div>
+      </div>
       <label class="form-label">เหตุผลความเร่งด่วนที่เสนอ</label>
       <textarea class="form-control" rows="4" readonly>${kase.urgentReason || ''}</textarea>
       <label class="form-label mt-3">ความเห็น/เหตุผลของประธานฯ
@@ -389,7 +426,7 @@
         }).then(async res => {
           if (!res.isConfirmed) return;
           try {
-            await persistCase(kase, { status: 'PENDING_CHAIRMAN_URGENT_72' });
+            await persistCase(kase, { status: 'PENDING_CHAIRMAN_URGENT_72', urgentConfirmedDate72: new Date().toISOString().slice(0, 10) });
             ECMIS.pushCaseHistory(kase, {
               action: 'URGENT_CONFIRM_72',
               status: 'PENDING_CHAIRMAN_URGENT_72'

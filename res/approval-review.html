@@ -1413,19 +1413,24 @@
           try {
             const secOp = document.getElementById('myOpinion')?.value.trim() || '';
             const urgentNow = kase.urgent || urgentYes();
-            const urgentReasonNow = kase.urgent ? (kase.urgentReason || '') : (urgentNow ? urgentReasonEl.value.trim() : '');
+            /* เคสที่ตั้งต้นเป็นด่วนมาแล้ว (kase.urgent) ยังไม่มีใครเขียนเหตุผลจริง ณ จุดนี้ — ผอ.กบค.
+               จะเป็นคนเขียนทีหลังที่ urgent-agenda.html เอง อย่าเขียน '' ทับ resolutionData.urgentReason
+               ตอนนี้ ไม่งั้นจะกลายเป็นค่า placeholder ถาวรที่ทำให้กล่องข้อความว่างตลอด (พบจาก
+               /grill-me 2026-09-24) — ส่งค่าไปแค่ตอนสาย 7.2 ที่เลขาฯ กรอกเหตุผลเองในหน้านี้เท่านั้น */
+            const urgentReasonNow = kase.urgent ? kase.urgentReason : (urgentNow ? urgentReasonEl.value.trim() : '');
+            const resolutionData = {
+              secgenOpinion: secOp,
+              secgenSignedAt: new Date().toISOString(),
+              signedBySecgen: true
+            };
+            if (urgentReasonNow) resolutionData.urgentReason = urgentReasonNow;
             await persistCase(kase, {
               status: targetStatus,
               signedBySecgen: true,
               secgenSignedAt: new Date().toLocaleString('th-TH'),
               secgenOpinion: secOp,
               urgent: urgentNow,
-              resolutionData: {
-                secgenOpinion: secOp,
-                secgenSignedAt: new Date().toISOString(),
-                signedBySecgen: true,
-                urgentReason: urgentReasonNow
-              }
+              resolutionData
             });
             await ECMIS.logRequestEvent(kase.trr_id, kase.status, targetStatus, {
               type: 'SIGNED_SECGEN',

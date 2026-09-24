@@ -437,14 +437,27 @@
         }).join('')}</div>`;
       })();
 
+      /* สรุปกะทัดรัดของคดี (เจ้าของสำนวน/ผู้ถูกกล่าวหา/ข้อกล่าวหา) — ข้อมูลนี้มีอยู่แล้วในแผงเอกสาร
+         ฝั่งขวา (renderReadOnlyDoc) แต่ผอ.กบค./เลขาธิการฯ ต้องตัดสินใจจากการ์ดฝั่งซ้ายนี้เป็นหลัก
+         การ์ดที่ไม่มีบริบทคดีเลยทำให้ดูโล่งและตัดสินใจได้ยาก จึงสรุปย่อมาไว้ตรงนี้ด้วย (ไม่ต้องเลื่อน
+         ไปดูฝั่งขวา) ดูปัญหาที่มาจาก /grill-me 2026-09-24 */
+      const accusedSummary = (kase.accused || []).map(a => `${a.name || ''}${a.pos ? ' — ' + a.pos : ''}`).join('<br>') || '—';
+      const caseSummary = `<div class="p-2 mb-3 rounded-3" style="background:#F8FAFC; border:1px solid #E2E8F0; font-size:.82rem;">
+        <div class="mb-1"><span class="text-muted">เจ้าของสำนวน:</span> ${kase.owner || '—'}${kase.ownerOrg ? ' · ' + kase.ownerOrg : ''}</div>
+        <div class="mb-1"><span class="text-muted">ผู้ถูกกล่าวหา:</span> ${accusedSummary}</div>
+        <div><span class="text-muted">ข้อกล่าวหา:</span> ${kase.allegation || '—'}</div>
+      </div>`;
+
       const bodyHtml = isCertifyStep
-        ? `<div class="mb-2 text-muted" style="font-size:.78rem"><i class="fa-solid fa-circle-info me-1"></i>ตรวจสอบวันครบกำหนดด้านล่างประกอบการพิจารณาว่าเหตุผลความเร่งด่วนที่อ้างสอดคล้องกับข้อเท็จจริงหรือไม่</div>
+        ? `${caseSummary}
+           <div class="mb-2 text-muted" style="font-size:.78rem"><i class="fa-solid fa-circle-info me-1"></i>ตรวจสอบวันครบกำหนดด้านล่างประกอบการพิจารณาว่าเหตุผลความเร่งด่วนที่อ้างสอดคล้องกับข้อเท็จจริงหรือไม่</div>
            ${deadlineChips}
            <label class="form-label field-req">เหตุผลความเร่งด่วน</label>
            <textarea class="form-control" id="urgentReason" rows="5"
              placeholder="ระบุเหตุผลความจำเป็นเร่งด่วน เช่น ใกล้ครบกำหนดอายุความ / มีความเสี่ยงต่อพยานหลักฐาน...">${kase.urgentReason || ''}</textarea>
            <div class="val-msg val-err" data-for="urgentReason">กรุณาระบุเหตุผลความเร่งด่วนก่อนรับรอง</div>`
-        : `<label class="form-label">เหตุผลความเร่งด่วนที่ ${dirCase.title} รับรองไว้แล้ว</label>
+        : `${caseSummary}
+           <label class="form-label">เหตุผลความเร่งด่วนที่ ${dirCase.title} รับรองไว้แล้ว</label>
            <textarea class="form-control" rows="5" readonly>${kase.urgentReason || ''}</textarea>
            <div class="alert alert-success py-2 px-3 mt-2 mb-0" style="font-size:.82rem">
              <i class="fa-solid fa-circle-check me-1"></i>${dirCase.title} รับรองเหตุผลเร่งด่วนแล้ว — กรุณายืนยันอีกครั้งก่อนส่งเข้าคิวประธานฯ

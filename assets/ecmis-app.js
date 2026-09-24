@@ -283,6 +283,14 @@ const TRANSITIONS = [
   { from:'PENDING_CHAIRMAN', to:'AGENDA_SET', event:'ORDER_AGENDA_URGENT', actor:'chairman',
     ref:'ประธานฯ สั่งบรรจุวาระด่วน', guard:k => !!k.urgentCertified,
     note:'สั่งบรรจุวาระด่วน — ต้องมีลายเซ็นรับรองของ ผอ.กบค. และการยืนยันของเลขาธิการฯ ก่อนเท่านั้น' },
+  /* เรื่องทั่วไป/กกม. (7.3) ตามเอกสารออกแบบไม่ต้องผ่านคณะอนุกลั่นกรองฯ เลย — ตรงเข้าสู่ขั้นบรรจุวาระ
+     ทันทีหลังประธานฯ ลงนามมอบหมาย แยก event ต่างหากจาก ORDER_AGENDA_URGENT (ซึ่งผูกกับ guard
+     ความเร่งด่วนของสาย 7.1/7.2 คนละเหตุผลกัน) ให้ audit trail อ่านชัดเจนว่าทำไมข้ามคณะอนุกลั่นกรอง
+     ไป (พบบั๊กจาก /grill-me 2026-09-24 — เดิม chairman-agenda.html เช็คแค่ isCase72() จึงพา 7.3
+     เดินเหมือน 7.1 เข้าคณะอนุกลั่นกรองฯ ทั้งที่ไม่ควร) */
+  { from:'PENDING_CHAIRMAN', to:'AGENDA_SET', event:'ORDER_AGENDA_DIRECT_73', actor:'chairman',
+    ref:'ประธานฯ สั่งบรรจุวาระ (เรื่องทั่วไป/กกม.)', guard:k => isCase73(k),
+    note:'เรื่องทั่วไป/กกม. (7.3) ไม่มีคณะอนุกลั่นกรองฯ — ตรงเข้าสู่ขั้นบรรจุวาระทันทีหลังประธานฯ ลงนามมอบหมาย' },
 
   { from:'IN_SCREENING', to:'AGENDA_SET', event:'SCREENING_RESOLVED', actor:'subcommittee',
     ref:'กลั่นกรองแล้วเสร็จ',

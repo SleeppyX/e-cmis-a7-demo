@@ -625,9 +625,12 @@
                 ];
             }
             if (isAssignStep()) {
+                const assignLabel = ECMIS.isCase73(kase)
+                    ? 'ลงนามมอบหมาย → บรรจุวาระประชุม'
+                    : 'ลงนามมอบหมาย → ส่งคณะอนุกลั่นกรองฯ';
                 return [
                     { act: 'return', label: 'ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข', icon: 'fa-arrow-left-long', cls: 'btn-outline-danger' },
-                    { act: 'assign_screening', label: 'ลงนามมอบหมาย → ส่งคณะอนุกลั่นกรองฯ', icon: 'fa-signature', cls: 'btn-gold' }
+                    { act: 'assign_screening', label: assignLabel, icon: 'fa-signature', cls: 'btn-gold' }
                 ];
             }
             if (signed) {
@@ -699,15 +702,25 @@
                 return;
             }
             if (act === 'assign_screening') {
-                // เคสไม่ด่วน 7.1 + 7.2 — ประธานฯ ลงนามมอบหมาย (คลิกเดียว) → ส่ง กบค. กระจายเข้าคณะอนุกลั่นกรองฯ
-                const is72 = ECMIS.isCase72(kase);
-                const nextStatus = is72 ? 'IN_SCREENING_72' : 'IN_SCREENING';
-                const event = is72 ? 'ORDER_SCREENING_72' : 'ORDER_SCREENING';
+                /* เรื่องทั่วไป/กกม. (7.3) ไม่มีคณะอนุกลั่นกรองฯ — ตรงเข้า AGENDA_SET ทันที ต่างจาก
+                   7.1/7.2 ที่ยังต้องผ่านคณะอนุกลั่นกรองฯ ก่อน (พบบั๊กจาก /grill-me 2026-09-24 — เดิม
+                   เช็คแค่ isCase72() จึงพา 7.3 เข้าคณะอนุกลั่นกรองฯ ผิดเหมือน 7.1) */
+                const is73 = ECMIS.isCase73(kase);
+                const is72 = !is73 && ECMIS.isCase72(kase);
+                const nextStatus = is73 ? 'AGENDA_SET' : (is72 ? 'IN_SCREENING_72' : 'IN_SCREENING');
+                const event = is73 ? 'ORDER_AGENDA_DIRECT_73' : (is72 ? 'ORDER_SCREENING_72' : 'ORDER_SCREENING');
                 const nextTarget = ECMIS.resolvePage ? ECMIS.resolvePage('inbox.html') : 'inbox.html';
-                const docType = 'บันทึกมอบหมายส่งคณะอนุกลั่นกรองฯ';
+                const docType = is73 ? 'บันทึกมอบหมายบรรจุวาระประชุม' : 'บันทึกมอบหมายส่งคณะอนุกลั่นกรองฯ';
+                const dialogTitle = is73 ? 'บันทึกมอบหมายบรรจุวาระประชุม' : 'บันทึกมอบหมายส่งคณะอนุกลั่นกรองฯ';
+                const historyNote = is73
+                    ? 'ประธานฯ ลงนามมอบหมาย — เรื่องทั่วไป/กกม. ไม่ผ่านคณะอนุกลั่นกรองฯ ส่งกลุ่มงานมติบรรจุวาระประชุมทันที'
+                    : 'ประธานฯ ลงนามมอบหมาย — ส่งกองบริหารคดีกระจายเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘';
+                const successNote = is73
+                    ? 'ส่งกลุ่มงานมติเพื่อบรรจุระเบียบวาระการประชุมคณะกรรมการ ป.ป.ท. ต่อไป (ไม่ผ่านคณะอนุกลั่นกรองฯ)'
+                    : 'ส่งกองบริหารคดีเพื่อกระจายสำนวนเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘ ต่อไป';
                 const fromStatus = kase.status;
 
-                ECMIS.signDialog(`บันทึกมอบหมายส่งคณะอนุกลั่นกรองฯ — เรื่องที่ ${kase.id}`,
+                ECMIS.signDialog(`${dialogTitle} — เรื่องที่ ${kase.id}`,
                     `${SIGNER_NAME} — ${SIGNER_TITLE}`)
                     .then(res => {
                         if (!res.isConfirmed) return;
@@ -728,7 +741,7 @@
                         }
                         ECMIS.pushCaseHistory(kase, {
                             from: fromStatus, to: nextStatus, event, actor: 'chairman',
-                            note: 'ประธานฯ ลงนามมอบหมาย — ส่งกองบริหารคดีกระจายเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘'
+                            note: historyNote
                         });
 
                         (async () => {
@@ -746,7 +759,7 @@
                                           สำนวนเรื่องที่ <strong>${kase.id}</strong><br>
                                           สถานะใหม่: <strong>${ECMIS.STATUS[nextStatus]?.label || nextStatus}</strong><br><br>
                                           <span style="font-size:.9rem;color:#475569">
-                                              <i class="fa-solid fa-arrow-right me-1 text-primary"></i>ส่งกองบริหารคดีเพื่อกระจายสำนวนเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘ ต่อไป
+                                              <i class="fa-solid fa-arrow-right me-1 text-primary"></i>${successNote}
                                           </span>
                                        </div>`,
                                 confirmButtonColor: '#0F2A62',

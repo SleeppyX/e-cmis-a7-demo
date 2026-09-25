@@ -1437,9 +1437,11 @@
     });
 
     // Pane collapse toggle
+    const docWorkspace = document.getElementById('docWorkspace');
     const PANE_KEY = 'ecmis-board-resolution-docpane-collapsed';
     function setPaneCollapsed(collapsed) {
       document.body.classList.toggle('docpane-collapsed', collapsed);
+      if (docWorkspace) docWorkspace.classList.toggle('pane-collapsed', collapsed);
       try { localStorage.setItem(PANE_KEY, collapsed ? '1' : '0'); } catch (e) { }
     }
     $('#btnPaneCollapse').on('click', () => setPaneCollapsed(true));

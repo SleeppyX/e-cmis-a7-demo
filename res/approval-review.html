@@ -58,7 +58,7 @@
           </div>
         </div>
 
-        <div class="ws-card mb-3">
+        <div class="ws-card mb-3" id="attachmentCard">
           <div class="card-header"><i class="fa-solid fa-paperclip"></i> ไฟล์แนบสำนวน</div>
           <div class="card-body">
             <div id="attachmentList" class="small text-muted">กำลังโหลด...</div>
@@ -366,6 +366,7 @@
     }
 
     let attachmentCount = 0;
+    let mockAttachmentShown = false;
     async function renderAttachments(tccId) {
       const el = document.getElementById('attachmentList');
       if (!tccId) { el.textContent = 'ไม่พบเลขที่อ้างอิงสำนวนสำหรับไฟล์แนบ'; return; }
@@ -374,7 +375,23 @@
         .order('created_datetime', { ascending: false });
       if (error) { el.textContent = 'โหลดรายการไฟล์แนบไม่สำเร็จ'; console.error('โหลดไฟล์แนบไม่สำเร็จ:', error); return; }
       attachmentCount = data ? data.length : 0;
-      if (!data || !data.length) { el.textContent = 'ยังไม่มีไฟล์แนบสำหรับสำนวนนี้'; return; }
+      mockAttachmentShown = false;
+      if (!data || !data.length) {
+        /* สำนวนที่ตั้งต้นเป็นด่วนมาแล้ว (kase.urgent) ในทางปฏิบัติมีใบด่วนแนบมาจากต้นทางอยู่แล้ว —
+           ระบบเดโมไม่มีไฟล์จริง จึงแสดงรายการไฟล์หลอกให้เห็นภาพเฉยๆ (ไม่ผูก Storage จริง ไม่กดโหลด
+           ได้) ตาม /grill-me 2026-09-25 — ยกเว้นไม่บล็อกการลงนามด้วยเหตุนี้ (ดู mockAttachmentShown
+           ในเงื่อนไข kase.urgent && attachmentCount===0 ตอนบันทึก/ลงนาม) */
+        if (kase.urgent && role.id === 'secgen') {
+          mockAttachmentShown = true;
+          el.innerHTML = `<div class="d-flex align-items-center gap-2 py-1">
+            <i class="fa-solid fa-file-lines"></i>
+            <span>ใบด่วน_${ECMIS.escapeHtml(kase.id.replace('/', '-'))}.pdf</span>
+            <span class="text-muted" style="font-size:.75rem">312 KB · แนบมาจากต้นทาง</span>
+          </div>`;
+          return;
+        }
+        el.textContent = 'ยังไม่มีไฟล์แนบสำหรับสำนวนนี้'; return;
+      }
       const rows = await Promise.all(data.map(async a => {
         const { data: signed } = await sb.storage.from('case-documents').createSignedUrl(a.trat_storage_path, 3600);
         const url = signed && signed.signedUrl ? signed.signedUrl : '#';
@@ -642,6 +659,11 @@
       signed = alreadySigned;
       g1 = ECMIS.g1Triggers(kase);
 
+      /* เลขาธิการฯ ไม่ต้องเห็นการ์ด "ไฟล์แนบสำนวน" ในกรณีปกติ (ไม่ใช่งานของขั้นนี้) — ยกเว้นสำนวนที่
+         ตั้งต้นเป็นด่วนมาแล้ว (kase.urgent) ที่ยังต้องบังคับแนบใบด่วนก่อนลงนามอยู่ (ดู /grill-me
+         2026-09-25) role อื่นที่ใช้หน้านี้ร่วมกันยังเห็นการ์ดนี้ตามเดิมทุกกรณี */
+      document.getElementById('attachmentCard')?.classList.toggle('d-none', role.id === 'secgen' && !kase.urgent);
+
       renderAttachments(kase.tcc_id);
       wireAttachmentUploader();
       if (isRuling) { initRulingScreen(); } else { initReport213Screen(); }
@@ -811,7 +833,10 @@
               }));
             }
           }
-          document.getElementById('urgentAttachRequired')?.classList.toggle('d-none', !preFlaggedUrgent);
+          /* แจ้งเตือน "ต้องแนบไฟล์ก่อนลงนาม" เดิมใช้คู่กับการบังคับอัปโหลดไฟล์จริง — ตอนนี้เคสด่วนที่
+             ตั้งต้นมาแล้วแสดงไฟล์หลอก "แนบมาจากต้นทาง" ให้อัตโนมัติแล้ว (ดู renderAttachments) จึง
+             ไม่มีอะไรให้เตือนอีก ซ่อนไว้เสมอสำหรับ secgen (ดู /grill-me 2026-09-25) */
+          document.getElementById('urgentAttachRequired')?.classList.add('d-none');
         }
 
         const hasSupportOpinion = !!(kase.supportOpinion || kase.supportOpinion72 || kase.supportDecision);
@@ -1422,8 +1447,9 @@
           }
 
           /* เคสที่ตั้งต้นเป็นด่วนมาแล้ว (kase.urgent) ไม่ต้องกรอกเหตุผลซ้ำ (มีเหตุผลจากต้นทางแล้ว)
-             แต่บังคับต้องแนบไฟล์ใบด่วนอย่างน้อย 1 ไฟล์ก่อนบันทึก/ลงนาม */
-          if (kase.urgent && attachmentCount === 0) {
+             แต่บังคับต้องแนบไฟล์ใบด่วนอย่างน้อย 1 ไฟล์ก่อนบันทึก/ลงนาม — ยกเว้นเมื่อมีไฟล์หลอก
+             "แนบมาจากต้นทาง" แสดงอยู่แล้ว (mockAttachmentShown) ตาม /grill-me 2026-09-25 */
+          if (kase.urgent && attachmentCount === 0 && !mockAttachmentShown) {
             ECMIS.toastWarn('สำนวนนี้เป็นกรณีเร่งด่วน — กรุณาแนบไฟล์ใบด่วนก่อนบันทึก/ลงนาม');
             return;
           }

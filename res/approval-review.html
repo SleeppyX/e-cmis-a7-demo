@@ -1090,6 +1090,13 @@
       });
       renderDocOpinions();
 
+      /* สาย 7.1 จากเขตพื้นที่ (ownerOrg มีคำว่า "เขต") ไม่ต้องผ่านประธานฯ ก่อนเข้าคณะอนุกลั่นกรองฯ
+         ต่างจากกองปราบปรามการทุจริตในภาครัฐ/หน่วยงานอื่นที่ยังคงเข้าคิวประธานฯ ตามเดิม — ใช้ทั้ง
+         เส้นทางปกติและเส้นทางที่ผ่านคณะอนุสนับสนุนฯ มาแล้ว (ดู /grill-me 2026-09-25) ไม่ครอบ 7.2/7.3 */
+      function isRegionalCase(k) {
+        return !ECMIS.isCase72(k) && !ECMIS.isCase73(k) && !!(k.ownerOrg && k.ownerOrg.includes('เขต'));
+      }
+
       function nextRoleTitle() {
         const i = ECMIS.APPROVAL_CHAIN.indexOf(role.id);
         if (role.id === 'secgen') return 'ประธานกรรมการ ป.ป.ท.';
@@ -1102,11 +1109,12 @@
         const b = [{ act: 'return', label: 'ส่งคืนสายงานต้นทาง (กจ.5)', icon: 'fa-arrow-left-long', cls: 'btn-outline-danger' }];
         if (role.id === 'secgen') {
           const hasSupportOpinion = !!(kase.supportOpinion || kase.supportOpinion72 || kase.supportDecision);
+          const isRegional = isRegionalCase(kase);
           if (signed) {
             return [
               { act: 'edit_sign', label: 'แก้ไข / ลงนามใหม่', icon: 'fa-pen-to-square', cls: 'btn-outline-warning' },
               { act: 'clear_sign', label: 'ลบลายเซ็น', icon: 'fa-trash-can', cls: 'btn-outline-danger' },
-              { act: 'save_status', label: hasSupportOpinion ? 'บันทึกและเสนอประธานกรรมการ ป.ป.ท.' : 'บันทึกเพื่อเปลี่ยนสถานะ (เลขาลงนามแล้ว)', icon: 'fa-paper-plane', cls: 'btn-success' }
+              { act: 'save_status', label: hasSupportOpinion ? (isRegional ? 'บันทึกและส่งกองบริหารคดี' : 'บันทึกและเสนอประธานกรรมการ ป.ป.ท.') : 'บันทึกเพื่อเปลี่ยนสถานะ (เลขาลงนามแล้ว)', icon: 'fa-paper-plane', cls: 'btn-success' }
             ];
           }
           const m28 = m28Selected();
@@ -1118,7 +1126,7 @@
                 cls: 'btn-navy'
               });
             } else {
-              b.push({ act: 'sign', label: hasSupportOpinion ? 'ลงนามดิจิทัลและเสนอประธานฯ' : 'ลงนามดิจิทัลและส่งต่อ', icon: 'fa-signature', cls: 'btn-gold' });
+              b.push({ act: 'sign', label: hasSupportOpinion ? (isRegional ? 'ลงนามดิจิทัลและส่งกองบริหารคดี' : 'ลงนามดิจิทัลและเสนอประธานฯ') : 'ลงนามดิจิทัลและส่งต่อ', icon: 'fa-signature', cls: 'btn-gold' });
             }
           } else {
             b.push({
@@ -1373,6 +1381,12 @@
             targetStatus = is72 ? 'PENDING_URGENT_72' : 'PENDING_URGENT';
             dest = 'ผู้อำนวยการกองบริหารคดี เพื่อรับรองเหตุผลเร่งด่วน';
             path = 'สำนวนเร่งด่วน: รับรองเหตุผลเร่งด่วนก่อนเสนอประธานฯ';
+          } else if (hasSupportOpinion && isRegionalCase(kase)) {
+            /* สาย 7.1 เขตพื้นที่ที่ผ่านคณะอนุสนับสนุนฯ มาแล้ว — ยังไม่ต้องผ่านประธานฯ เช่นเดียวกับ
+               เส้นทางปกติ ส่งตรงกองบริหารคดีเพื่อกระจายเข้าคณะอนุกลั่นกรองฯ (ดู /grill-me 2026-09-25) */
+            targetStatus = 'IN_SCREENING';
+            dest = 'กองบริหารคดี';
+            path = 'ผ่านการกลั่นกรองโดยคณะอนุสนับสนุนฯ แล้ว — สำนวนเขตพื้นที่ ส่งตรงกองบริหารคดีเพื่อกระจายเข้าคณะอนุกลั่นกรองฯ ไม่ต้องผ่านประธานฯ';
           } else if (hasSupportOpinion || ECMIS.isCase73(kase)) {
             /* เคสที่ผ่านคณะอนุสนับสนุนฯ มาแล้ว หรือเป็นเรื่องทั่วไป/ข้อกฎหมาย (7.3) ยังคงเข้าคิว
                ประธานฯ ตรงตามเดิม — gate คัดกรองความยุ่งยากของ กบค. (2026-09-17) ใช้เฉพาะเส้นทาง
@@ -1389,6 +1403,13 @@
             targetStatus = 'PENDING_CASE_ADMIN_SCREEN_72';
             dest = 'กลุ่มงานกิจการคณะกรรมการ (affairs)';
             path = 'สำนวนปกติ (วินิจฉัยชี้มูล): เสนอกลุ่มงานกิจการคณะกรรมการ (กจ.) คัดกรองความยุ่งยากก่อนถึงประธานฯ';
+          } else if (isRegionalCase(kase)) {
+            /* สาย 7.1 เขตพื้นที่ (ownerOrg มีคำว่า "เขต") ไม่ต้องผ่านประธานฯ — ส่งตรงกองบริหารคดี
+               เพื่อกระจายเข้าคณะอนุกลั่นกรองฯ ทันที ต่างจากกองปราบปรามการทุจริตในภาครัฐที่ยังคง
+               เข้าคิวประธานฯ ตามเดิม (ดู /grill-me 2026-09-25) */
+            targetStatus = 'IN_SCREENING';
+            dest = 'กองบริหารคดี';
+            path = 'สำนวนปกติ (เขตพื้นที่): ส่งตรงกองบริหารคดีเพื่อกระจายเข้าคณะอนุกลั่นกรองฯ ไม่ต้องผ่านประธานฯ';
           } else {
             /* สาย 7.1: 2026-09-23 ตัด gate คัดกรองความยุ่งยากออกแล้ว — เข้าคิวประธานฯ ตรงจากเลขาธิการฯ
                เหมือนก่อนมีฟีเจอร์นี้ (2026-09-17) ดู
@@ -1445,6 +1466,14 @@
               });
               ECMIS.saveCases();
             }
+            if (targetStatus === 'IN_SCREENING' && isRegionalCase(kase)) {
+              ECMIS.pushCaseHistory(kase, {
+                action: 'SIGN_NORMAL_REGIONAL',
+                status: targetStatus,
+                note: 'สำนวนเขตพื้นที่ — ส่งตรงกองบริหารคดี ไม่ต้องผ่านประธานฯ'
+              });
+              ECMIS.saveCases();
+            }
           } catch (err) {
             console.error('บันทึกสถานะไม่สำเร็จ:', err);
             ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -1454,7 +1483,7 @@
           const isCase73Item = ECMIS.isCase73(kase);
           Swal.fire({
             icon: 'success',
-            title: hasSupportOpinion ? 'ลงนามและเสนอประธานกรรมการ ป.ป.ท. เรียบร้อย' : (isCase73Item ? 'ลงนามบันทึกเสนอเรื่องเรียบร้อย' : 'บันทึกและเปลี่ยนสถานะเรียบร้อย'),
+            title: hasSupportOpinion ? (targetStatus === 'IN_SCREENING' ? 'ลงนามและส่งกองบริหารคดีเรียบร้อย' : 'ลงนามและเสนอประธานกรรมการ ป.ป.ท. เรียบร้อย') : (isCase73Item ? 'ลงนามบันทึกเสนอเรื่องเรียบร้อย' : 'บันทึกและเปลี่ยนสถานะเรียบร้อย'),
             html: `<div class="text-start">
             สำนวน <strong>${kase.id}</strong> ถูกบันทึกสถานะเป็น
             <span class="st st-done" style="font-size:0.85rem"><i class="fa-solid fa-signature me-1"></i>เลขาลงนามแล้ว</span><br>

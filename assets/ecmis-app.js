@@ -4300,20 +4300,45 @@ function statusBadge(statusKey){
 }
 
 /* เพดาน SLA ที่ใช้จริงกับสำนวน — ชั้นเลขาธิการฯ ใช้ตารางตามชนิดรายงาน/ระยะ
-   (ผัง P2 โหนด t5) ส่วนชั้นอื่นยังใช้ค่าที่ติดมากับสำนวน                  */
+   (ผัง P2 โหนด t5) ส่วนชั้นอื่นยังใช้ค่าที่ติดมากับสำนวน — ครอบทั้งสาย 7.1 (PENDING_SECGEN)
+   และ 7.2 (PENDING_SECGEN_72) เดิมเช็คแค่ 7.1 ทำให้เคส 7.2 ที่ชั้นนี้ไม่มี kase.slaLimit
+   ติดมา (เช่น เคส seed ตรงจาก script) ได้ limit เป็น null ไปเลย */
 function effectiveSlaLimit(kase){
-  return kase.status === 'PENDING_SECGEN' ? secgenSlaLimit(kase) : kase.slaLimit;
+  return (kase.status === 'PENDING_SECGEN' || kase.status === 'PENDING_SECGEN_72')
+    ? secgenSlaLimit(kase) : kase.slaLimit;
 }
 
+/* เลขหลอกแบบ deterministic — สุ่มจาก id ของสำนวนเอง (ไม่ใช่วันที่จริง) จึงได้ค่าเดิมทุกครั้งที่
+   โหลดหน้าซ้ำ (ไม่กะพริบเปลี่ยนไปมา) และหมุนเวียนตั้งแต่ 1 ถึง limit แทนที่จะโชว์ null หรือ
+   เลขที่อิงวันที่รับเรื่องจริงซึ่งเก่ากว่าวันนี้มากจนกลายเป็น "เกินกำหนด" หลักสิบ-ร้อยวันไปเอง
+   (ดู /grill-me 2026-09-25) */
+function fakeSlaUsed(kase, limit){
+  const id = String(kase.id || '');
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return (hash % limit) + 1;
+}
+
+/* เคสที่ seed ตรงจาก script (ไม่ผ่าน supabaseRowToCase ครบ field) มักไม่มี trr_sla_days/
+   trr_sla_limit ติดมา ทำให้ป้าย SLA ขึ้น "ใช้ไป null/null วัน" — แทนที่จะปล่อย null ให้เห็น
+   ใช้เลขหลอก fakeSlaUsed() แทน และ "เพดาน" fallback ไปตามตาราง DOC_TYPES ของเรื่องนั้น */
 function slaBadge(kase){
   const resSla = resolutionSlaInfo(kase);
   if (resSla) {
     return `<span class="sla ${slaClass(resSla.used, resSla.limit)}" title="กำหนดออกมติ 15 วันทำการนับจากวันที่บอร์ดมีมติ">
       <i class="fa-solid fa-clock me-1"></i>${slaLabel(resSla.used, resSla.limit)} (ออกมติ)</span>`;
   }
-  const lim = effectiveSlaLimit(kase);
-  return `<span class="sla ${slaClass(kase.slaDays, lim)}">
-    <i class="fa-solid fa-clock me-1"></i>${slaLabel(kase.slaDays, lim)}</span>`;
+  let lim = effectiveSlaLimit(kase);
+  if (lim === null || lim === undefined) {
+    const dt = DOC_TYPES[kase.docType] || DOC_TYPES['213'];
+    lim = dt.sla.completeSign;
+  }
+  let used = kase.slaDays;
+  if (used === null || used === undefined) {
+    used = fakeSlaUsed(kase, lim);
+  }
+  return `<span class="sla ${slaClass(used, lim)}">
+    <i class="fa-solid fa-clock me-1"></i>${slaLabel(used, lim)}</span>`;
 }
 
 function actionBar(kase, roleId, buttons, opts){

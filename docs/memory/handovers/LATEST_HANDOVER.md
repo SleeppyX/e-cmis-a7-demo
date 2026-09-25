@@ -5,7 +5,31 @@
 
 ---
 
-## 📌 งานล่าสุดจาก Antigravity (2026-09-25 14:10 — แก้ไขปุ่มย่อ/ขยายแผงเอกสาร #btnPaneCollapse ใน approval-review.html และหน้าจอ Workspace ทั้งระบบ)
+## 📌 งานล่าสุดจาก Antigravity (2026-09-25 14:30 — เพิ่มปุ่มขยายแผงเอกสารเต็มจอ #btnDocFullscreen ใน approval-review.html และ review.html)
+**ขอบเขตงาน:** เพิ่มปุ่มขยายเต็มจอ (Fullscreen / Maximize Document Pane) บนแถบเครื่องมือ `.ws-doc-toolbar` ในหน้า `approval-review.html?case=9311%2F2569` และ `review.html`
+1. **Design & Implementation:**
+   - เพิ่มปุ่ม `<button type="button" class="btn btn-sm btn-light border" id="btnDocFullscreen" title="ขยายเต็มจอ"><i class="fa-solid fa-expand"></i></button>` วางถัดจากปุ่มพิมพ์ และก่อนปุ่มย่อแผงเอกสาร
+   - พัฒนาฟังก์ชันกลาง `ECMIS.initDocFullscreen(opts)` ใน `assets/ecmis-app.js` และ integrate เข้ากับ `renderDocToolbar`:
+     - Toggle `.fullscreen-mode` บน `.ws-doc-pane` และ `.docpane-fullscreen-active` บน `document.body`
+     - สลับไอคอนระหว่าง `fa-expand` ↔ `fa-compress` พร้อม title "ขยายเต็มจอ" ↔ "ย่อขนาดปกติ (Esc)"
+     - รองรับการกดแป้น `Escape` เพื่อออกจากโหมดเต็มจอได้ทันที
+     - คืน callback `onToggle` ให้หน้าจอ trigger `applyZoom()` คำนวณความสูงกระดาษ A4 ได้พอดี
+   - เพิ่มสไตล์ CSS ใน `assets/a4-ecmis-workspace.css`:
+     - `.ws-doc-pane.fullscreen-mode`: `position: fixed !important; inset: 0 !important; z-index: 2050 !important; width: 100vw; height: 100vh; display: flex; flex-direction: column;`
+     - `.ws-doc-pane.fullscreen-mode .ws-paper-stage`: `flex: 1 1 0 !important; min-height: 0 !important; overflow-y: auto !important; align-items: center;`
+     - `#btnDocFullscreen.active`: ไฮไลต์สีน้ำเงินเมื่ออยู่ในโหมดเต็มจอ
+   - รัน `npm run sync` อัปเดตไปยัง `res/approval-review.html` และ `res/review.html` ครบ 100%
+2. **Verification & Delivery:**
+   - ทดสอบอัตโนมัติด้วย Playwright Chromium บนหน้า `approval-review.html?case=9311%2F2569` และ `review.html`:
+     - คลิกปุ่ม `#btnDocFullscreen`: เข้าสู่โหมด fullscreen (100vw x 100vh), ไอคอนเปลี่ยนเป็น `fa-compress`, แผงเอกสารจัดกึ่งกลางสวยงาม
+     - กดปุ่ม `Escape`: ออกจากโหมด fullscreen, ไอคอนกลับเป็น `fa-expand`, เลย์เอาต์กลับสู่สภาพปกติ 100%
+     - คลิกซ้ำ: สามารถ toggle สลับเข้า-ออกได้อย่างลื่นไหล
+   - ผ่าน 5-Layer CI `npm test` 5/5 layers 100%
+   - **สถานะ Git:** บันทึก Local Commit `9e8b407` ไว้บนเครื่องเท่านั้น (ดำเนินการย้อน `origin/main` บน GitHub กลับไปที่ commit ก่อนหน้าเรียบร้อยตามคำสั่งผู้ใช้)
+
+---
+
+## 📌 งานก่อนหน้าจาก Antigravity (2026-09-25 14:10 — แก้ไขปุ่มย่อ/ขยายแผงเอกสาร #btnPaneCollapse ใน approval-review.html และหน้าจอ Workspace ทั้งระบบ)
 **ขอบเขตงาน:** แก้ไขปัญหาปุ่มย่อแผงเอกสาร (`<button type="button" class="ws-doc-pane-toggle" id="btnPaneCollapse" title="ย่อแผงเอกสาร">`) ที่เดิมมีปุ่มอยู่แต่กดแล้วไม่สามารถเลื่อนหุบ/กางแผงเอกสารได้
 1. **Root Cause Analysis:**
    - ฟังก์ชัน `setPaneCollapsed(collapsed)` เดิมเรียกเพียง `document.body.classList.toggle('docpane-collapsed', collapsed)`

@@ -6540,6 +6540,79 @@ function initDocPaneToggle() {
   setTimeout(runToggleInit, 100);
 }
 
+/* ---------- Document Pane Fullscreen / Maximize Controller ---------- */
+function initDocFullscreen(opts = {}) {
+  if (typeof document === 'undefined') return null;
+
+  const paneEl = opts.paneEl || document.querySelector('.ws-doc-pane') || document.querySelector('.doc-pane');
+  if (!paneEl) return null;
+
+  const btnEl = opts.btnEl || paneEl.querySelector('#btnDocFullscreen') || document.getElementById('btnDocFullscreen');
+  if (!btnEl) return null;
+
+  if (btnEl.dataset.fsInited === '1') return null;
+  btnEl.dataset.fsInited = '1';
+
+  let isFullscreen = false;
+
+  function updateButtonUI(full) {
+    const icon = btnEl.querySelector('i');
+    if (icon) {
+      if (full) {
+        icon.className = 'fa-solid fa-compress';
+      } else {
+        icon.className = 'fa-solid fa-expand';
+      }
+    }
+    btnEl.title = full ? 'ย่อขนาดปกติ (Esc)' : 'ขยายเต็มจอ';
+    btnEl.classList.toggle('active', full);
+  }
+
+  function setFullscreen(enable) {
+    if (isFullscreen === enable) return;
+    isFullscreen = enable;
+
+    paneEl.classList.toggle('fullscreen-mode', isFullscreen);
+    document.body.classList.toggle('docpane-fullscreen-active', isFullscreen);
+
+    updateButtonUI(isFullscreen);
+
+    if (typeof opts.onToggle === 'function') {
+      try {
+        opts.onToggle(isFullscreen);
+      } catch (err) {
+        console.warn('initDocFullscreen onToggle error:', err);
+      }
+    }
+  }
+
+  function toggle() {
+    setFullscreen(!isFullscreen);
+  }
+
+  btnEl.addEventListener('click', (e) => {
+    e.preventDefault();
+    toggle();
+  });
+
+  const handleKeydown = (e) => {
+    if (e.key === 'Escape' && isFullscreen) {
+      setFullscreen(false);
+    }
+  };
+  window.addEventListener('keydown', handleKeydown);
+
+  return {
+    toggle,
+    setFullscreen,
+    isFullscreen: () => isFullscreen,
+    destroy: () => {
+      window.removeEventListener('keydown', handleKeydown);
+      delete btnEl.dataset.fsInited;
+    }
+  };
+}
+
 const DEFAULT_SUGGESTIONS = {
   suggestions: [
     'เห็นชอบตามความเห็นและข้อเสนอของเจ้าหน้าที่รับเรื่อง',
@@ -7081,10 +7154,11 @@ function renderDocToolbar(opts) {
       </div>`;
   }
 
-  // Right Actions: Edit, Zoom, Print, Docx, Collapse
+  // Right Actions: Edit, Zoom, Print, Docx, Fullscreen, Collapse
   const showEdit = opts.editable !== false;
   const showPdf = opts.exportPdf !== false && opts.printable !== false;
   const showDocx = opts.exportDocx !== false;
+  const showFullscreen = opts.fullscreen !== false && (!!paneEl || !!docWorkspace);
   const showCollapse = opts.collapsible !== false && (!!docWorkspace || !!paneEl);
 
   let rightHtml = '<div class="doc-toolbar-right">';
@@ -7104,6 +7178,9 @@ function renderDocToolbar(opts) {
   }
   if (showDocx) {
     rightHtml += `<button type="button" class="btn btn-sm btn-light" id="btnDocx" title="ดาวน์โหลดไฟล์ Microsoft Word (.docx)"><i class="fa-solid fa-download me-1"></i>.docx</button>`;
+  }
+  if (showFullscreen) {
+    rightHtml += `<button type="button" class="btn btn-sm btn-light border" id="btnDocFullscreen" title="ขยายเต็มจอ"><i class="fa-solid fa-expand"></i></button>`;
   }
   if (showCollapse) {
     rightHtml += `<button type="button" class="ws-doc-pane-toggle" id="btnPaneCollapse" title="ย่อแผงเอกสาร"><i class="fa-solid fa-angles-right"></i></button>`;
@@ -7223,6 +7300,21 @@ function renderDocToolbar(opts) {
     paginationInstance = initDocPagination({ stageId: stageId, defaultZoom: 0.75 });
   }
 
+  // Bind Fullscreen
+  let fullscreenInstance = null;
+  if (showFullscreen && paneEl) {
+    fullscreenInstance = initDocFullscreen({
+      paneEl: paneEl,
+      btnEl: targetEl.querySelector('#btnDocFullscreen'),
+      onToggle: (full) => {
+        if (typeof opts.onFullscreenToggle === 'function') opts.onFullscreenToggle(full);
+        if (paginationInstance && typeof paginationInstance.applyZoom === 'function') {
+          paginationInstance.applyZoom();
+        }
+      }
+    });
+  }
+
   // Initialize Doc Editor
   let editorInstance = null;
   if (showEdit && stageEl) {
@@ -7236,7 +7328,8 @@ function renderDocToolbar(opts) {
   return {
     element: targetEl,
     editor: editorInstance,
-    pagination: paginationInstance
+    pagination: paginationInstance,
+    fullscreen: fullscreenInstance
   };
 }
 
@@ -7633,7 +7726,7 @@ if (typeof localStorage !== 'undefined') {
   initAutoSave, initCharCounterAndCopy,
 
   initAuditTrail, initChecklistGatekeeper, initBulkActions, initDragDropUpload,
-  initDocPaneToggle, initRichTextBox, initDocEditor, renderDocToolbar, renderBackButton,
+  initDocPaneToggle, initDocFullscreen, initRichTextBox, initDocEditor, renderDocToolbar, renderBackButton,
   initDocPagination, updateDocPaginationUI,
 
   getSuggestionsData, saveSuggestionsData, openSuggestionsModal, initWritingSuggestions

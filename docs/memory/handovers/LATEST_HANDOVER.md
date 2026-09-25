@@ -1,11 +1,29 @@
 # 🤝 Latest AI Session Handover & State Sync
 
 > **ไฟล์ส่งต่องานล่าสุดระหว่าง Antigravity (Gemini) และ Claude Code**  
-> ปรับปรุงล่าสุด: 2026-09-12 (Antigravity)
+> ปรับปรุงล่าสุด: 2026-09-25 (Antigravity)
 
 ---
 
-## 📌 งานล่าสุดจาก Antigravity (2026-09-12 14:06 — DrawDB ERD & Mockup Export 21 Tables Supabase Live)
+## 📌 งานล่าสุดจาก Antigravity (2026-09-25 14:10 — แก้ไขปุ่มย่อ/ขยายแผงเอกสาร #btnPaneCollapse ใน approval-review.html และหน้าจอ Workspace ทั้งระบบ)
+**ขอบเขตงาน:** แก้ไขปัญหาปุ่มย่อแผงเอกสาร (`<button type="button" class="ws-doc-pane-toggle" id="btnPaneCollapse" title="ย่อแผงเอกสาร">`) ที่เดิมมีปุ่มอยู่แต่กดแล้วไม่สามารถเลื่อนหุบ/กางแผงเอกสารได้
+1. **Root Cause Analysis:**
+   - ฟังก์ชัน `setPaneCollapsed(collapsed)` เดิมเรียกเพียง `document.body.classList.toggle('docpane-collapsed', collapsed)`
+   - แต่ CSS ใน `assets/a4-ecmis-workspace.css` อิงคลาส `.document-workspace.pane-collapsed` ทำให้ไม่เกิดผลต่อ Layout และไม่มี CSS rule รองรับ `body.docpane-collapsed`
+2. **Implementation:**
+   - เพิ่ม selector `body.docpane-collapsed` ควบคู่กับ `.document-workspace.pane-collapsed` ใน `assets/a4-ecmis-workspace.css` (สลับ `grid-template-columns: minmax(0, 1fr) 44px`, ซ่อน toolbar และ stage, แสดงผล `.ws-doc-pane-rail` แนวตั้ง)
+   - ปรับปรุงฟังก์ชัน `setPaneCollapsed` ใน `approval-review.html`, `review.html`, `board-resolution.html`, `resolution.html`, `resolution-72.html`, `order.html`, และ `order-m24.html` ให้ toggle ทั้งสองคลาสควบคู่กัน
+   - รัน `npm run sync` เพื่อ mirror ทุกการเปลี่ยนแปลงลงโฟลเดอร์ `/res/` 100%
+3. **Verification & Delivery:**
+   - ทดสอบ E2E อัตโนมัติด้วย Playwright Chromium บนทั้งเส้นทาง `/approval-review` และ `/res/approval-review.html`:
+     - ย่อ: `#btnPaneCollapse` คลิกแล้วแผงหุบเหลือ `44px` และแผงซ้ายขยายเต็มหน้าจอ พร้อมปุ่มขยาย (`#btnPaneExpand`) แสดงขึ้นมา
+     - กาง: `#btnPaneExpand` คลิกแล้วแผงเอกสารขยายกลับมาแสดงเต็มขนาด `minmax(0, 1fr)` 2 คอลัมน์สมบูรณ์
+   - ผ่าน 5-Layer CI `npm test` 5/5 layers 100%
+   - บันทึก Commit `efe744e` และ Push ขึ้น `origin/main` เรียบร้อย (Vercel deploy อัตโนมัติ)
+
+---
+
+## 📌 งานก่อนหน้าจาก Antigravity (2026-09-12 14:06 — DrawDB ERD & Mockup Export 21 Tables Supabase Live)
 **ขอบเขตงาน:** สร้างไฟล์ DrawDB ERD Diagram JSON อิงตามสเปก `8.1_V1.1 (1).json` และ Export ข้อมูล Mockup จาก Supabase ครบทั้ง 21 ตาราง (ตรงกับฐานข้อมูลจริง 100%)
 1. **DrawDB ERD Diagram (`7_V1.1.json`):** 
    - ปรับปรุงสคริปต์ `scripts/generate-drawdb-erd.js` และคำสั่ง `"export:erd"`

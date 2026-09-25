@@ -276,6 +276,21 @@ function isAffairsQueueCase(c) {
   return true;
 }
 
+/* "จัดทำแล้ว" — ทุกสถานะปลายทางที่ affairs ส่งต่อออกจากมือตัวเองไปแล้ว (นับตามสถานะปัจจุบัน
+   ตรงๆ เหมือน isChairDone ด้านบน ไม่ได้ตรวจ history — ยอมรับการประมาณนี้ตามที่ตกลงกันใน
+   /grill-me 2026-09-25) ครอบคลุมปลายทางจาก TRANSITIONS ที่ actor:'affairs' ส่งออกไป
+   (IN_SCREENING_72, PENDING_CHAIRMAN_ASSIGN_72, PENDING_SIGN_RULING_72, CLOSED_72) บวก
+   PENDING_SIGN_ORDER_SECGEN/PENDING_SIGN_ORDER_CHAIRMAN ที่ order.html ตั้งตรงเมื่อ affairs
+   จัดทำคำสั่ง ม.24 เสร็จแล้วส่งไปให้ลงนาม (ไม่ผ่าน TRANSITIONS array) — ไม่รวม AGENDA_SET
+   แม้จะมี TRANSITIONS actor:'affairs' ไปลงที่นั่นด้วย (REAGENDA/REVISE_RESOLUTION) เพราะ
+   AGENDA_SET ถูกใช้ร่วมกับเส้นทางอื่นที่ไม่ใช่ affairs เป็นส่วนใหญ่ (chairman/board_sec)
+   นับตรงๆ จะปนเคสที่ไม่เกี่ยวกับ affairs เข้ามาเยอะเกินไป */
+function isAffairsDone(c) {
+  return c.status === 'IN_SCREENING_72' || c.status === 'PENDING_CHAIRMAN_ASSIGN_72' ||
+         c.status === 'PENDING_SIGN_RULING_72' || c.status === 'CLOSED_72' ||
+         c.status === 'PENDING_SIGN_ORDER_SECGEN' || c.status === 'PENDING_SIGN_ORDER_CHAIRMAN';
+}
+
 let CASES, all, mine;
 
 function inboxFor(roleId) {
@@ -432,6 +447,7 @@ if(ECMIS.isUpstreamRole(role.id)){
       <option value="RESOLVED">รอจัดทำคำสั่ง</option>
       <option value="RESOLVED_PENDING_72">รอจัดทำรายงานชี้มูล / หนังสือลงโทษทางวินัย</option>
       <option value="PENDING_DISPATCH_GUILTY_72">รอส่งดำเนินคดี</option>
+      <option value="AFFAIRS_DONE">จัดทำแล้ว</option>
     `;
   }
 } else if (role.id === 'dir_case') {
@@ -514,17 +530,20 @@ function renderKPICards() {
   if (role.id === 'affairs') {
     const orderCount     = allCasesCombined.filter(c => c.status === 'RESOLVED').length;
     const rulingCount    = allCasesCombined.filter(c => c.status === 'RESOLVED_PENDING_72').length;
-    const dispatchCount  = allCasesCombined.filter(c => c.status === 'PENDING_DISPATCH_GUILTY_72').length;
     /* gate คัดกรองความยุ่งยากก่อนถึงประธานฯ (ย้ายมาเป็นของ affairs เมื่อ 2026-09-17 แก้ไข) —
        รวม 7.1/7.2 เข้าการ์ดเดียว เหมือน pattern "PENDING_NORMAL" ของ chairman ด้านบน */
     const screenComplexityCount = allCasesCombined.filter(c => ECMIS.isAffairsComplexityQueue(c)).length;
+    const doneCount = allCasesCombined.filter(c => isAffairsDone(c)).length;
 
+    /* "รอส่งดำเนินคดี" (PENDING_DISPATCH_GUILTY_72) เป็นงานจริงของ affairs (ส่งสำนวนชี้มูลไป
+       ดำเนินคดี) แต่ตัดการ์ดนับแยกออกตาม /grill-me 2026-09-25 — คงไว้ใน dropdown filter
+       ด้านล่างเพื่อยังกรองดูได้ เคสยังนับรวมอยู่ใน "รายการทั้งหมด" เหมือนเดิม */
     const kpis = [
       { id:'ALL', n: allCasesCombined.length, l:'รายการทั้งหมด', i:'fa-folder-open', c:'#0F2A62' },
       { id:'SCREEN_COMPLEXITY', n: screenComplexityCount, l:'รอคัดกรองความยุ่งยาก', i:'fa-scale-unbalanced', c:'#7E22CE' },
       { id:'RESOLVED', n: orderCount, l:'รอจัดทำคำสั่ง', i:'fa-file-signature', c:'#DB2626' },
       { id:'RESOLVED_PENDING_72', n: rulingCount, l:'รอจัดทำรายงานชี้มูล / หนังสือลงโทษทางวินัย', i:'fa-file-pen', c:'#D0A830' },
-      { id:'PENDING_DISPATCH_GUILTY_72', n: dispatchCount, l:'รอส่งดำเนินคดี', i:'fa-paper-plane', c:'#0284C7' }
+      { id:'AFFAIRS_DONE', n: doneCount, l:'จัดทำแล้ว', i:'fa-circle-check', c:'#16A34A' }
     ];
 
     document.getElementById('kpiRow').innerHTML = kpis.map(k => {
@@ -699,6 +718,9 @@ function getAffairsActionBadge(c) {
   }
   if (c.status === 'PENDING_DISPATCH_GUILTY_72') {
     return `<span class="meet-badge meet-review"><i class="fa-solid fa-paper-plane me-1"></i>รอส่งดำเนินคดี</span>`;
+  }
+  if (isAffairsDone(c)) {
+    return `<span class="meet-badge" style="background:#DCFCE7;color:#166534"><i class="fa-solid fa-circle-check me-1"></i>จัดทำแล้ว</span>`;
   }
   return ECMIS.statusBadge(c.status);
 }
@@ -973,6 +995,7 @@ function applyFilters() {
     } else if (role.id === 'affairs') {
       if (st !== 'ALL') {
         if (st === 'SCREEN_COMPLEXITY') matchSt = ECMIS.isAffairsComplexityQueue(c);
+        else if (st === 'AFFAIRS_DONE') matchSt = isAffairsDone(c);
         else matchSt = (c.status === st);
       }
     } else if (role.id === 'dir_case') {
@@ -1026,7 +1049,7 @@ function computeQueues() {
      เหมือนหลักการเดียวกับ secgen ด้านล่าง (secgen เองก็รวมเคสที่ลงนามแล้วไว้ใน all เช่นกัน —
      ดู /grill-me 2026-09-24) */
   all = role.id === 'affairs'
-    ? CASES.filter(c => isAffairsQueueCase(c) && ECMIS.canViewCase(c, role.id))
+    ? CASES.filter(c => (isAffairsQueueCase(c) || isAffairsDone(c)) && ECMIS.canViewCase(c, role.id))
     : role.id === 'secgen'
       ? CASES.filter(c => ECMIS.canViewCase(c, role.id) && routesToApprovalReview(c) && !UPSTREAM_STATUSES.includes(c.status))
       : role.id === 'chairman'

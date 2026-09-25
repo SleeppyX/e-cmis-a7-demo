@@ -560,13 +560,24 @@
                     title: 'ส่งหนังสือเชิญประชุมและเปิดวาระ',
                     html: `<p>สำนวน <strong>${kase.id}</strong> — เอกสารประกอบวาระครบถ้วนแล้ว</p>`,
                     confirmText: 'ยืนยันส่งหนังสือเชิญประชุม'
-                }).then(res => {
+                }).then(async res => {
                     if (!res.isConfirmed) return;
+                    /* เดิมเขียนแค่ ECMIS.Model.CaseStore (mock ใน memory) ทำให้ trr_status จริงใน
+                       Supabase ไม่ขยับ — สำนวนค้างที่ PENDING_INVITE_72 ตลอด ทั้งที่หน้าจอบอกว่า
+                       เปิดวาระแล้ว (พบจาก /grill-me 2026-09-25) แก้ให้เขียนผ่าน persistCase() เหมือน
+                       initAgenda71() ด้านบน — inviteChecklist72/inviteStatus72/inviteSentDate72 เป็น
+                       field แสดงผลเฉพาะหน้านี้ ไม่มีคอลัมน์ปลายทางใน Supabase จึงยังคง mock ไว้เหมือนเดิม */
+                    try {
+                        await persistCase(kase, { status: 'IN_MEETING_72' });
+                    } catch (err) {
+                        console.error('เปิดวาระไม่สำเร็จ:', err);
+                        ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+                        return;
+                    }
                     ECMIS.Model.CaseStore.update(kase.id, {
                         inviteChecklist72: CHECKLIST.slice(),
                         inviteStatus72: inviteStatus,
-                        inviteSentDate72: new Date().toISOString().slice(0, 10),
-                        status: 'IN_MEETING_72'
+                        inviteSentDate72: new Date().toISOString().slice(0, 10)
                     });
                     ECMIS.toastOk('ส่งหนังสือเชิญประชุมและเปิดวาระเรียบร้อย');
                     setTimeout(() => location.href = ECMIS.pageForCase72(kase) + '?case=' + encodeURIComponent(kase.id), 1400);

@@ -481,9 +481,13 @@
            <div class="val-msg val-err" data-for="urgentReason">กรุณาระบุเหตุผลความเร่งด่วนก่อนรับรอง</div>`
         : `${caseSummary}
            <label class="form-label">เหตุผลความเร่งด่วนที่ ${dirCase.title} รับรองไว้แล้ว</label>
-           <textarea class="form-control" rows="5" readonly>${kase.urgentReason || ''}</textarea>
+           <textarea class="form-control mb-3" rows="4" readonly>${kase.urgentReason || ''}</textarea>
+           <label class="form-label field-req">ความเห็นของเลขาธิการฯ</label>
+           <textarea class="form-control" id="secgenUrgentOpinion" rows="4"
+             placeholder="ระบุความเห็นของเลขาธิการฯ ประกอบการยืนยันวาระด่วนก่อนส่งประธานฯ">${kase.secgenUrgentOpinion || ''}</textarea>
+           <div class="val-msg val-err" data-for="secgenUrgentOpinion">กรุณาระบุความเห็นก่อนยืนยัน</div>
            <div class="alert alert-success py-2 px-3 mt-2 mb-0" style="font-size:.82rem">
-             <i class="fa-solid fa-circle-check me-1"></i>${dirCase.title} รับรองเหตุผลเร่งด่วนแล้ว — กรุณายืนยันอีกครั้งก่อนส่งเข้าคิวประธานฯ
+             <i class="fa-solid fa-circle-check me-1"></i>${dirCase.title} รับรองเหตุผลเร่งด่วนแล้ว — กรุณาระบุความเห็นแล้วยืนยันอีกครั้งก่อนส่งเข้าคิวประธานฯ
            </div>`;
 
       document.getElementById('docLeftCol').innerHTML = `
@@ -553,10 +557,14 @@
           }).then(async res => {
             if (!res.isConfirmed) return;
             try {
+              /* urgentReason ต้องห่อใน resolutionData เพื่อให้ persistCase() merge เข้า
+                 trr_resolution_data จริง — ส่งเป็น top-level key เฉยๆ ไม่ถูก special-case
+                 เลย ทำให้เหตุผลของ ผอ.กบค. หายไปจาก Supabase (พบจาก /grill-me 2026-09-25) */
               await persistCase(kase, {
                 urgentReason: ta.value.trim(),
                 urgentCertified: true,
-                status: 'PENDING_SECGEN_URGENT_CONFIRM'
+                status: 'PENDING_SECGEN_URGENT_CONFIRM',
+                resolutionData: { urgentReason: ta.value.trim(), urgentCertified: true }
               });
               ECMIS.pushCaseHistory(kase, {
                 action: 'URGENT_CERTIFY',
@@ -601,6 +609,14 @@
         }
 
         if (act === 'confirm') {
+          const opEl = document.getElementById('secgenUrgentOpinion');
+          if (!opEl || !opEl.value.trim()) {
+            opEl?.classList.add('is-invalid-ecmis');
+            document.querySelector('.val-msg[data-for="secgenUrgentOpinion"]')?.classList.add('show');
+            ECMIS.toastWarn('กรุณาระบุความเห็นก่อนยืนยัน');
+            return;
+          }
+          const secgenOp = opEl.value.trim();
           ECMIS.confirmAction({
             title: 'ยืนยันเสนอวาระด่วนต่อประธานฯ',
             html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งเข้าคิวประธานฯ เพื่อพิจารณาสั่งบรรจุวาระด่วนต่อไป</p>`,
@@ -608,10 +624,15 @@
           }).then(async res => {
             if (!res.isConfirmed) return;
             try {
-              await persistCase(kase, { status: 'PENDING_CHAIRMAN' });
+              await persistCase(kase, {
+                status: 'PENDING_CHAIRMAN',
+                secgenUrgentOpinion: secgenOp,
+                resolutionData: { secgenUrgentOpinion: secgenOp }
+              });
               ECMIS.pushCaseHistory(kase, {
                 action: 'URGENT_CONFIRM',
-                status: 'PENDING_CHAIRMAN'
+                status: 'PENDING_CHAIRMAN',
+                secgenUrgentOpinion: secgenOp
               });
               ECMIS.saveCases();
             } catch (err) {
@@ -829,10 +850,10 @@
               const noEl = document.getElementById('urgentNo72');
               const yesEl = document.getElementById('urgentYes72');
               if (noEl && yesEl) { yesEl.checked = false; noEl.checked = true; }
+              /* เลขาฯ เลือก "เร่งด่วน" ได้เลยไม่ต้องกรอกเหตุผล ณ ขั้นนี้อีกต่อไป — ผอ.กบค. เป็นคน
+                 เขียนเหตุผลจริงตอนรับรองที่ initUrgentGateScreen()/urgent-agenda.html แทน (ดู
+                 /grill-me 2026-09-25) จึงไม่ผูก listener เปิดกล่องนี้อีก คงซ่อนไว้เสมอ */
               document.getElementById('urgentReasonBox72')?.classList.add('d-none');
-              document.querySelectorAll('[name="urgent72toggle"]').forEach(r => r.addEventListener('change', () => {
-                document.getElementById('urgentReasonBox72')?.classList.toggle('d-none', !urgentYes());
-              }));
             }
           }
           /* แจ้งเตือน "ต้องแนบไฟล์ก่อนลงนาม" เดิมใช้คู่กับการบังคับอัปโหลดไฟล์จริง — ตอนนี้เคสด่วนที่
@@ -1457,20 +1478,15 @@
             ECMIS.toastWarn('สำนวนนี้เป็นกรณีเร่งด่วน — กรุณาแนบไฟล์ใบด่วนก่อนบันทึก/ลงนาม');
             return;
           }
-          const urgentReasonEl = document.getElementById('urgentReason72');
-          if (!kase.urgent && urgentYes() && (!urgentReasonEl || !urgentReasonEl.value.trim())) {
-            ECMIS.toastWarn('กรุณาระบุเหตุผลที่ถือเป็นกรณีเร่งด่วน');
-            return;
-          }
-
           try {
             const secOp = document.getElementById('myOpinion')?.value.trim() || '';
             const urgentNow = kase.urgent || urgentYes();
-            /* เคสที่ตั้งต้นเป็นด่วนมาแล้ว (kase.urgent) ยังไม่มีใครเขียนเหตุผลจริง ณ จุดนี้ — ผอ.กบค.
-               จะเป็นคนเขียนทีหลังที่ urgent-agenda.html เอง อย่าเขียน '' ทับ resolutionData.urgentReason
+            /* เลขาฯ ไม่ต้องกรอกเหตุผลเร่งด่วนที่ขั้นนี้อีกต่อไปไม่ว่าเคสจะตั้งต้นเป็นด่วนมาแล้วหรือ
+               เพิ่งเลือกด่วนเอง (ดู /grill-me 2026-09-25) — ผอ.กบค. เป็นคนเขียนเหตุผลจริงตอนรับรอง
+               ที่ initUrgentGateScreen()/urgent-agenda.html แทน อย่าเขียน '' ทับ resolutionData.urgentReason
                ตอนนี้ ไม่งั้นจะกลายเป็นค่า placeholder ถาวรที่ทำให้กล่องข้อความว่างตลอด (พบจาก
-               /grill-me 2026-09-24) — ส่งค่าไปแค่ตอนสาย 7.2 ที่เลขาฯ กรอกเหตุผลเองในหน้านี้เท่านั้น */
-            const urgentReasonNow = kase.urgent ? kase.urgentReason : (urgentNow ? urgentReasonEl.value.trim() : '');
+               /grill-me 2026-09-24) */
+            const urgentReasonNow = kase.urgent ? kase.urgentReason : '';
             const resolutionData = {
               secgenOpinion: secOp,
               secgenSignedAt: new Date().toISOString(),

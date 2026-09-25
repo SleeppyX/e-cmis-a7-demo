@@ -146,7 +146,7 @@
         const code = ECMIS.STATUS_CODE[patch.status];
         if (code) dbPatch.trr_status = code;
       }
-      const RES_KEYS = ['urgentReason', 'urgentCertified', 'urgentCertifiedDate72', 'urgentConfirmedDate72', 'agendaUrgentSignedDate72'];
+      const RES_KEYS = ['urgentReason', 'urgentCertified', 'urgentCertifiedDate72', 'urgentConfirmedDate72', 'agendaUrgentSignedDate72', 'secgenUrgentOpinion72'];
       const extraRes = {};
       RES_KEYS.forEach(k => { if (k in patch) extraRes[k] = patch[k]; });
       if (Object.keys(extraRes).length) {
@@ -231,10 +231,14 @@
         document.getElementById('stepCardBody').innerHTML = `
       ${deadlineChips()}
       <label class="form-label">เหตุผลความเร่งด่วนที่ ${dirCase.title} รับรองไว้แล้ว</label>
-      <textarea class="form-control" rows="5" readonly>${kase.urgentReason || ''}</textarea>
+      <textarea class="form-control mb-3" rows="4" readonly>${kase.urgentReason || ''}</textarea>
+      <label class="form-label field-req">ความเห็นของเลขาธิการฯ</label>
+      <textarea class="form-control" id="secgenUrgentOpinion72" rows="4"
+        placeholder="ระบุความเห็นของเลขาธิการฯ ประกอบการยืนยันวาระด่วนก่อนส่งประธานฯ">${kase.secgenUrgentOpinion72 || ''}</textarea>
+      <div class="val-msg val-err" data-for="secgenUrgentOpinion72">กรุณาระบุความเห็นก่อนยืนยัน</div>
       <div class="alert alert-success py-2 px-3 mt-2 mb-0" style="font-size:.82rem">
         <i class="fa-solid fa-circle-check me-1"></i>${dirCase.name} — ${dirCase.title} รับรองเหตุผลเร่งด่วนแล้วเมื่อ ${ECMIS.thaiDate ? ECMIS.thaiDate(kase.urgentCertifiedDate72) : (kase.urgentCertifiedDate72 || '-')}
-        — กรุณายืนยันอีกครั้งก่อนส่งเข้าคิวประธานฯ
+        — กรุณาระบุความเห็นแล้วยืนยันอีกครั้งก่อนส่งเข้าคิวประธานฯ
       </div>`;
       } else if (isSignStep) {
         document.getElementById('stepCardTitle').textContent = 'ลงนามมอบหมาย/บรรจุวาระด่วน (ประธานฯ)';
@@ -419,6 +423,14 @@
       }
 
       if (act === 'confirm') {
+        const opEl = document.getElementById('secgenUrgentOpinion72');
+        if (!opEl || !opEl.value.trim()) {
+          opEl?.classList.add('is-invalid-ecmis');
+          document.querySelector('.val-msg[data-for="secgenUrgentOpinion72"]')?.classList.add('show');
+          ECMIS.toastWarn('กรุณาระบุความเห็นก่อนยืนยัน');
+          return;
+        }
+        const secgenOp = opEl.value.trim();
         ECMIS.confirmAction({
           title: 'ยืนยันเสนอวาระด่วนต่อประธานฯ',
           html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งเข้าคิวประธานฯ เพื่อพิจารณาบรรจุวาระด่วนต่อไป</p>`,
@@ -426,10 +438,15 @@
         }).then(async res => {
           if (!res.isConfirmed) return;
           try {
-            await persistCase(kase, { status: 'PENDING_CHAIRMAN_URGENT_72', urgentConfirmedDate72: new Date().toISOString().slice(0, 10) });
+            await persistCase(kase, {
+              status: 'PENDING_CHAIRMAN_URGENT_72',
+              urgentConfirmedDate72: new Date().toISOString().slice(0, 10),
+              secgenUrgentOpinion72: secgenOp
+            });
             ECMIS.pushCaseHistory(kase, {
               action: 'URGENT_CONFIRM_72',
-              status: 'PENDING_CHAIRMAN_URGENT_72'
+              status: 'PENDING_CHAIRMAN_URGENT_72',
+              secgenUrgentOpinion72: secgenOp
             });
             ECMIS.saveCases();
           } catch (err) {

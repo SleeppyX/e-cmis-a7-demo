@@ -1458,6 +1458,9 @@
       onToggle: () => applyZoom()
     });
 
+    // Collapsible left-column cards (prototype — ดู /grill-me 2026-09-27)
+    ECMIS.initCardCollapse('#formCol', 'ecmis-board-resolution');
+
     ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: mayEdit });
 
     applyMode(); toggleBoxes(); renderOutcome(); renderDoc();

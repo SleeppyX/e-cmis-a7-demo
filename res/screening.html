@@ -34,7 +34,7 @@
         </div>
 
         <div class="document-workspace" id="docWorkspace">
-            <div>
+            <div id="docLeftCol">
 
                 <div class="ws-card mb-3" id="assignRoutingCard">
                     <div class="card-header"><i class="fa-solid fa-shuffle"></i> การกระจายสำนวนเข้าคณะ (Auto Routing)</div>
@@ -977,6 +977,9 @@
             btnEl: document.getElementById('btnDocFullscreen'),
             onToggle: () => applyZoom()
         });
+
+        // Collapsible left-column cards (prototype — ดู /grill-me 2026-09-27)
+        ECMIS.initCardCollapse('#docLeftCol', 'ecmis-screening');
 
         /* ---------- Master Toolbar & Pagination Controls ---------- */
         function updatePaginationUI() {

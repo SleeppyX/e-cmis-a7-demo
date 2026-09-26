@@ -62,7 +62,7 @@
 
         <div class="document-workspace" id="docWorkspace">
             <!-- Left Column: Signing Desk & Case Context -->
-            <div>
+            <div id="docLeftCol">
 
                 <!-- Card 2: Case Summary -->
                 <div class="ws-card mb-3">
@@ -635,6 +635,9 @@
             btnEl: document.getElementById('btnDocFullscreen'),
             onToggle: () => applyZoom()
         });
+
+        // Collapsible left-column cards (prototype — ดู /grill-me 2026-09-27)
+        ECMIS.initCardCollapse('#docLeftCol', 'ecmis-chairman');
 
         /* ---------- Master Toolbar & Pagination Controls ---------- */
         let docViewMode = 'SINGLE';

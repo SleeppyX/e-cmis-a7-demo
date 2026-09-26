@@ -36,7 +36,7 @@
 
     <div class="document-workspace" id="docWorkspace">
       <!-- Left Form & Inputs -->
-      <div>
+      <div id="docLeftCol">
 
         <!-- Card 1: Chain of Opinions (Identical to approval-review.html) -->
         <div class="ws-card mb-3">
@@ -1131,6 +1131,9 @@
       btnEl: document.getElementById('btnDocFullscreen'),
       onToggle: () => applyZoom()
     });
+
+    // Collapsible left-column cards (prototype — ดู /grill-me 2026-09-27)
+    ECMIS.initCardCollapse('#docLeftCol', 'ecmis-support-subcommittee');
 
     const mayEdit = ECMIS.canEditMaster(role.id) || ['support_sub', 'sup_chair', 'sup_sec', 'sup_asst', 'secgen', 'affairs'].includes(role.id);
     ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: mayEdit });

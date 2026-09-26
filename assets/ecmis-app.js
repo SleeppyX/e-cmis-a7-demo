@@ -6638,6 +6638,49 @@ function initDocFullscreen(opts = {}) {
   };
 }
 
+/* ---------- Collapsible left-column cards (.ws-card > .card-header) ---------- */
+function initCardCollapse(rootSelector, storageKeyPrefix) {
+  if (typeof document === 'undefined') return null;
+
+  const root = typeof rootSelector === 'string' ? document.querySelector(rootSelector) : rootSelector;
+  if (!root) return null;
+
+  const prefix = storageKeyPrefix || 'ecmis-card';
+  const cards = root.querySelectorAll('.ws-card');
+  const instances = [];
+
+  cards.forEach((card) => {
+    // ข้ามการ์ดที่ไม่มีหัว (เช่น stepper card ที่มีแค่ .card-body) — ไม่มีจุดให้คลิกย่อ
+    const header = card.querySelector(':scope > .card-header');
+    if (!header || header.dataset.collapseInited === '1') return;
+    header.dataset.collapseInited = '1';
+    header.classList.add('card-collapsible');
+
+    // ใช้ข้อความหัวการ์ดเป็น key แทน index เพื่อกันปัญหา key เพี้ยนตอนการ์ดถูกสร้าง/ลบ
+    // แบบไดนามิกตามข้อมูลเคส (เช่นกลุ่มเอกสารที่ generate ตาม state) ทำให้ลำดับขยับ
+    const label = header.textContent.replace(/\s+/g, ' ').trim();
+    const key = `${prefix}::${label}`;
+
+    const setCollapsed = (collapsed) => {
+      card.classList.toggle('card-collapsed', collapsed);
+      try { localStorage.setItem(key, collapsed ? '1' : '0'); } catch (e) { }
+    };
+
+    try { if (localStorage.getItem(key) === '1') setCollapsed(true); } catch (e) { }
+
+    header.addEventListener('click', (e) => {
+      // การ์ดบางใบฝังปุ่ม action ไว้ในหัวการ์ดเอง (เช่น "เพิ่มรายชื่อ") ห้ามให้คลิกปุ่มนั้น
+      // แล้วไปสั่งย่อ/ขยายการ์ดโดยไม่ตั้งใจ
+      if (e.target.closest('button, a, input, select, textarea')) return;
+      setCollapsed(!card.classList.contains('card-collapsed'));
+    });
+
+    instances.push({ card, header, setCollapsed });
+  });
+
+  return instances;
+}
+
 const DEFAULT_SUGGESTIONS = {
   suggestions: [
     'เห็นชอบตามความเห็นและข้อเสนอของเจ้าหน้าที่รับเรื่อง',
@@ -7751,7 +7794,7 @@ if (typeof localStorage !== 'undefined') {
   initAutoSave, initCharCounterAndCopy,
 
   initAuditTrail, initChecklistGatekeeper, initBulkActions, initDragDropUpload,
-  initDocPaneToggle, initDocFullscreen, initRichTextBox, initDocEditor, renderDocToolbar, renderBackButton,
+  initDocPaneToggle, initDocFullscreen, initCardCollapse, initRichTextBox, initDocEditor, renderDocToolbar, renderBackButton,
   initDocPagination, updateDocPaginationUI,
 
   getSuggestionsData, saveSuggestionsData, openSuggestionsModal, initWritingSuggestions

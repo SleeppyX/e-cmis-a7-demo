@@ -36,7 +36,7 @@
     <div id="editGate"></div>
 
     <div class="document-workspace" id="docWorkspace">
-      <div>
+      <div id="docLeftCol">
 
         <div class="ws-card mb-3">
           <div class="card-header"><i class="fa-solid fa-users-rectangle"></i> องค์ประชุมและการลงคะแนน (ม.12 / ม.15 /
@@ -1062,6 +1062,9 @@
       btnEl: document.getElementById('btnDocFullscreen'),
       onToggle: () => applyZoom()
     });
+
+    // Collapsible left-column cards (prototype — ดู /grill-me 2026-09-27)
+    ECMIS.initCardCollapse('#docLeftCol', 'ecmis-board-resolution-72');
 
     ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: mayEdit });
 

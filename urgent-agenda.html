@@ -34,7 +34,7 @@
     </div>
 
     <div class="document-workspace" id="docWorkspace">
-      <div>
+      <div id="docLeftCol">
         <div class="ws-card mb-3">
           <div class="card-header" id="stepCardHeader"><i class="fa-solid fa-bolt"></i> <span id="stepCardTitle"></span></div>
           <div class="card-body" id="stepCardBody"></div>
@@ -331,6 +331,9 @@
       btnEl: document.getElementById('btnDocFullscreen'),
       onToggle: () => applyZoom()
     });
+
+    // Collapsible left-column cards (prototype — ดู /grill-me 2026-09-27)
+    ECMIS.initCardCollapse('#docLeftCol', 'ecmis-urgent-agenda');
 
     renderStepCard();
     renderDoc();

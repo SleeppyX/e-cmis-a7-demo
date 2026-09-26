@@ -27,6 +27,19 @@
             max-width: 100% !important;
         }
 
+        /* หน้านี้ประกาศ grid-template-columns/.ws-doc-pane ด้วย !important ของตัวเอง
+           จึงต้องเพิ่ม override เฉพาะสถานะ .pane-collapsed ทับอีกชั้น ไม่งั้นปุ่มย่อ
+           แผงเอกสาร (btnPaneCollapse) จะซ่อนแค่เนื้อหาแต่คอลัมน์ไม่ยุบ เหลือช่องว่าง */
+        .document-workspace.pane-collapsed {
+            grid-template-columns: minmax(0, 1fr) 44px !important;
+            gap: .5rem !important;
+        }
+
+        .document-workspace.pane-collapsed .ws-doc-pane {
+            width: 44px !important;
+            max-width: 44px !important;
+        }
+
         .doc-paper.a4-paper {
             max-width: 100% !important;
             font-family: 'TH Sarabun IT9', 'Sarabun', serif !important;

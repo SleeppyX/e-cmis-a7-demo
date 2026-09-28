@@ -119,17 +119,17 @@
                 </div>
                 <div class="form-check">
                   <input class="form-check-input" type="radio" name="g1" id="g1yes" value="yes">
-                  <label class="form-check-label" for="g1yes">ซับซ้อน — ส่งคณะอนุกรรมการสนับสนุนเลขาธิการฯ</label>
+                  <label class="form-check-label" for="g1yes">ซับซ้อน — ส่ง ผอ.กบค. ออกเลขทะเบียนคุม / มอบหมายคณะอนุสนับสนุนฯ</label>
                 </div>
               </div>
 
-              <div id="supportSubSelectBox" class="mt-2 mb-2 d-none">
-                <label class="form-label field-req">คณะอนุกรรมการสนับสนุนเลขาธิการฯ</label>
-                <select class="form-select" id="supportSubSelect">
-                  <option value="">— เลือกคณะอนุกรรมการสนับสนุนฯ —</option>
-                  <option value="คณะที่ 1">คณะที่ 1 (กลุ่มงานสนับสนุนฯ 1)</option>
-                  <option value="คณะที่ 2">คณะที่ 2 (กลุ่มงานสนับสนุนฯ 2)</option>
-                </select>
+              <!-- 2026-09-28: เลขาฯ ไม่เลือกคณะอนุสนับสนุนเองแล้ว (ผอ.กบค. เป็นผู้มอบหมาย) — กรอกเหตุผล
+                   ความซับซ้อนแทน ใช้เป็นเนื้อหาใบบันทึกซับซ้อนถึง ผอ.กบค. -->
+              <div id="complexReasonBox" class="mt-2 mb-2 d-none">
+                <label class="form-label field-req" for="complexReason">เหตุผลที่เห็นว่าเป็นเรื่องยุ่งยากซับซ้อน
+                  <small class="text-muted fw-normal">(ใช้ในใบบันทึกซับซ้อนถึง ผอ.กบค.)</small></label>
+                <textarea class="form-control" id="complexReason" rows="3"
+                  placeholder="เช่น มีผู้ถูกกล่าวหาหลายราย พยานหลักฐานจำนวนมาก ประเด็นข้อกฎหมายซับซ้อน..."></textarea>
               </div>
               <hr>
             </div>
@@ -811,7 +811,7 @@
 
           resBody.innerHTML = `
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <div><strong>คณะผู้กลั่นกรอง:</strong> ${teamLbl}</div>
+            <div><strong>คณะผู้กลั่นกรอง:</strong> ${teamLbl}${kase.supportControlNo ? ` <span class="text-muted small">(เลขทะเบียนคุม ${kase.supportControlNo})</span>` : ''}</div>
             <div>${decBadge}</div>
           </div>
           ${kase.dissentReason ? `
@@ -924,28 +924,25 @@
         const isComplex = g1yes.checked;
         const myOpinion = document.getElementById('myOpinion');
         const myOpinionBoxEl = document.getElementById('myOpinionBox');
-        const supportBox = document.getElementById('supportSubSelectBox');
-        const subSelect = document.getElementById('supportSubSelect');
+        const reasonBox = document.getElementById('complexReasonBox');
         const hasSupportOpinion = !!(kase.supportOpinion || kase.supportOpinion72 || kase.supportDecision);
 
         if (hasSupportOpinion) {
           // ผ่านการกลั่นกรองจากคณะอนุสนับสนุนฯ แล้ว: เปิดช่องความเห็นให้เลขาธิการฯ พิมพ์ได้เสมอ
-          if (supportBox) supportBox.classList.add('d-none');
+          if (reasonBox) reasonBox.classList.add('d-none');
           if (myOpinionBoxEl) myOpinionBoxEl.classList.remove('d-none');
           if (myOpinion) myOpinion.disabled = false;
           return;
         }
 
-        if (supportBox) supportBox.classList.toggle('d-none', !isComplex);
+        if (reasonBox) reasonBox.classList.toggle('d-none', !isComplex);
 
         if (role.id === 'secgen') {
           if (isComplex) {
-            // ตอนเลขาส่งให้อนุสนับสนุน ไม่ต้องมีส่วนเหตุผลซับซ้อน และซ่อนช่องความเห็น
+            // ตอนเลขาส่งเรื่องซับซ้อน ซ่อนช่องความเห็นทั่วไป — เหตุผลอยู่ในช่อง complexReason แทน
             if (myOpinionBoxEl) myOpinionBoxEl.classList.add('d-none');
             if (myOpinion) {
-              const subVal = subSelect ? subSelect.value : '';
-              const subText = subVal ? ` (${subVal})` : '';
-              myOpinion.value = `เป็นเรื่องยุ่งยากซับซ้อน เสนอคณะอนุกรรมการสนับสนุนเลขาธิการฯ${subText}`;
+              myOpinion.value = 'เป็นเรื่องยุ่งยากซับซ้อน เสนอ ผอ.กบค. ออกเลขทะเบียนคุมและมอบหมายคณะอนุกรรมการสนับสนุนเลขาธิการฯ';
               myOpinion.disabled = false;
               myOpinion.classList.remove('is-invalid-ecmis');
             }
@@ -953,7 +950,7 @@
             // หากไม่ซับซ้อน: ให้แสดงช่องความเห็นให้เลขาธิการฯ พิมพ์ก่อนลงนามเสนอประธานฯ
             if (myOpinionBoxEl) myOpinionBoxEl.classList.remove('d-none');
             if (myOpinion) {
-              if (myOpinion.value.startsWith('เป็นเรื่องยุ่งยากซับซ้อน เสนอคณะอนุกรรมการสนับสนุนเลขาธิการฯ')) {
+              if (myOpinion.value.startsWith('เป็นเรื่องยุ่งยากซับซ้อน เสนอ')) {
                 myOpinion.value = '';
               }
               myOpinion.disabled = false;
@@ -1004,9 +1001,8 @@
         onG1Change();
         renderG1Outcome(); renderG3(); renderActionButtons();
       }));
-      document.getElementById('supportSubSelect')?.addEventListener('change', () => {
-        document.getElementById('supportSubSelect').classList.remove('is-invalid-ecmis');
-        onG1Change();
+      document.getElementById('complexReason')?.addEventListener('input', () => {
+        document.getElementById('complexReason').classList.remove('is-invalid-ecmis');
       });
       onG1Change();
       renderG1Outcome(); renderG3();
@@ -1174,7 +1170,7 @@
             const complex = g1Yes();
             if (complex && !hasSupportOpinion) {
               b.push({
-                act: 'assign', label: 'ส่งคณะอนุกรรมการสนับสนุนเลขาธิการฯ', icon: 'fa-people-arrows',
+                act: 'assign', label: 'ส่ง ผอ.กบค. ออกเลขทะเบียนคุม', icon: 'fa-file-signature',
                 cls: 'btn-navy'
               });
             } else {
@@ -1202,15 +1198,15 @@
         const g1yes = document.getElementById('g1yes');
         const hasSupportOpinion = !!(kase.supportOpinion || kase.supportOpinion72 || kase.supportDecision);
 
-        // กรณีส่งมอบหมายให้อนุสนับสนุนฯ: ตรวจสอบเฉพาะคณะอนุกรรมการสนับสนุนฯ ที่เลือก
+        // กรณีเรื่องซับซ้อน: ตรวจเฉพาะเหตุผลความซับซ้อน (เนื้อหาใบบันทึกซับซ้อนถึง ผอ.กบค.)
         if (role.id === 'secgen' && g1yes && g1yes.checked && !hasSupportOpinion) {
-          const subSelect = document.getElementById('supportSubSelect');
-          if (subSelect && !subSelect.value) {
-            subSelect.classList.add('is-invalid-ecmis');
-            ECMIS.toastWarn('กรุณาเลือกคณะอนุกรรมการสนับสนุนเลขาธิการฯ');
+          const reasonEl = document.getElementById('complexReason');
+          if (reasonEl && !reasonEl.value.trim()) {
+            reasonEl.classList.add('is-invalid-ecmis');
+            ECMIS.toastWarn('กรุณาระบุเหตุผลที่เห็นว่าเป็นเรื่องยุ่งยากซับซ้อน');
             return false;
-          } else if (subSelect) {
-            subSelect.classList.remove('is-invalid-ecmis');
+          } else if (reasonEl) {
+            reasonEl.classList.remove('is-invalid-ecmis');
           }
           return true;
         }
@@ -1351,54 +1347,51 @@
           return;
         }
 
-        /* มอบหมาย = ส่งต่อเข้าคณะอนุกรรมการสนับสนุนฯ ทันที โดยไม่ต้องลงนามดิจิทัล */
+        /* เรื่องซับซ้อน = ส่ง ผอ.กบค. ออกเลขทะเบียนคุม + มอบหมายคณะอนุสนับสนุนฯ (ไม่ต้องลงนามดิจิทัล)
+           2026-09-28: เดิมเลขาฯ เลือกคณะเองแล้วส่งเข้า IN_SUPPORT_SUB ตรง — ย้ายการมอบหมายไปให้ ผอ.กบค.
+           ดู docs/memory/plans/2026-09-28-complex-case-dir-case-assign.md */
         if (act === 'assign') {
           if (!requireOpinion()) return;
-          const subSelect = document.getElementById('supportSubSelect');
-          const chosenSub = (subSelect && subSelect.value) ? subSelect.value : 'คณะที่ 1';
+          const reasonText = (document.getElementById('complexReason')?.value || '').trim();
+          const nextStatus = ECMIS.isCase72(kase) ? 'PENDING_SUPPORT_ASSIGN_72' : 'PENDING_SUPPORT_ASSIGN';
           ECMIS.confirmAction({
-            title: 'มอบหมายสำนวนให้คณะอนุกรรมการสนับสนุนเลขาธิการฯ',
-            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกมอบหมายเข้า
-            <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ (${chosenSub})</strong> เพื่อพิจารณาก่อนเสนอต่อ
-            <strong>ประธานกรรมการ ป.ป.ท.</strong></p>`,
-            confirmText: 'ยืนยันมอบหมาย'
+            title: 'ส่งเรื่องซับซ้อนให้ ผอ.กบค.',
+            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งพร้อม <strong>ใบบันทึกซับซ้อน</strong> ไปยัง
+            <strong>ผู้อำนวยการกองบริหารคดี (ผอ.กบค.)</strong> เพื่อออกเลขทะเบียนคุมและมอบหมาย
+            <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ</strong></p>`,
+            confirmText: 'ยืนยันส่ง ผอ.กบค.'
           }).then(async r => {
             if (!r.isConfirmed) return;
             const g1yes = document.getElementById('g1yes');
             if (g1yes) g1yes.checked = true;
 
-            // Change status to IN_SUPPORT_SUB directly without signing
             try {
               await persistCase(kase, {
-                status: ECMIS.isCase72(kase) ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB',
+                status: nextStatus,
                 complex: true,
                 resolutionData: {
-                  /* supportSubTeam ไม่ใช่ subCommittee — ชื่อ field ต้องไม่ชนกับ kase.subCommittee
-                     (คณะอนุกลั่นกรองฯ 1-8 ที่กองบริหารคดีตั้งค่า) เพราะ resolutionData จะถูก
-                     Object.assign ทับ kase ตรงๆ ตอนโหลดจาก Supabase (ดู supabaseRowToCase) */
-                  supportSubTeam: chosenSub,
-                  assignedBy: 'secgen',
-                  assignedAtIso: new Date().toISOString()
+                  complexReason: reasonText,
+                  complexMemoBy: 'secgen',
+                  complexMemoAtIso: new Date().toISOString()
                 }
               });
-              await ECMIS.logRequestEvent(kase.trr_id, kase.status, kase.status, {
-                type: 'ASSIGN_SUPPORT_SUB',
+              await ECMIS.logRequestEvent(kase.trr_id, kase.status, nextStatus, {
+                type: 'SIGN_COMPLEX',
                 actorRole: 'secgen',
-                data: { supportSubTeam: chosenSub }
+                data: { complexReason: reasonText }
               });
             } catch (err) {
-              console.error('มอบหมายไม่สำเร็จ:', err);
+              console.error('ส่ง ผอ.กบค. ไม่สำเร็จ:', err);
               ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
               return;
             }
 
             Swal.fire({
               icon: 'success',
-              title: 'มอบหมายสำนวนเรียบร้อย',
+              title: 'ส่งเรื่องให้ ผอ.กบค. เรียบร้อย',
               html: `<div class="text-start">
-              สำนวน <strong>${kase.id}</strong> ถูกส่งต่อไปยัง
-              <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ (${chosenSub})</strong> เรียบร้อยแล้ว<br>
-              <div style="font-size:.82rem;color:#7C8CA3;margin-top:.6rem">เส้นทางที่ระบบกำหนด: กลั่นกรองโดยคณะอนุสนับสนุนฯ (${chosenSub}) ก่อนเสนอประธานฯ</div>
+              สำนวน <strong>${kase.id}</strong> ถูกส่งไปยัง <strong>ผู้อำนวยการกองบริหารคดี (ผอ.กบค.)</strong> แล้ว<br>
+              <div style="font-size:.82rem;color:#7C8CA3;margin-top:.6rem">ขั้นถัดไป: ผอ.กบค. ออกเลขทะเบียนคุมและมอบหมายคณะอนุสนับสนุนฯ → คณะอนุสนับสนุนฯ กลั่นกรอง → กลับมาเลขาธิการฯ</div>
             </div>`,
               confirmButtonColor: '#0F2A62',
               confirmButtonText: 'ตกลง (ไปที่ Work Inbox)',
@@ -1424,11 +1417,11 @@
             dest = order.label;
             path = `ม.28 — ${order.label} (${order.lawRef} มาตรา ${lawSel ? lawSel.value : ''})`;
           } else if (complex && !hasSupportOpinion) {
-            targetStatus = is72 ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB';
-            dest = 'คณะอนุกรรมการสนับสนุนเลขาธิการฯ';
+            targetStatus = is72 ? 'PENDING_SUPPORT_ASSIGN_72' : 'PENDING_SUPPORT_ASSIGN';
+            dest = 'ผอ.กบค. (ออกเลขทะเบียนคุม / มอบหมายคณะอนุสนับสนุนฯ)';
             path = g1.diverged
-              ? 'เรื่องมีความเห็นไม่ตรงกันในสายบังคับบัญชา จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ'
-              : 'เลขาธิการฯ เห็นว่าเรื่องซับซ้อน จึงส่งเข้ากลั่นกรองโดยคณะอนุสนับสนุนฯ';
+              ? 'เรื่องมีความเห็นไม่ตรงกันในสายบังคับบัญชา จึงส่ง ผอ.กบค. มอบหมายคณะอนุสนับสนุนฯ กลั่นกรอง'
+              : 'เลขาธิการฯ เห็นว่าเรื่องซับซ้อน จึงส่ง ผอ.กบค. มอบหมายคณะอนุสนับสนุนฯ กลั่นกรอง';
           } else if (kase.urgent || urgentYes()) {
             targetStatus = is72 ? 'PENDING_URGENT_72' : 'PENDING_URGENT';
             dest = 'ผู้อำนวยการกองบริหารคดี เพื่อรับรองเหตุผลเร่งด่วน';
@@ -1493,6 +1486,11 @@
               signedBySecgen: true
             };
             if (urgentReasonNow) resolutionData.urgentReason = urgentReasonNow;
+            if (targetStatus === 'PENDING_SUPPORT_ASSIGN' || targetStatus === 'PENDING_SUPPORT_ASSIGN_72') {
+              resolutionData.complexReason = (document.getElementById('complexReason')?.value || '').trim();
+              resolutionData.complexMemoBy = 'secgen';
+              resolutionData.complexMemoAtIso = new Date().toISOString();
+            }
             await persistCase(kase, {
               status: targetStatus,
               signedBySecgen: true,
@@ -1729,8 +1727,8 @@
            ยังไม่เกิดขึ้นจนกว่าบอร์ดจะลงมติ (ลงนามจริงที่ PENDING_SIGN_RULING_72 โดยประธานฯ)
            เลขาธิการฯ ในขั้นนี้มีหน้าที่เพียงเห็นชอบส่งเข้าสู่กระบวนการกลั่นกรอง/บรรจุวาระ */
 
-        const supportBox = document.getElementById('supportSubSelectBox');
-        if (supportBox) supportBox.classList.add('d-none');
+        const reasonBox = document.getElementById('complexReasonBox');
+        if (reasonBox) reasonBox.classList.add('d-none');
       }
 
       function complexYes() { const el = document.getElementById('g1yes'); return el ? el.checked : false; }

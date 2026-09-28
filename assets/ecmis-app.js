@@ -150,7 +150,9 @@ function canViewCase(kase, roleId){
        kase.urgent/urgent72 ที่ตั้งครั้งเดียวแล้วไม่เคยเคลียร์ ไม่งั้นเคสเก่าที่ผ่านขั้นนี้ไปนาน
        แล้วจะค้างโผล่ในลิสต์ตลอดไป — รวม PENDING_SECGEN_URGENT_CONFIRM(_72) ด้วยเพื่อให้เห็น KPI
        "รับรองแล้ว" (เคสที่ตนรับรองไปแล้ว รอเลขาธิการฯ ยืนยันซ้ำ) ไม่ใช่แค่คิวที่ยังไม่ได้ทำ */
-    if (r.id === 'dir_case') return ['PENDING_URGENT', 'PENDING_URGENT_72', 'PENDING_SECGEN_URGENT_CONFIRM', 'PENDING_SECGEN_URGENT_CONFIRM_72'].includes(kase.status);
+    // 2026-09-28: เพิ่มคิวสำนวนซับซ้อนรอออกเลขทะเบียนคุม/มอบหมายคณะอนุสนับสนุนฯ (ดู
+    // docs/memory/plans/2026-09-28-complex-case-dir-case-assign.md)
+    if (r.id === 'dir_case') return ['PENDING_URGENT', 'PENDING_URGENT_72', 'PENDING_SECGEN_URGENT_CONFIRM', 'PENDING_SECGEN_URGENT_CONFIRM_72', 'PENDING_SUPPORT_ASSIGN', 'PENDING_SUPPORT_ASSIGN_72'].includes(kase.status);
     return !!kase.subCommittee || kase.complex;
   }
   if(can('view.own', r.id)) return kase.owner === r.name || kase.ownerOrg === r.org;
@@ -166,6 +168,9 @@ const STATUS = {
   PENDING_DEPUTY:   { label:'รอผู้ช่วย / รองเลขาธิการฯ',     cls:'st-pending',  owner:'deputy',       scope:'UPSTREAM' },
 
   PENDING_SECGEN:   { label:'รอเลขาธิการฯ ลงนาม',         cls:'st-pending',  owner:'secgen' },
+  /* 2026-09-28: สำนวนซับซ้อนต้องผ่าน ผอ.กบค. ออกเลขทะเบียนคุม + มอบหมายคณะอนุสนับสนุนก่อน (เดิมเลขาฯ
+     มอบหมายเอง) — ดู docs/memory/plans/2026-09-28-complex-case-dir-case-assign.md */
+  PENDING_SUPPORT_ASSIGN: { label:'รอ ผอ.กบค. ออกเลขทะเบียนคุม / มอบหมายคณะอนุสนับสนุน', cls:'st-pending', owner:'dir_case' },
   IN_SUPPORT_SUB:   { label:'ส่งให้คณะอนุสนับสนุนฯ พิจารณาแล้ว', cls:'st-review', owner:'support_sub' },
   PENDING_URGENT:   { label:'รอ ผอ.กบค. รับรองใบด่วน',     cls:'st-urgent',   owner:'dir_case' },
   PENDING_SECGEN_URGENT_CONFIRM: { label:'รอเลขาธิการฯ ยืนยันวาระด่วน (กบค. รับรองแล้ว)', cls:'st-pending', owner:'secgen' },
@@ -201,6 +206,7 @@ const STATUS = {
   PENDING_DEPUTY_72:   { label:'รอผู้ช่วย / รองเลขาธิการฯ (รายงานวินิจฉัยชี้มูล)', cls:'st-pending', owner:'deputy' },
   RETURNED_72:         { label:'ตีกลับเจ้าของสำนวน (รายงานวินิจฉัยชี้มูล)',      cls:'st-returned', owner:'owner' },
   PENDING_SECGEN_72:   { label:'รอเลขาธิการฯ พิจารณา / ลงนาม (วินิจฉัยชี้มูล)',   cls:'st-pending', owner:'secgen' },
+  PENDING_SUPPORT_ASSIGN_72: { label:'รอ ผอ.กบค. ออกเลขทะเบียนคุม / มอบหมายคณะอนุสนับสนุน (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'dir_case' },
   IN_SUPPORT_SUB_72:   { label:'ส่งคณะอนุสนับสนุนเลขาธิการฯ พิจารณาแล้ว',        cls:'st-review',  owner:'support_sub' },
   PENDING_URGENT_72:   { label:'รอ ผอ.กบค. รับรองเหตุผลเร่งด่วน',                cls:'st-urgent',  owner:'dir_case' },
   PENDING_SECGEN_URGENT_CONFIRM_72: { label:'รอเลขาธิการฯ ยืนยันวาระด่วน (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'secgen' },
@@ -232,7 +238,7 @@ const STATUS_CODE = {
   PENDING_CHAIRMAN:'009', IN_SCREENING:'010', AGENDA_SET:'011', IN_MEETING:'012', DEFERRED:'013',
   RESOLVED_PENDING:'014', RESOLVED:'015', DISPATCHING:'016', CLOSED:'017',
   PENDING_SIGN_ORDER_CHAIRMAN:'018', PENDING_SIGN_ORDER_SECGEN:'019', UNDER_INVESTIGATION:'020',
-  SCREENING_MORE_INFO:'021', PENDING_SECGEN_URGENT_CONFIRM:'022',
+  SCREENING_MORE_INFO:'021', PENDING_SECGEN_URGENT_CONFIRM:'022', PENDING_SUPPORT_ASSIGN:'025',
   // 023/024 (PENDING_CASE_ADMIN_SCREEN/PENDING_CHAIRMAN_ASSIGN, สาย 7.1) เลิกใช้แล้วตั้งแต่ 2026-09-23
   // (ดู docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md) — โค้ดคีย์ถูกลบออก แต่ไม่ต้อง
   // แตะ Supabase CHECK constraint เพราะไม่มีผลเสีย
@@ -243,15 +249,17 @@ const STATUS_CODE = {
   PENDING_SIGN_RULING_72:'112', PENDING_AREA_NOTICE_72:'113', DISPATCHING_NACC_72:'114',
   PENDING_DISPATCH_GUILTY_72:'115', CLOSED_72:'116', SCREENING_MORE_INFO_72:'117',
   PENDING_CHAIRMAN_72:'118', PENDING_SIGN_AGENDA_72:'119', PENDING_SECGEN_URGENT_CONFIRM_72:'120',
-  PENDING_CASE_ADMIN_SCREEN_72:'121', PENDING_CHAIRMAN_ASSIGN_72:'122'
+  PENDING_CASE_ADMIN_SCREEN_72:'121', PENDING_CHAIRMAN_ASSIGN_72:'122', PENDING_SUPPORT_ASSIGN_72:'123'
+  // 025/123 ต้องคลาย Supabase CHECK constraint ก่อน (tbl_res_request_trr_status_check เดิมรับแค่
+  // 000-024, 100-122 — probe 2026-09-28) ดู plan 2026-09-28-complex-case-dir-case-assign
 };
 const CODE_STATUS = Object.fromEntries(Object.entries(STATUS_CODE).map(([k, v]) => [v, k]));
 
 const TRANSITIONS = [
 
-  { from:'PENDING_SECGEN', to:'IN_SUPPORT_SUB', event:'SIGN_COMPLEX', actor:'secgen',
+  { from:'PENDING_SECGEN', to:'PENDING_SUPPORT_ASSIGN', event:'SIGN_COMPLEX', actor:'secgen',
     ref:'เสนอเลขาธิการฯ', guard:k => g1Triggers(k).required,
-    note:'สำนวนซับซ้อน หรือความเห็นในสายบังคับบัญชาไม่ตรงกัน' },
+    note:'สำนวนซับซ้อน หรือความเห็นในสายบังคับบัญชาไม่ตรงกัน — ส่ง ผอ.กบค. พร้อมใบบันทึกซับซ้อน (2026-09-28)' },
   { from:'PENDING_SECGEN', to:'PENDING_URGENT', event:'SIGN_URGENT', actor:'secgen',
     ref:'เสนอขอเพิ่มวาระด่วน', guard:k => !g1Triggers(k).required && !!k.urgent,
     note:'กรณีไม่ใช่เรื่องซับซ้อน และมีใบด่วน — รอ ผอ.กบค. รับรองเหตุผลเร่งด่วนก่อน' },
@@ -263,13 +271,15 @@ const TRANSITIONS = [
   { from:'PENDING_SECGEN', to:'RETURNED', event:'RETURN_TO_SOURCE', actor:'secgen',
     ref:'ส่งคืนสายงานต้นทาง', note:'ส่งคืนเรื่องกลับสายงานต้นทาง' },
 
-  { from:'IN_SUPPORT_SUB', to:'PENDING_CHAIRMAN', event:'SUPPORT_ALIGNED', actor:'support_sub',
-    ref:'อนุกรรมการฯ เห็นชอบตามเสนอ', note:'ความเห็นสอดคล้อง — เสนอประธานฯ สั่งการ' },
-  { from:'IN_SUPPORT_SUB', to:'PENDING_URGENT', event:'SUPPORT_DIVERGED_URGENT', actor:'support_sub',
-    ref:'อนุกรรมการฯ เห็นชอบวาระด่วน', guard:k => !!k.urgent,
-    note:'ความเห็นไม่ตรงกัน — เสนอพิจารณาวาระด่วน (รอ ผอ.กบค. รับรอง)' },
-  { from:'IN_SUPPORT_SUB', to:'PENDING_CHAIRMAN', event:'SUPPORT_DIVERGED', actor:'support_sub',
-    ref:'อนุกรรมการฯ เห็นชอบวาระปกติ', guard:k => !k.urgent, note:'ความเห็นไม่ตรงกัน — เสนอเข้าการกลั่นกรองปกติ' },
+  { from:'PENDING_SUPPORT_ASSIGN', to:'IN_SUPPORT_SUB', event:'ASSIGN_SUPPORT_SUB', actor:'dir_case',
+    ref:'ออกเลขทะเบียนคุม / มอบหมายคณะอนุสนับสนุนฯ',
+    note:'ผอ.กบค. ออกเลขทะเบียนคุม (ทค.N/ปี) และเลือกคณะที่ 1/2 — ไม่มีทางตีกลับ (อำนาจวินิจฉัยความซับซ้อน ' +
+         'เป็นของเลขาธิการฯ ตาม ม.24 วรรคสาม) ดู docs/memory/plans/2026-09-28-complex-case-dir-case-assign.md' },
+
+  /* คณะอนุสนับสนุนฯ ส่งความเห็นคืนเลขาธิการฯ เสมอ (support-subcommittee.html เขียน PENDING_SECGEN ตรง) —
+     เดิม entry ตรงนี้ชี้ไป PENDING_CHAIRMAN/PENDING_URGENT ซึ่งไม่ตรงกับการทำงานจริง แก้ 2026-09-28 (Q-D) */
+  { from:'IN_SUPPORT_SUB', to:'PENDING_SECGEN', event:'SUPPORT_OPINION_RETURNED', actor:'support_sub',
+    ref:'เสนอความเห็นคืนเลขาธิการฯ', note:'แนบใบบันทึกความเห็นอนุสนับสนุน — เลขาธิการฯ พิจารณาและลงนามต่อ' },
 
   { from:'PENDING_URGENT', to:'PENDING_SECGEN_URGENT_CONFIRM', event:'URGENT_CERTIFY', actor:'dir_case',
     ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. ลงนามรับรองเหตุผลเร่งด่วน — ส่งกลับให้เลขาธิการฯ ยืนยันอีกครั้งก่อนเข้าคิวประธานฯ' },
@@ -345,18 +355,19 @@ const TRANSITIONS = [
   { from:'PENDING_DEPUTY_72', to:'RETURNED_72', event:'RETURN_72', actor:'deputy', ref:'ส่งคืนเสนอตามลำดับชั้น' },
   { from:'RETURNED_72', to:'PENDING_SECTION_72', event:'RESUBMIT_72', actor:'owner', ref:'ส่งคืนแก้ไขและเสนอใหม่' },
 
-  { from:'PENDING_SECGEN_72', to:'IN_SUPPORT_SUB_72', event:'SIGN_COMPLEX_72', actor:'secgen',
+  { from:'PENDING_SECGEN_72', to:'PENDING_SUPPORT_ASSIGN_72', event:'SIGN_COMPLEX_72', actor:'secgen',
     ref:'เสนอสำนวนซับซ้อน', guard:k => !!k.complex72,
-    note:'สำนวนมีประเด็นซับซ้อนยุ่งยาก — เข้าคณะอนุกรรมการสนับสนุนเลขาธิการฯ ก่อน' },
+    note:'สำนวนมีประเด็นซับซ้อนยุ่งยาก — ส่ง ผอ.กบค. ออกเลขทะเบียนคุม/มอบหมายคณะอนุสนับสนุนฯ ก่อน (2026-09-28)' },
+  { from:'PENDING_SUPPORT_ASSIGN_72', to:'IN_SUPPORT_SUB_72', event:'ASSIGN_SUPPORT_SUB_72', actor:'dir_case',
+    ref:'ออกเลขทะเบียนคุม / มอบหมายคณะอนุสนับสนุนฯ', note:'เหมือน ASSIGN_SUPPORT_SUB ของสาย 7.1 — ไม่มีทางตีกลับ' },
   { from:'PENDING_SECGEN_72', to:'PENDING_URGENT_72', event:'SIGN_URGENT_72', actor:'secgen',
     ref:'เสนอขอเพิ่มวาระด่วน', guard:k => !k.complex72 && !!k.urgent72 },
   { from:'PENDING_SECGEN_72', to:'PENDING_CASE_ADMIN_SCREEN_72', event:'SIGN_NORMAL_72', actor:'secgen',
     ref:'เสนอตามขั้นตอนปกติ', guard:k => !k.complex72 && !k.urgent72,
     note:'เข้า gate คัดกรองความยุ่งยากของ affairs ก่อนถึงประธานฯ (เพิ่ม 2026-09-17)' },
-  { from:'IN_SUPPORT_SUB_72', to:'PENDING_URGENT_72', event:'SUPPORT_DONE_URGENT_72', actor:'support_sub',
-    ref:'เห็นชอบวาระด่วน', guard:k => !!k.urgent72 },
-  { from:'IN_SUPPORT_SUB_72', to:'PENDING_CHAIRMAN_72', event:'SUPPORT_DONE_72', actor:'support_sub',
-    ref:'เห็นชอบวาระปกติ — เสนอประธานฯ ลงนามมอบหมาย', guard:k => !k.urgent72 },
+  /* แก้ 2026-09-28 (Q-D): ของจริงคืนเลขาธิการฯ เสมอ ไม่ได้ไปประธานฯ/ใบด่วนตรง */
+  { from:'IN_SUPPORT_SUB_72', to:'PENDING_SECGEN_72', event:'SUPPORT_OPINION_RETURNED_72', actor:'support_sub',
+    ref:'เสนอความเห็นคืนเลขาธิการฯ', note:'แนบใบบันทึกความเห็นอนุสนับสนุน — เลขาธิการฯ พิจารณาและลงนามต่อ' },
 
   { from:'PENDING_URGENT_72', to:'PENDING_SECGEN_URGENT_CONFIRM_72', event:'URGENT_CERTIFY_72', actor:'dir_case',
     ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. รับรองเหตุผลเร่งด่วน — ส่งกลับให้เลขาธิการฯ ยืนยันอีกครั้งก่อนเข้าคิวประธานฯ' },
@@ -653,7 +664,7 @@ const STATUS_STEP = {
 
   DRAFT:'secgen', RETURNED:'secgen',
   PENDING_SECTION:'secgen', PENDING_DIRECTOR:'secgen', PENDING_DEPUTY:'secgen',
-  PENDING_SECGEN:'secgen', IN_SUPPORT_SUB:'secgen',
+  PENDING_SECGEN:'secgen', PENDING_SUPPORT_ASSIGN:'secgen', IN_SUPPORT_SUB:'secgen',
   PENDING_URGENT:'urgent', PENDING_SECGEN_URGENT_CONFIRM:'urgent',
   PENDING_CHAIRMAN:'chairman',
   IN_SCREENING:'screening', SCREENING_MORE_INFO:'screening',
@@ -710,6 +721,7 @@ const PAGE_FOR_72 = {
   PENDING_SECTION_72:'approval-review.html', PENDING_DIRECTOR_72:'approval-review.html',
   PENDING_DEPUTY_72:'approval-review.html', RETURNED_72:'approval-review.html',
   PENDING_SECGEN_72:'approval-review.html',
+  PENDING_SUPPORT_ASSIGN_72:'dir-case-support-assign.html',
   IN_SUPPORT_SUB_72:'support-subcommittee.html',
   PENDING_URGENT_72:'urgent-agenda.html', PENDING_SECGEN_URGENT_CONFIRM_72:'urgent-agenda.html',
   PENDING_CHAIRMAN_URGENT_72:'urgent-agenda.html',
@@ -738,6 +750,7 @@ function pageForCaseByStatus(kase) {
        'PENDING_URGENT', 'PENDING_SECGEN_URGENT_CONFIRM'].includes(st)) {
     return resolvePage('approval-review.html');
   }
+  if (st === 'PENDING_SUPPORT_ASSIGN') return resolvePage('dir-case-support-assign.html');
   if (st === 'IN_SUPPORT_SUB') return resolvePage('support-subcommittee.html');
   if (st === 'IN_SCREENING' || st === 'SCREENING_MORE_INFO') return resolvePage('subcommittee-screening.html');
   if (st === 'PENDING_CHAIRMAN') {
@@ -993,7 +1006,7 @@ const ACT7_STATUSES_72 = [
 ];
 const ACT7_STAGE_72 = {
   PENDING_SECTION_72:0, PENDING_DIRECTOR_72:0, PENDING_DEPUTY_72:0, RETURNED_72:0, PENDING_SECGEN_72:0,
-  IN_SUPPORT_SUB_72:1, PENDING_URGENT_72:1, PENDING_SECGEN_URGENT_CONFIRM_72:1, PENDING_CHAIRMAN_URGENT_72:1, PENDING_CHAIRMAN_72:1, IN_SCREENING_72:1, PENDING_SIGN_AGENDA_72:1, PENDING_INVITE_72:1,
+  PENDING_SUPPORT_ASSIGN_72:1, IN_SUPPORT_SUB_72:1, PENDING_URGENT_72:1, PENDING_SECGEN_URGENT_CONFIRM_72:1, PENDING_CHAIRMAN_URGENT_72:1, PENDING_CHAIRMAN_72:1, IN_SCREENING_72:1, PENDING_SIGN_AGENDA_72:1, PENDING_INVITE_72:1,
   IN_MEETING_72:2,
   RESOLVED_PENDING_72:3, PENDING_SIGN_RULING_72:3,
   PENDING_AREA_NOTICE_72:4, DISPATCHING_NACC_72:4, PENDING_DISPATCH_GUILTY_72:4,
@@ -3181,7 +3194,7 @@ const FLOW_STEPS_73 = [
 const STATUS_STEP_73 = {
   DRAFT:'secgen73', RETURNED:'secgen73',
   PENDING_SECTION:'secgen73', PENDING_DIRECTOR:'secgen73', PENDING_DEPUTY:'secgen73',
-  PENDING_SECGEN:'secgen73', IN_SUPPORT_SUB:'secgen73',
+  PENDING_SECGEN:'secgen73', PENDING_SUPPORT_ASSIGN:'secgen73', IN_SUPPORT_SUB:'secgen73',
   PENDING_URGENT:'secgen73', IN_SCREENING:'chairman73', // ไม่ควรเกิดกับเคส 7.3 จริง กันไว้เผื่อข้อมูลผิดสาย
   PENDING_CHAIRMAN:'chairman73',
   AGENDA_SET:'agenda73', IN_MEETING:'agenda73', DEFERRED:'agenda73',
@@ -3192,7 +3205,7 @@ const STATUS_STEP_73 = {
 const STATUS_STEP_72 = {
   PENDING_SECTION_72:'secgen72', PENDING_DIRECTOR_72:'secgen72', PENDING_DEPUTY_72:'secgen72', RETURNED_72:'secgen72',
   PENDING_SECGEN_72:'secgen72',
-  IN_SUPPORT_SUB_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_SECGEN_URGENT_CONFIRM_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', PENDING_CHAIRMAN_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72', PENDING_SIGN_AGENDA_72:'agenda72',
+  PENDING_SUPPORT_ASSIGN_72:'agenda72', IN_SUPPORT_SUB_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_SECGEN_URGENT_CONFIRM_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', PENDING_CHAIRMAN_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72', PENDING_SIGN_AGENDA_72:'agenda72',
   PENDING_CASE_ADMIN_SCREEN_72:'agenda72', PENDING_CHAIRMAN_ASSIGN_72:'agenda72',
   PENDING_INVITE_72:'meeting72', IN_MEETING_72:'meeting72',
   RESOLVED_PENDING_72:'ruling72', PENDING_SIGN_RULING_72:'ruling72',
@@ -3490,6 +3503,8 @@ const PAGE_PERMISSIONS = {
   'resolution-72.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'ruling-report.html': ['board_sec', 'affairs', 'chairman', 'secgen', 'board', 'board_ex', 'case_admin'],
   'urgent-agenda.html': ['dir_case', 'chairman', 'affairs', 'secgen', 'board_sec', 'board', 'board_ex', 'case_admin'],
+  // ผอ.กบค. ออกเลขทะเบียนคุม/มอบหมายคณะอนุสนับสนุน (2026-09-28) — role อื่นเปิดดูใบบันทึกซับซ้อนได้อย่างเดียว
+  'dir-case-support-assign.html': ['dir_case', 'secgen', 'support_sub', 'sup_chair', 'sup_sec', 'sup_asst'],
   'agenda-set.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'agenda.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],
   'agenda-meeting-docs.html': ['board_sec', 'affairs', 'chairman', 'board', 'board_ex', 'secgen', 'case_admin'],

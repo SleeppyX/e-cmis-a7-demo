@@ -414,6 +414,7 @@
             assignedGroup: assignedGroup,
             team: team,
             teamLabel: teamLabel,
+            controlNo: (c.resolutionData && c.resolutionData.supportControlNo) || c.supportControlNo || '',
             triggerType: triggerType,
             triggerBadgeText: triggerBadgeText,
             triggerText: triggerText,
@@ -584,7 +585,7 @@
             <td class="case-no">${c.id}</td>
             <td style="max-width:320px">
               <div class="text-truncate fw-medium" title="${c.subject}">${c.subject}</div>
-              <small class="text-muted d-block text-truncate" style="font-size:0.75rem">${c.ownerOrg}</small>
+              <small class="text-muted d-block text-truncate" style="font-size:0.75rem">${c.ownerOrg}${c.controlNo ? ` · เลขทะเบียนคุม ${c.controlNo}` : ''}</small>
             </td>
             <td>${statusBadge}</td>
             <td>${slaBadge}</td>

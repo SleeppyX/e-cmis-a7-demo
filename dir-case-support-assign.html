@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ออกเลขทะเบียนคุม / มอบหมายคณะอนุสนับสนุน | E-CMIS</title>
+  <link rel="icon" type="image/png" href="assets/pacc_logo.png">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&family=Noto+Serif+Thai:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <link href="assets/ecmis-app.css" rel="stylesheet">
+  <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <style>
+    .team-option { border: 1px solid #d4ddeb; border-radius: 10px; padding: .7rem .85rem; cursor: pointer; transition: border-color .15s, background .15s; }
+    .team-option:hover { border-color: #0F2A62; }
+    .team-option.selected { border-color: #0F2A62; background: #0F2A620D; }
+    .team-option input { margin-right: .5rem; }
+    .control-no { font-family: var(--serif); font-size: 1.35rem; font-weight: 700; color: #0F2A62; }
+  </style>
+</head>
+
+<body>
+
+  <main class="app-main">
+    <div class="page-head">
+      <div>
+        <h1><i class="fa-solid fa-file-signature me-2"></i>ออกเลขทะเบียนคุม / มอบหมายคณะอนุสนับสนุน</h1>
+      </div>
+      <div class="ms-auto text-end">
+        <span class="flow-ref">ผอ.กบค. รับเรื่องซับซ้อนจากเลขาธิการฯ — ออกเลขทะเบียนคุมและจ่ายงานคณะอนุกรรมการสนับสนุนเลขาธิการฯ</span>
+        <div class="mt-1" id="stBadge"></div>
+      </div>
+    </div>
+
+    <div class="ws-card mb-3">
+      <div class="card-body pb-1" id="stepper"></div>
+    </div>
+
+    <div class="document-workspace" id="docWorkspace">
+      <div id="docLeftCol">
+        <div class="ws-card mb-3">
+          <div class="card-header"><i class="fa-solid fa-circle-info"></i> สรุปสำนวน</div>
+          <div class="card-body"><div class="row g-2 kv" id="summary"></div></div>
+        </div>
+
+        <div class="ws-card mb-3">
+          <div class="card-header"><i class="fa-solid fa-triangle-exclamation"></i> เหตุผลความซับซ้อน (เลขาธิการฯ)</div>
+          <div class="card-body" id="reasonBody"></div>
+        </div>
+
+        <div class="ws-card mb-3">
+          <div class="card-header"><i class="fa-solid fa-hashtag"></i> เลขทะเบียนคุม</div>
+          <div class="card-body" id="controlBody"></div>
+        </div>
+
+        <div class="ws-card mb-3">
+          <div class="card-header"><i class="fa-solid fa-people-arrows"></i> มอบหมายคณะอนุกรรมการสนับสนุนเลขาธิการฯ</div>
+          <div class="card-body" id="teamBody"></div>
+        </div>
+      </div>
+
+      <aside class="ws-doc-pane" style="top:calc(var(--topbar-h) + 14px)">
+        <button type="button" class="ws-doc-pane-rail" id="btnPaneExpand" title="ขยายแผงเอกสาร"><i class="fa-solid fa-angles-left"></i><span>เอกสาร</span></button>
+        <div class="ws-doc-toolbar">
+          <div class="d-flex flex-column w-100 gap-1">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="name"><i class="fa-solid fa-file-lines me-1"></i> ใบบันทึกซับซ้อน</span>
+              <div class="d-flex gap-1 align-items-center">
+                <button type="button" class="btn-doc-edit" id="btnDocEdit" title="เปิด/ปิดโหมดแก้ไขเอกสาร">
+                  <i class="fa-solid fa-pen-to-square me-1"></i><span>แก้ไขเอกสาร</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnDocx" title="ส่งออกเป็นเอกสาร Microsoft Word (.docx)"><i class="fa-solid fa-file-word me-1"></i>ส่งออก DOCX</button>
+                <button class="btn btn-sm btn-light border" onclick="window.print()" title="พิมพ์เอกสาร"><i class="fa-solid fa-print"></i></button>
+                <button type="button" class="btn btn-sm btn-light border" id="btnDocFullscreen" title="ขยายเต็มจอ"><i class="fa-solid fa-expand"></i></button>
+                <button type="button" class="ws-doc-pane-toggle" id="btnPaneCollapse" title="ย่อแผงเอกสาร"><i class="fa-solid fa-angles-right"></i></button>
+              </div>
+            </div>
+
+            <!-- Symmetrical Pagination & Zoom Navigator Bar -->
+            <div class="pagination-toolbar-symmetric" id="docPaginationBar">
+              <div class="toolbar-group">
+                <div class="btn-group btn-group-sm" role="group">
+                  <button type="button" class="btn btn-xs btn-primary btn-toolbar-nav" id="btnModeSingle" title="โหมดดูทีละหน้า (เร็ว ลื่น)">
+                    <i class="fa-solid fa-file me-1"></i>ดูทีละหน้า
+                  </button>
+                  <button type="button" class="btn btn-xs btn-outline-light btn-toolbar-nav" id="btnModeContinuous" title="โหมดดูทุกหน้าเรียงกัน">
+                    <i class="fa-solid fa-file-lines me-1"></i>ดูทุกหน้าต่อเนื่อง
+                  </button>
+                </div>
+                <div class="toolbar-divider"></div>
+                <div class="btn-group btn-group-sm" role="group">
+                  <button type="button" class="btn btn-xs btn-secondary btn-toolbar-nav" id="btnFirstPage" title="หน้าแรกสุด (หน้า 1)"><i class="fa-solid fa-backward-step"></i></button>
+                  <button type="button" class="btn btn-xs btn-secondary btn-toolbar-nav" id="btnPrevPage" title="หน้าก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                  <span class="small opacity-75">หน้า</span>
+                  <input type="number" class="page-input-num" id="pageNumberInput" min="1" value="1">
+                  <span class="small opacity-75" id="totalPagesText">/ 1 หน้า</span>
+                </div>
+                <div class="btn-group btn-group-sm" role="group">
+                  <button type="button" class="btn btn-xs btn-secondary btn-toolbar-nav" id="btnNextPage" title="หน้าถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
+                  <button type="button" class="btn btn-xs btn-secondary btn-toolbar-nav" id="btnLastPage" title="หน้าสุดท้าย"><i class="fa-solid fa-forward-step"></i></button>
+                </div>
+              </div>
+              <div class="toolbar-group ms-auto">
+                <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                  <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                  <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
+                  <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ws-paper-stage" id="docPaperStage">
+          <div id="docPaper"></div>
+        </div>
+      </aside>
+    </div>
+
+    <div id="actionBarSlot"></div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="assets/ecmis-app.js"></script>
+  <script src="assets/ecmis-model.js"></script>
+  <script>
+    /* ผอ.กบค. ออกเลขทะเบียนคุม + มอบหมายคณะอนุกรรมการสนับสนุนเลขาธิการฯ สำหรับสำนวนซับซ้อน (สาย 7.1/7.2)
+       ดู docs/memory/plans/2026-09-28-complex-case-dir-case-assign.md — ไม่มีทางตีกลับ เพราะอำนาจวินิจฉัย
+       ความซับซ้อนเป็นของเลขาธิการฯ ตาม ม.24 วรรคสาม ผอ.กบค. ทำหน้าที่ปฏิบัติการ (ออกเลข/จ่ายงาน) เท่านั้น */
+    ECMIS.renderShell('dir-case-support-assign.html');
+
+    const SUPABASE_URL = 'https://ljhabbwjxnoucrcrsoii.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_2Bps-dWMZHz_7cs3BppF6A_ul1_A_xd';
+    const sb = ECMIS.getSupabaseClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const TEAMS = ['คณะที่ 1', 'คณะที่ 2'];
+    const CONTROL_PREFIX = 'ทค.';
+
+    async function loadCaseFromSupabase(caseId) {
+      const { data, error } = await sb
+        .from('tbl_res_request')
+        .select('*, tbl_cmp_case!inner(*, tbl_cmp_case_accused(*))')
+        .eq('tbl_cmp_case.tcc_no', caseId)
+        .eq('is_deleted', false)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? ECMIS.supabaseRowToCase(data) : null;
+    }
+
+    async function persistCase(kase, patch, resPatch) {
+      const dbPatch = {};
+      if ('status' in patch) {
+        const code = ECMIS.STATUS_CODE[patch.status];
+        if (code) dbPatch.trr_status = code;
+      }
+      if (resPatch) dbPatch.trr_resolution_data = Object.assign({}, kase.resolutionData || {}, resPatch);
+      if (kase.trr_id && Object.keys(dbPatch).length) {
+        const { error } = await sb.from('tbl_res_request').update(dbPatch).eq('trr_id', kase.trr_id);
+        if (error) throw error;
+      }
+      Object.assign(kase, patch, resPatch || {});
+      if (dbPatch.trr_resolution_data) kase.resolutionData = dbPatch.trr_resolution_data;
+      const memCase = ECMIS.CASES.find(x => x.id === kase.id);
+      if (memCase) Object.assign(memCase, patch, resPatch || {});
+      ECMIS.saveCases();
+    }
+
+    /* ลำดับเลขทะเบียนคุมถัดไปของปี พ.ศ. นั้น — นับจาก trr_resolution_data.supportControlSeq ที่ออกไปแล้ว
+       (เดโมผู้ใช้คนเดียว ยอมรับได้ถ้ามีคนสองคนกดพร้อมกันแล้วได้เลขซ้ำ) */
+    async function nextControlSeq(yearBE) {
+      const { data, error } = await sb
+        .from('tbl_res_request')
+        .select('trr_resolution_data')
+        .eq('trr_resolution_data->>supportControlYear', String(yearBE));
+      if (error) throw error;
+      const seqs = (data || []).map(r => Number(r.trr_resolution_data && r.trr_resolution_data.supportControlSeq) || 0);
+      return (seqs.length ? Math.max(...seqs) : 0) + 1;
+    }
+
+    /* งานค้างของแต่ละคณะ = สำนวนที่อยู่ในคณะอนุสนับสนุนฯ ตอนนี้ (IN_SUPPORT_SUB / _72) แยกตาม supportSubTeam */
+    async function teamLoads() {
+      const codes = [ECMIS.STATUS_CODE.IN_SUPPORT_SUB, ECMIS.STATUS_CODE.IN_SUPPORT_SUB_72];
+      const { data, error } = await sb
+        .from('tbl_res_request')
+        .select('trr_resolution_data')
+        .in('trr_status', codes)
+        .eq('is_deleted', false);
+      if (error) throw error;
+      const loads = { 'คณะที่ 1': 0, 'คณะที่ 2': 0 };
+      (data || []).forEach(r => {
+        const t = String((r.trr_resolution_data && r.trr_resolution_data.supportSubTeam) || '');
+        if (t.includes('2')) loads['คณะที่ 2']++;
+        else if (t.includes('1')) loads['คณะที่ 1']++;
+      });
+      return loads;
+    }
+
+    const params = new URLSearchParams(location.search);
+    const role = ECMIS.currentRole();
+    let kase = null, is72 = false, isAssignStep = false, loads = { 'คณะที่ 1': 0, 'คณะที่ 2': 0 };
+    const secgen = ECMIS.getRole('secgen');
+    const dirCase = ECMIS.getRole('dir_case');
+
+    (async function main() {
+      const caseParam = params.get('case');
+      try {
+        if (caseParam) kase = await loadCaseFromSupabase(caseParam);
+      } catch (err) {
+        console.warn('โหลดข้อมูลจากฐานข้อมูลไม่สำเร็จ:', err);
+      }
+      if (!kase && caseParam) kase = ECMIS.requireCase(caseParam);
+      if (!kase) {
+        document.getElementById('docLeftCol').innerHTML =
+          `<div class="no-permission"><i class="fa-solid fa-circle-info me-1"></i>ไม่พบสำนวน — กรุณาเปิดจากรายการงานของ ผอ.กบค.</div>`;
+        return;
+      }
+      is72 = ECMIS.isCase72(kase);
+      isAssignStep = kase.status === (is72 ? 'PENDING_SUPPORT_ASSIGN_72' : 'PENDING_SUPPORT_ASSIGN');
+      if (isAssignStep) {
+        try { loads = await teamLoads(); } catch (err) { console.warn('โหลดภาระงานคณะไม่สำเร็จ:', err); }
+      }
+      renderPage();
+    })();
+
+    function selectedTeam() {
+      const el = document.querySelector('input[name="supportTeam"]:checked');
+      return el ? el.value : '';
+    }
+
+    function renderPage() {
+      document.title = `ออกเลขทะเบียนคุม — ${kase.id} | E-CMIS`;
+      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+      document.getElementById('stepper').innerHTML = is72
+        ? ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
+        : ECMIS.stepperHtml(kase.status);
+
+      const E = ECMIS.escapeHtml;
+      document.getElementById('summary').innerHTML = `
+        <div class="col-md-6"><span class="k">เลขสำนวน:</span> ${E(kase.id)}</div>
+        <div class="col-md-6"><span class="k">ประเภทเรื่อง:</span> ${ECMIS.typeBadge(kase)}</div>
+        <div class="col-12"><span class="k">เรื่อง:</span> ${E(kase.subject || '—')}</div>
+        <div class="col-md-6"><span class="k">เจ้าของสำนวน:</span> ${E(kase.owner || '—')}</div>
+        <div class="col-md-6"><span class="k">หน่วยงาน:</span> ${E(kase.ownerOrg || '—')}</div>`;
+
+      const reason = kase.complexReason || kase.complexReason72 || '';
+      document.getElementById('reasonBody').innerHTML = reason
+        ? `<div style="white-space:pre-wrap">${E(reason)}</div>
+           <div class="text-muted mt-2" style="font-size:.78rem"><i class="fa-solid fa-user-tie me-1"></i>${E(secgen.name)} — ${E(secgen.title)}${kase.complexMemoAtIso ? ' · ' + ECMIS.thaiDate(kase.complexMemoAtIso.slice(0, 10)) : ''}</div>`
+        : `<div class="text-muted">— ไม่มีเหตุผลบันทึกไว้ (สำนวนนี้ถูกส่งก่อนมีใบบันทึกซับซ้อน) —</div>`;
+
+      document.getElementById('controlBody').innerHTML = kase.supportControlNo
+        ? `<div class="control-no">${E(kase.supportControlNo)}</div>
+           <div class="text-muted" style="font-size:.78rem">ออกเลขโดย ${E(dirCase.name)} — ${E(dirCase.title)}${kase.assignedAtIso ? ' · ' + ECMIS.thaiDate(kase.assignedAtIso.slice(0, 10)) : ''}</div>`
+        : `<div class="text-muted"><i class="fa-solid fa-circle-info me-1"></i>ระบบจะออกเลขอัตโนมัติรูปแบบ <strong>${CONTROL_PREFIX}ลำดับ/ปี พ.ศ.</strong> เมื่อกด "ออกเลขทะเบียนและมอบหมาย"</div>`;
+
+      if (isAssignStep && ECMIS.canAct(kase, role.id)) {
+        document.getElementById('teamBody').innerHTML = `
+          <div class="d-grid gap-2">
+            ${TEAMS.map((t, i) => `
+              <label class="team-option" for="team${i + 1}">
+                <input class="form-check-input" type="radio" name="supportTeam" id="team${i + 1}" value="${t}">
+                <strong>${t}</strong> <span class="text-muted">(กลุ่มงานสนับสนุนฯ ${i + 1})</span>
+                <span class="chip ms-2">งานค้าง ${ECMIS.toThaiDigits(loads[t] || 0)} เรื่อง</span>
+              </label>`).join('')}
+          </div>
+          <div class="val-msg val-err" data-for="supportTeam">กรุณาเลือกคณะอนุกรรมการสนับสนุนเลขาธิการฯ</div>`;
+        document.querySelectorAll('input[name="supportTeam"]').forEach(r => r.addEventListener('change', () => {
+          document.querySelectorAll('.team-option').forEach(o => o.classList.toggle('selected', o.querySelector('input').checked));
+          document.querySelector('.val-msg[data-for="supportTeam"]').classList.remove('show');
+          renderDoc();
+        }));
+      } else {
+        document.getElementById('teamBody').innerHTML = kase.supportSubTeam
+          ? `<div><strong>${E(kase.supportSubTeam)}</strong> <span class="text-muted">— มอบหมายแล้ว</span></div>`
+          : `<div class="text-muted">ยังไม่ได้มอบหมาย — สำนวนอยู่ในสถานะ ${E((ECMIS.STATUS[kase.status] || {}).label || kase.status)}</div>`;
+      }
+
+      renderDoc();
+      ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: isAssignStep && ECMIS.canAct(kase, role.id) });
+
+      const buttons = (isAssignStep && ECMIS.canAct(kase, role.id))
+        ? [{ act: 'assign', label: 'ออกเลขทะเบียนและมอบหมาย', icon: 'fa-stamp', cls: 'btn-gold' }]
+        : [];
+      document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(kase, role.id, buttons);
+      document.querySelectorAll('.action-bar [data-act]').forEach(b =>
+        b.addEventListener('click', () => handle(b.dataset.act)));
+    }
+
+    function renderDoc() {
+      const M = ECMIS.mergeField;
+      const T = ECMIS.toThaiDigits;
+      const reason = kase.complexReason || kase.complexReason72 || '';
+      const memoDate = kase.complexMemoAtIso ? ECMIS.thaiDate(kase.complexMemoAtIso.slice(0, 10)) : '';
+      const teamShown = kase.supportSubTeam || (isAssignStep ? selectedTeam() : '');
+      const assignedDate = kase.assignedAtIso ? ECMIS.thaiDate(kase.assignedAtIso.slice(0, 10)) : '';
+      const accused = (kase.accused && kase.accused.length)
+        ? kase.accused.map(a => `${T(a.no)}. ${M(a.name)} ${M(a.pos)} ${M(a.agency)}`).join('<br>') : '';
+      const docPaperEl = document.getElementById('docPaper');
+      if (!docPaperEl) return;
+
+      docPaperEl.innerHTML = `
+    <div class="doc-paper doc-resolution a4-paper active-page" id="docPaperPage">
+      <div class="doc-secret">ลับ</div>
+      <div class="doc-title">
+        <div class="doc-title-l1">บันทึกข้อความ</div>
+        <div class="doc-title-l2">ใบบันทึกสำนวนมีประเด็นยุ่งยากซับซ้อน</div>
+      </div>
+      <div class="doc-row"><span class="k">ส่วนราชการ</span> สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ (เลขาธิการคณะกรรมการ ป.ป.ท.)</div>
+      <div class="doc-row"><span class="k">วันที่</span> ${M(memoDate)}</div>
+      <div class="doc-row"><span class="k">เรื่อง</span> สำนวนเรื่องที่ ${M(T(kase.id))} มีประเด็นยุ่งยากซับซ้อน ขอให้ออกเลขทะเบียนคุมและมอบหมายคณะอนุกรรมการสนับสนุนเลขาธิการฯ</div>
+      <div class="doc-row"><span class="k">เรียน</span> ผู้อำนวยการกองบริหารคดี</div>
+
+      <div class="doc-body-indent">
+        <div class="doc-indent">ด้วยสำนวน${is72 ? 'การไต่สวนข้อเท็จจริงเพื่อวินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'} เรื่อง ${M(kase.subject)}
+          ซึ่งมี ${M(kase.owner)} ${M(kase.ownerOrg)} เป็นผู้รับผิดชอบสำนวน ได้เสนอมาเพื่อพิจารณา</div>
+        ${accused ? `<div class="doc-h">ผู้ถูกกล่าวหา</div><div class="doc-indent">${accused}</div>` : ''}
+        <div class="doc-h">ข้อกล่าวหา</div>
+        <div class="doc-indent">${M(kase.allegation)}</div>
+        <div class="doc-h">เหตุผลที่เห็นว่าเป็นเรื่องยุ่งยากซับซ้อน</div>
+        <div class="doc-indent">${M(reason, '……………………………………………………………………………………')}</div>
+        <div class="doc-indent">อาศัยอำนาจตามมาตรา ๒๔ วรรคสาม แห่งพระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต
+          พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม จึงเรียนมาเพื่อโปรดออกเลขทะเบียนคุม และมอบหมายคณะอนุกรรมการสนับสนุนเลขาธิการฯ
+          กลั่นกรองสำนวนก่อนเสนอเลขาธิการฯ พิจารณาต่อไป</div>
+      </div>
+
+      <div class="doc-sign">(${M(secgen.name)})<br>${M(secgen.title)}</div>
+
+      <div class="doc-h mt-3">การดำเนินการของกองบริหารคดี</div>
+      <div class="doc-body-indent">
+        <div class="doc-row"><span class="k">เลขทะเบียนคุม</span> ${M(kase.supportControlNo ? T(kase.supportControlNo) : '', '(ออกเลขเมื่อ ผอ.กบค. ยืนยัน)')}</div>
+        <div class="doc-row"><span class="k">มอบหมาย</span> ${M(teamShown ? 'คณะอนุกรรมการสนับสนุนเลขาธิการฯ ' + T(teamShown) : '')}</div>
+        <div class="doc-row"><span class="k">วันที่มอบหมาย</span> ${M(assignedDate)}</div>
+      </div>
+      <div class="doc-sign">(${M(kase.supportControlNo ? dirCase.name : '')})<br>${M(dirCase.title)}</div>
+
+      <div class="doc-secret-foot">ลับ</div>
+    </div>`;
+      updatePaginationUI();
+      applyZoom();
+    }
+
+    async function handle(act) {
+      if (act !== 'assign') return;
+      const team = selectedTeam();
+      if (!team) {
+        document.querySelector('.val-msg[data-for="supportTeam"]')?.classList.add('show');
+        ECMIS.toastWarn('กรุณาเลือกคณะอนุกรรมการสนับสนุนเลขาธิการฯ');
+        return;
+      }
+      const yearBE = new Date().getFullYear() + 543;
+      const res = await ECMIS.confirmAction({
+        title: 'ออกเลขทะเบียนคุมและมอบหมาย',
+        html: `<p>สำนวน <strong>${kase.id}</strong> จะได้รับเลขทะเบียนคุม <strong>${CONTROL_PREFIX}…/${yearBE}</strong>
+          และมอบหมาย <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ ${team}</strong> กลั่นกรองก่อนเสนอเลขาธิการฯ</p>`,
+        confirmText: 'ยืนยันออกเลขและมอบหมาย'
+      });
+      if (!res.isConfirmed) return;
+
+      const fromStatus = kase.status;
+      const toStatus = is72 ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB';
+      let controlNo;
+      try {
+        const seq = await nextControlSeq(yearBE);
+        controlNo = `${CONTROL_PREFIX}${seq}/${yearBE}`;
+        await persistCase(kase, { status: toStatus }, {
+          supportControlNo: controlNo,
+          supportControlSeq: seq,
+          supportControlYear: yearBE,
+          /* supportSubTeam ไม่ใช่ subCommittee — field นั้นเป็นของคณะอนุกลั่นกรองฯ 1-8 (ดู approval-review.html) */
+          supportSubTeam: team,
+          assignedBy: 'dir_case',
+          assignedAtIso: new Date().toISOString()
+        });
+        await ECMIS.logRequestEvent(kase.trr_id, fromStatus, toStatus, {
+          type: is72 ? 'ASSIGN_SUPPORT_SUB_72' : 'ASSIGN_SUPPORT_SUB',
+          actorRole: 'dir_case',
+          data: { supportControlNo: controlNo, supportSubTeam: team }
+        });
+        ECMIS.pushCaseHistory(kase, { action: is72 ? 'ASSIGN_SUPPORT_SUB_72' : 'ASSIGN_SUPPORT_SUB', status: toStatus, supportControlNo: controlNo, supportSubTeam: team });
+      } catch (err) {
+        console.error('ออกเลขทะเบียน/มอบหมายไม่สำเร็จ:', err);
+        ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+        return;
+      }
+      await Swal.fire({
+        icon: 'success',
+        title: 'ออกเลขทะเบียนคุมและมอบหมายเรียบร้อย',
+        html: `<div class="text-start">สำนวน <strong>${kase.id}</strong><br>
+          เลขทะเบียนคุม <strong>${controlNo}</strong><br>
+          มอบหมาย <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ ${team}</strong></div>`,
+        confirmButtonColor: '#0F2A62',
+        confirmButtonText: 'ตกลง (กลับรายการงาน)'
+      });
+      location.href = ECMIS.homeHref(role.id);
+    }
+
+    /* ---------- Document workspace: collapsible pane ---------- */
+    const docWorkspace = document.getElementById('docWorkspace');
+    const PANE_KEY = 'ecmis-dir-case-support-assign-docpane-collapsed';
+    function setPaneCollapsed(collapsed) {
+      if (docWorkspace) docWorkspace.classList.toggle('pane-collapsed', collapsed);
+      try { localStorage.setItem(PANE_KEY, collapsed ? '1' : '0'); } catch (e) { }
+    }
+    try { if (localStorage.getItem(PANE_KEY) === '1') setPaneCollapsed(true); } catch (e) { }
+    document.getElementById('btnPaneCollapse').addEventListener('click', () => setPaneCollapsed(true));
+    document.getElementById('btnPaneExpand').addEventListener('click', () => setPaneCollapsed(false));
+
+    ECMIS.initDocFullscreen({
+      paneEl: document.querySelector('.ws-doc-pane'),
+      btnEl: document.getElementById('btnDocFullscreen'),
+      onToggle: () => applyZoom()
+    });
+
+    ECMIS.initCardCollapse('#docLeftCol', 'ecmis-dir-case-support-assign');
+
+    /* ---------- Master Toolbar & Pagination Controls ---------- */
+    let docViewMode = 'SINGLE';
+    let docCurrentPage = 1;
+    let docTotalPages = 1;
+    let docZoomLevel = 0.75;
+
+    function updatePaginationUI() {
+      const docPaperEl = document.getElementById('docPaper');
+      if (!docPaperEl) return;
+      const pages = docPaperEl.querySelectorAll('.doc-paper, .a4-paper');
+      docTotalPages = Math.max(1, pages.length);
+      if (docCurrentPage > docTotalPages) docCurrentPage = docTotalPages;
+      if (docCurrentPage < 1) docCurrentPage = 1;
+      $('#totalPagesText').text(`/ ${docTotalPages} หน้า`);
+      $('#pageNumberInput').attr('max', docTotalPages).val(docCurrentPage);
+      if (docViewMode === 'SINGLE') {
+        docPaperEl.classList.remove('mode-continuous');
+        docPaperEl.classList.add('mode-single');
+        pages.forEach((p, idx) => {
+          const on = idx + 1 === docCurrentPage;
+          p.classList.toggle('active-page', on);
+          p.style.display = on ? 'block' : 'none';
+        });
+        $('#btnModeSingle').removeClass('btn-outline-light').addClass('btn-primary');
+        $('#btnModeContinuous').removeClass('btn-primary').addClass('btn-outline-light');
+        $('#btnFirstPage, #btnPrevPage').prop('disabled', docCurrentPage === 1);
+        $('#btnNextPage, #btnLastPage').prop('disabled', docCurrentPage === docTotalPages);
+        $('#pageNumberInput').prop('disabled', false);
+      } else {
+        docPaperEl.classList.remove('mode-single');
+        docPaperEl.classList.add('mode-continuous');
+        pages.forEach(p => { p.classList.add('active-page'); p.style.display = 'block'; });
+        $('#btnModeContinuous').removeClass('btn-outline-light').addClass('btn-primary');
+        $('#btnModeSingle').removeClass('btn-primary').addClass('btn-outline-light');
+        $('#btnFirstPage, #btnPrevPage, #btnNextPage, #btnLastPage, #pageNumberInput').prop('disabled', true);
+      }
+      applyZoom();
+    }
+
+    function applyZoom() {
+      const docPaperEl = document.getElementById('docPaper');
+      if (!docPaperEl) return;
+      docPaperEl.style.transform = `scale(${docZoomLevel})`;
+      docPaperEl.style.transformOrigin = 'top center';
+      $('#zoomLevelText').text(`${Math.round(docZoomLevel * 100)}%`);
+      const pages = docPaperEl.querySelectorAll('.doc-paper, .a4-paper');
+      if (!pages.length) return;
+      if (docViewMode === 'SINGLE') {
+        const activeP = docPaperEl.querySelector('.doc-paper.active-page, .a4-paper.active-page') || pages[0];
+        docPaperEl.style.height = `${Math.round((activeP.offsetHeight || 1123) * docZoomLevel)}px`;
+      } else {
+        let totalH = 0;
+        pages.forEach(p => { totalH += (p.offsetHeight || 1123) + 18; });
+        docPaperEl.style.height = `${Math.round(totalH * docZoomLevel)}px`;
+      }
+    }
+
+    $('#btnModeSingle').on('click', () => { docViewMode = 'SINGLE'; updatePaginationUI(); });
+    $('#btnModeContinuous').on('click', () => { docViewMode = 'CONTINUOUS'; updatePaginationUI(); });
+    $('#btnFirstPage').on('click', () => { docCurrentPage = 1; updatePaginationUI(); });
+    $('#btnPrevPage').on('click', () => { if (docCurrentPage > 1) { docCurrentPage--; updatePaginationUI(); } });
+    $('#btnNextPage').on('click', () => { if (docCurrentPage < docTotalPages) { docCurrentPage++; updatePaginationUI(); } });
+    $('#btnLastPage').on('click', () => { docCurrentPage = docTotalPages; updatePaginationUI(); });
+    $('#pageNumberInput').on('change', function () {
+      let val = parseInt($(this).val(), 10);
+      if (isNaN(val) || val < 1) val = 1;
+      if (val > docTotalPages) val = docTotalPages;
+      docCurrentPage = val;
+      updatePaginationUI();
+    });
+    $('#btnZoomIn').on('click', () => { if (docZoomLevel < 1.5) { docZoomLevel = Math.min(1.5, Math.round((docZoomLevel + 0.1) * 10) / 10); applyZoom(); } });
+    $('#btnZoomOut').on('click', () => { if (docZoomLevel > 0.4) { docZoomLevel = Math.max(0.4, Math.round((docZoomLevel - 0.1) * 10) / 10); applyZoom(); } });
+
+    $('#btnDocx').on('click', function () {
+      const caseIdClean = (kase && kase.id ? kase.id : 'case').replace(/[\/\s]/g, '-');
+      ECMIS.exportDocToDocx('docPaper', `ใบบันทึกซับซ้อน_${caseIdClean}.docx`);
+    });
+  </script>
+</body>
+
+</html>

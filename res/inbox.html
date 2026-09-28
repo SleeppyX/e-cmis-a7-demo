@@ -615,13 +615,15 @@ function renderKPICards() {
   const kpis = [
     { id:'ALL', n: allCasesCombined.length, l:'รายการทั้งหมด', i:'fa-folder-open', c:'#0F2A62' },
     { id:'PENDING', n: pendingCount, l:'รอเลขาพิจารณาลงนาม', i:'fa-hourglass-half', c:'#D0A830' },
-    { id:'SIGNED', n: signedCount, l:'ลงนามแล้ว', i:'fa-circle-check', c:'#16A34A' },
     { id:'RETURNED', n: returnedCount, l:'ไม่ลงนาม / ตีกลับ', i:'fa-circle-xmark', c:'#DB2626' },
     { id:'SCREENING', n: screeningCount, l:'ส่งให้อนุกลั่นกรองพิจารณา', i:'fa-users-gear', c:'#0284C7' }
   ];
   if (role.id === 'secgen') {
     kpis.push({ id:'URGENT_CONFIRM', n: urgentConfirmCount, l:'รอยืนยันวาระด่วน (กบค. รับรองแล้ว)', i:'fa-bolt', c:'#B45309' });
   }
+  // "ลงนามแล้ว" ย้ายไปท้ายสุดตามที่ขอ 2026-09-28 — ให้อยู่ขวาสุดเสมอไม่ว่า role นี้จะมีการ์ด
+  // URGENT_CONFIRM เพิ่มมาก่อนหรือไม่ก็ตาม
+  kpis.push({ id:'SIGNED', n: signedCount, l:'ลงนามแล้ว', i:'fa-circle-check', c:'#16A34A' });
 
   document.getElementById('kpiRow').innerHTML = kpis.map(k => {
     const isActive = (currentSt === k.id);

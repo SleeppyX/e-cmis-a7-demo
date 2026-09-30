@@ -722,7 +722,8 @@ function getAffairsActionBadge(c) {
     return `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอจัดทำรายงานชี้มูล / หนังสือลงโทษทางวินัย</span>`;
   }
   if (c.status === 'PENDING_DISPATCH_GUILTY_72') {
-    return `<span class="meet-badge meet-review"><i class="fa-solid fa-paper-plane me-1"></i>รอส่งดำเนินคดี</span>`;
+    const label = c.guiltyDiscipline72 ? 'รอส่ง ป.วินัย / ดำเนินคดี' : 'รอส่งดำเนินคดี';
+    return `<span class="meet-badge meet-review"><i class="fa-solid fa-paper-plane me-1"></i>${label}</span>`;
   }
   if (isAffairsDone(c)) {
     return `<span class="meet-badge" style="background:#DCFCE7;color:#166534"><i class="fa-solid fa-circle-check me-1"></i>จัดทำแล้ว</span>`;

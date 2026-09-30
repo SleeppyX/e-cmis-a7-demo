@@ -255,7 +255,7 @@
         }
 
         const docType = ECMIS.DOC_TYPES[kase.docType];
-        const isRuling = docType.code === 'RULING';
+        const isRuling = docType.code === 'RULING' || ECMIS.isCase72(kase);
 
         document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
         document.getElementById('stepper').innerHTML = isRuling

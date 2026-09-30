@@ -359,7 +359,7 @@
       if (!kase) return;
 
       docType = ECMIS.DOC_TYPES[kase.docType] || ECMIS.DOC_TYPES['213'];
-      isRuling = (kase.docType === 'RULING');
+      isRuling = (kase.docType === 'RULING') || ECMIS.isCase72(kase);
       /* สายของเคส (7.1/7.2) ต้องดูจากสถานะจริง (IN_SUPPORT_SUB_72 ฯลฯ) ไม่ใช่ docType==='RULING' — เคส 7.2
          ปกติเข้ามาด้วยรายงาน 644 จึง isRuling=false แล้วสถานะขาออกทั้ง 3 จุดด้านล่างเคยหลุดไปเป็นของสาย 7.1
          (เช่น คืนเลขาฯ เป็น PENDING_SECGEN แทน PENDING_SECGEN_72) พบตอนทดสอบ flow ผอ.กบค. 2026-09-30 */

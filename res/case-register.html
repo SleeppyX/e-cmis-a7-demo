@@ -218,8 +218,10 @@
         <i class="fa-solid fa-table-list"></i> ผลการสืบค้น
         <span class="badge bg-secondary rounded-pill ms-2" id="cnt">0</span>
         <div class="btn-group ms-auto">
-          <button class="btn btn-sm btn-outline-secondary" id="btnExportCsv"><i
-              class="fa-solid fa-file-excel me-1"></i>Excel/CSV</button>
+          <button class="btn btn-sm btn-outline-secondary" id="btnExportXlsx" title="ส่งออกไฟล์ Excel (.xlsx)"><i
+              class="fa-solid fa-file-excel me-1"></i>Excel</button>
+          <button class="btn btn-sm btn-outline-secondary" id="btnExportCsv" title="ส่งออกไฟล์ CSV"><i
+              class="fa-solid fa-file-csv me-1"></i>CSV</button>
           <button class="btn btn-sm btn-outline-secondary" id="btnExportWord"><i
               class="fa-solid fa-file-word me-1"></i>Word</button>
           <button class="btn btn-sm btn-outline-secondary" id="btnExportPdf"><i
@@ -267,6 +269,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="../assets/ecmis-app.js"></script>
+  <script src="../assets/report-export.js"></script>
   <script>
     ECMIS.renderShell('register.html');
     const role = ECMIS.currentRole();
@@ -651,53 +654,36 @@
       ECMIS.toastOk('ส่งออกไฟล์ข้อมูล CSV เรียบร้อยแล้ว');
     });
 
-    document.getElementById('btnExportWord').addEventListener('click', () => {
-      const rows = ensureRowsForExport();
-      if (!rows) return;
-      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ทะเบียนสำนวน</title>
-      <style>
-        body{font-family:'TH Sarabun New',Tahoma,sans-serif;font-size:16px}
-        h1{font-size:24px;margin-bottom:12px}
-        table{border-collapse:collapse;width:100%}
-        th,td{border:1px solid #999;padding:6px;vertical-align:top}
-        th{background:#f3f4f6}
-      </style></head><body>
-      <h1>ทะเบียนสำนวนการไต่สวนและวินิจฉัยชี้มูล (E-CMIS)</h1>
-      <table><thead><tr>
-        <th>เลขสำนวน</th><th>ประเภทสารบบ</th><th>เรื่องกล่าวหา</th><th>ผู้รับผิดชอบ/สังกัด</th><th>ผู้กล่าวหา</th><th>ผู้ถูกกล่าวหา</th><th>เลขคำสั่ง</th><th>ครั้งที่/วาระ</th><th>สถานะ</th>
-      </tr></thead><tbody>
-      ${rows.map(r => `<tr><td>${escapeHtml(r.id)}</td><td>${escapeHtml(r.procType)}</td><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.owner)} (${escapeHtml(r.ownerOrg)})</td><td>${escapeHtml(r.complainant)}</td><td>${escapeHtml(r.accused)}</td><td>${escapeHtml(r.orderNo)}</td><td>${escapeHtml(r.meetingNo)} / ${escapeHtml(r.agendaNo)}</td><td>${escapeHtml(r.status)}</td></tr>`).join('')}
-      </tbody></table></body></html>`;
-      downloadBlob(html, 'application/msword', `ecmis_cases_register_${Date.now()}.doc`);
-      ECMIS.toastOk('ส่งออกไฟล์ Word เรียบร้อยแล้ว');
+    /* 2026-09-30 (TOR ๗.๔): Word/Excel/PDF เป็นไฟล์จริง (.docx / .xlsx / .pdf) ผ่าน assets/report-export.js
+       (เดิม Word = ไฟล์ .doc แบบ HTML, PDF = เปิดหน้าต่างพิมพ์ของเบราว์เซอร์) */
+    function buildRegisterExportDef(rows) {
+      return {
+        title: 'ทะเบียนสำนวนการไต่สวนและวินิจฉัยชี้มูล (E-CMIS)',
+        subtitle: `ส่งออกโดย ${role.title} — ${new Date().toLocaleString('th-TH')}`,
+        meta: [['จำนวนสำนวน', rows.length + ' เรื่อง'], ['แหล่งข้อมูล', 'ฐานข้อมูล E-CMIS (ตามสิทธิ์การมองเห็นและตัวกรองที่เลือก)']],
+        sections: [{
+          title: 'ทะเบียนสำนวน', sheetName: 'ทะเบียนสำนวน',
+          head: ['เลขสำนวน', 'ประเภทสารบบ', 'เรื่องกล่าวหา', 'ผู้รับผิดชอบ', 'สำนัก/กอง/เขต', 'ผู้กล่าวหา', 'ผู้ถูกกล่าวหา', 'เลขบัตร ปชช.',
+                 'คณะอนุกรรมการ', 'คณะพนักงานไต่สวน', 'เลขที่คำสั่ง', 'ประชุมครั้งที่', 'วาระที่', 'ฐานการรับเรื่อง', 'สถานะ', 'วันที่รับเรื่อง', 'ระยะเวลา'],
+          rows: rows.map(r => [r.id, r.procType, r.subject, r.owner, r.ownerOrg, r.complainant, r.accused, r.idCards, r.subComm, r.investTeam,
+                               r.orderNo, r.meetingNo, r.agendaNo, r.base, r.status, r.receivedDate, r.sla]),
+          colWidths: [1.2, 1.6, 3, 1.5, 1.8, 1.4, 2.6, 1.6, 1.2, 1.8, 1.3, 1, 0.8, 1, 2.2, 1.3, 1],
+          pdfCols: [0, 1, 2, 3, 6, 8, 11, 14, 15, 16], pdfColWidths: [1.1, 1.5, 3, 1.5, 2.4, 1, 1, 2, 1.2, 0.8]
+        }],
+        filename: 'ทะเบียนสำนวน_E-CMIS', landscape: true
+      };
+    }
+    document.getElementById('btnExportXlsx').addEventListener('click', () => {
+      const rows = ensureRowsForExport(); if (!rows) return;
+      ReportExport.exportXlsx(buildRegisterExportDef(rows));
     });
-
+    document.getElementById('btnExportWord').addEventListener('click', () => {
+      const rows = ensureRowsForExport(); if (!rows) return;
+      ReportExport.exportDocx(buildRegisterExportDef(rows));
+    });
     document.getElementById('btnExportPdf').addEventListener('click', () => {
-      const rows = ensureRowsForExport();
-      if (!rows) return;
-      const printWin = window.open('', '_blank');
-      if (!printWin) {
-        ECMIS.toastWarn('เบราว์เซอร์บล็อกหน้าต่างสำหรับพิมพ์ PDF');
-        return;
-      }
-      printWin.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ทะเบียนสำนวน PDF</title>
-      <style>
-        body{font-family:'TH Sarabun New',Tahoma,sans-serif;font-size:15px;padding:18px}
-        h1{font-size:22px;margin-bottom:10px}
-        table{border-collapse:collapse;width:100%}
-        th,td{border:1px solid #999;padding:6px;vertical-align:top}
-        th{background:#f3f4f6}
-      </style></head><body>
-      <h1>ทะเบียนสำนวนการไต่สวนและวินิจฉัยชี้มูล (E-CMIS)</h1>
-      <table><thead><tr>
-        <th>เลขสำนวน</th><th>ประเภทสารบบ</th><th>เรื่องกล่าวหา</th><th>ผู้รับผิดชอบ/สังกัด</th><th>ผู้กล่าวหา</th><th>ผู้ถูกกล่าวหา</th><th>เลขคำสั่ง</th><th>ครั้งที่/วาระ</th><th>สถานะ</th>
-      </tr></thead><tbody>
-      ${rows.map(r => `<tr><td>${escapeHtml(r.id)}</td><td>${escapeHtml(r.procType)}</td><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.owner)} (${escapeHtml(r.ownerOrg)})</td><td>${escapeHtml(r.complainant)}</td><td>${escapeHtml(r.accused)}</td><td>${escapeHtml(r.orderNo)}</td><td>${escapeHtml(r.meetingNo)} / ${escapeHtml(r.agendaNo)}</td><td>${escapeHtml(r.status)}</td></tr>`).join('')}
-      </tbody></table></body></html>`);
-      printWin.document.close();
-      printWin.focus();
-      printWin.print();
-      ECMIS.toastOk('เปิดหน้าพิมพ์ PDF แล้ว');
+      const rows = ensureRowsForExport(); if (!rows) return;
+      ReportExport.exportPdf(buildRegisterExportDef(rows));
     });
 
     function updateActiveFilterBadge() {

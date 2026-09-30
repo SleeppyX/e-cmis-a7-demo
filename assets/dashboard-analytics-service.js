@@ -458,6 +458,328 @@
   }
 
   // ==========================================
+  // 5.5 LIVE DATA LAYER (TOR ข้อ ๗.๔ — ข้อมูลจริงจาก Supabase, 2026-09-30)
+  // ==========================================
+  // แหล่งความจริง: tbl_res_request (+ tbl_cmp_case, tbl_cmp_case_accused, tbl_res_request_event) — ไม่ใช้ dataset ตัวอย่างอีก
+  // ถ้าเชื่อม DB ไม่ได้ จะคงข้อมูลตัวอย่างไว้เป็น fallback และตั้ง dataSource='MOCK_FALLBACK' ให้หน้าแสดงป้ายเตือนชัดเจน
+  // ดู docs/memory/plans/2026-09-30-tor-7-4-dashboard-export.md
+  let LIVE = null;
+
+  const TH_MONTH_NAMES = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+  const THAI_DIGIT_FIX = s => String(s);
+
+  /* 7.3 (เรื่องทั่วไป) — ชนิดเรื่องในระบบ → รายการในแบบรายงาน กบค. (ไม่ตรงกัน → "อื่น ๆ" ไม่ทิ้งเงียบ) */
+  const GENERAL_TYPE_TO_ITEM = {
+    APPOINT_SUBCOMMITTEE: 'change_committee',
+    PROSECUTOR_NO_INDICT: 'review_resolution',
+    PROSECUTOR_NO_APPEAL: 'dissenting_opinion'
+  };
+
+  function monthKeyOf(isoDate) {
+    const m = /^(\d{4})-(\d{2})/.exec(String(isoDate || ''));
+    if (!m) return null;
+    return `${Number(m[1]) + 543}-${m[2]}`; // คีย์เดือนเป็น พ.ศ. ตามที่ตัวกรองเดิมใช้
+  }
+  function fiscalYearOfKey(monthKey) { // ปีงบประมาณ: ต.ค.–ก.ย.
+    const [y, m] = monthKey.split('-').map(Number);
+    return m >= 10 ? y + 1 : y;
+  }
+  function quarterOfKey(monthKey) {
+    const m = Number(monthKey.split('-')[1]);
+    const fm = m >= 10 ? m - 9 : m + 3; // เดือนที่ในปีงบประมาณ 1–12
+    return Math.ceil(fm / 3);
+  }
+  function monthLabelOfKey(monthKey) {
+    const [y, m] = monthKey.split('-').map(Number);
+    return `${TH_MONTH_NAMES[m - 1]} ${y}`;
+  }
+
+  /**
+   * จัดสำนวนที่ "มีมติ/ผลวินิจฉัยบันทึกแล้ว" เข้าหมวด/รายการของแบบรายงาน กบค. — คืน null ถ้ายังไม่มีมติ
+   * (สำนวนที่ยังไม่มีมติไม่นับเป็นสถิติมติ)
+   */
+  function classifyRequest(row) {
+    const d = row.trr_resolution_data || {};
+    const code = d.resolution72 || d.code || d.resolution73 || '';
+    const caseRow = row.tbl_cmp_case || {};
+    const is72 = Number(row.trr_status) >= 100 || !!d.resolution72;
+    if (!code) return null;
+
+    if (is72 && d.resolution72) {
+      switch (d.resolution72) {
+        case 'GUILTY_72': {
+          const crim = d.guiltyCriminal72 !== undefined ? !!d.guiltyCriminal72 : true;
+          const disc = d.guiltyDiscipline72 !== undefined ? !!d.guiltyDiscipline72 : true;
+          if (crim && disc) return { cat: 'cat2', item: 'crim_and_disc' };
+          if (crim) return { cat: 'cat2', item: 'crim_only' };
+          return { cat: 'cat2', item: 'disc_only' };
+        }
+        case 'NO_MERIT_72': return { cat: 'cat2', item: 'dismissed' };
+        case 'FORWARD_NACC': return { cat: 'cat2', item: 'forward_nacc' };
+        case 'MORE_INVESTIGATE_72': return { cat: 'cat2', item: 'investigate_more' };
+        default: return { cat: 'cat2', item: 'other_legal' };
+      }
+    }
+    // เรื่องทั่วไป 7.3
+    if (/_73$/.test(code) || code === 'GENERAL_FREE_TEXT' || caseRow.tcc_doc_type === 'GENERAL' || caseRow.tcc_doc_type === 'GENERAL_MEMO') {
+      const item = GENERAL_TYPE_TO_ITEM[d.generalType73] || 'other';
+      return { cat: 'cat3', item };
+    }
+    // ไต่สวนเบื้องต้น 7.1
+    switch (code) {
+      case 'ACCEPT_S24P1': case 'ACCEPT_S24P3': return { cat: 'cat1', item: 'accepted' };
+      case 'NOT_ACCEPTED': case 'DISMISS': case 'NO_GROUND': return { cat: 'cat1', item: 'rejected' };
+      case 'NACC': case 'FORWARD': return { cat: 'cat1', item: 'forward_nacc' };
+      case 'MORE_INVESTIGATE': return { cat: 'cat1', item: 'investigate_more' };
+      default: return { cat: 'cat1', item: 'other' };
+    }
+  }
+
+  /**
+   * โหลดข้อมูลจริงจาก Supabase แล้วสร้าง dataset สำหรับแดชบอร์ด (เรียกซ้ำได้ — ใช้กับ Real Time polling)
+   * คืน { ok, source, loadedAt, caseCount, error? } — ไม่ throw
+   */
+  async function loadLiveData() {
+    const sb = getSupabaseClient();
+    if (!sb) { LIVE = null; return { ok: false, source: 'MOCK_FALLBACK', error: 'ไม่พบ Supabase client' }; }
+    try {
+      const [reqRes, evRes] = await Promise.all([
+        sb.from('tbl_res_request')
+          .select('trr_id,trr_status,trr_meeting_no,trr_agenda_no,trr_meeting_date,trr_sub_committee,trr_sla_days,trr_sla_limit,trr_resolution_data,' +
+                  'tbl_cmp_case(tcc_no,tcc_subject,tcc_legal_base,tcc_doc_type,tcc_received_date,tcc_owner,tcc_owner_org,tbl_cmp_case_accused(tcca_name,tcca_position,tcca_agency,is_deleted))')
+          .eq('is_deleted', false).limit(5000),
+        sb.from('tbl_res_request_event')
+          .select('trr_id,trre_type,created_datetime')
+          .in('trre_type', ['RESOLVED', 'RESOLVED_72', 'RECORD_RESOLUTION'])
+          .eq('is_deleted', false).order('created_datetime', { ascending: false }).limit(5000)
+      ]);
+      if (reqRes.error) throw reqRes.error;
+      const rows = reqRes.data || [];
+      // วันที่ลงมติสำรอง = event บันทึกมติล่าสุดของสำนวน (กรณีไม่มี trr_meeting_date)
+      const resolvedAt = {};
+      (evRes.data || []).forEach(e => { if (!resolvedAt[e.trr_id]) resolvedAt[e.trr_id] = String(e.created_datetime || '').slice(0, 10); });
+
+      const cases = [];
+      const openForSla = [];
+      rows.forEach(row => {
+        const c = row.tbl_cmp_case;
+        if (!c) return;
+        const cls = classifyRequest(row);
+        const d = row.trr_resolution_data || {};
+        if (!cls) {
+          // สำนวนที่ยังเปิดอยู่ — ใช้คำนวณป้าย SLA
+          if (row.trr_sla_days != null && row.trr_sla_limit != null) openForSla.push({ used: Number(row.trr_sla_days), limit: Number(row.trr_sla_limit) });
+          return;
+        }
+        const resolutionDate = row.trr_meeting_date || resolvedAt[row.trr_id] || null;
+        const monthKey = monthKeyOf(resolutionDate);
+        const accused = (c.tbl_cmp_case_accused || []).filter(a => !a.is_deleted);
+        const catDef = CATEGORIES[cls.cat];
+        const itemDef = (catDef.items && catDef.items[cls.item]) || { label: 'อื่น ๆ', color: '#94A3B8' };
+        const subMatch = /คณะที่\s*(\d)/.exec(row.trr_sub_committee || '');
+        const received = c.tcc_received_date ? new Date(c.tcc_received_date) : null;
+        const resolved = resolutionDate ? new Date(resolutionDate) : null;
+        const days = (received && resolved && !isNaN(received) && !isNaN(resolved)) ? Math.max(0, Math.round((resolved - received) / 86400000)) : null;
+        cases.push({
+          trrId: row.trr_id,
+          caseNo: c.tcc_no,
+          subject: c.tcc_subject || '',
+          accused: accused.length ? accused.map(a => `${a.tcca_name}${a.tcca_position ? ' (' + a.tcca_position + ')' : ''}`).join(', ') : '—',
+          agency: (accused[0] && accused[0].tcca_agency) || c.tcc_owner_org || '—',
+          subId: subMatch ? `sub_${subMatch[1]}` : 'board_main',
+          subName: row.trr_sub_committee || 'บอร์ดกลาง (ยังไม่ผ่านคณะอนุกลั่นกรองฯ)',
+          meetingNo: row.trr_meeting_no || '',
+          meetingDate: row.trr_meeting_date || '',
+          resolutionDate: resolutionDate || '',
+          monthKey,
+          fiscalYear: monthKey ? fiscalYearOfKey(monthKey) : null,
+          cat: cls.cat, item: cls.item,
+          itemLabel: itemDef.label, itemColor: itemDef.color,
+          resolutionLabel: d.label || itemDef.label,
+          days,
+          slaUsed: row.trr_sla_days != null ? Number(row.trr_sla_days) : null,
+          slaLimit: row.trr_sla_limit != null ? Number(row.trr_sla_limit) : null,
+          owner: c.tcc_owner || ''
+        });
+      });
+
+      // สร้างแถวรายเดือน (รูปแบบเดียวกับ MONTHLY_STATISTICS_DB) จากสำนวนที่มีวันที่
+      const db = {};
+      cases.filter(x => x.monthKey).forEach(x => {
+        if (!db[x.monthKey]) {
+          db[x.monthKey] = {
+            monthKey: x.monthKey, monthLabel: monthLabelOfKey(x.monthKey), monthNo: Number(x.monthKey.split('-')[1]),
+            year: Number(x.monthKey.split('-')[0]), fiscalYear: fiscalYearOfKey(x.monthKey), quarter: quarterOfKey(x.monthKey),
+            meetings: [], cat1: {}, cat2: {}, cat3: {}, cat4: {}, cat5: {}
+          };
+        }
+        const m = db[x.monthKey];
+        m[x.cat][x.item] = (m[x.cat][x.item] || 0) + 1;
+        if (x.meetingNo && !m.meetings.some(mm => mm.no === x.meetingNo)) m.meetings.push({ no: x.meetingNo, date: x.meetingDate, monthKey: x.monthKey });
+      });
+
+      LIVE = { db, cases, openForSla, loadedAt: new Date().toISOString(), rowCount: rows.length };
+      return { ok: true, source: 'SUPABASE_LIVE', loadedAt: LIVE.loadedAt, caseCount: cases.length, rowCount: rows.length };
+    } catch (err) {
+      console.warn('[DashboardAnalyticsService] loadLiveData ล้มเหลว — ใช้ข้อมูลเดิม/ตัวอย่าง:', err);
+      return { ok: false, source: LIVE ? 'SUPABASE_LIVE_STALE' : 'MOCK_FALLBACK', error: (err && err.message) || String(err) };
+    }
+  }
+
+  function isLive() { return !!LIVE; }
+  function getLiveInfo() {
+    return LIVE ? { source: 'SUPABASE_LIVE', loadedAt: LIVE.loadedAt, caseCount: LIVE.cases.length, rowCount: LIVE.rowCount }
+                : { source: 'MOCK_FALLBACK', loadedAt: null, caseCount: 0, rowCount: 0 };
+  }
+  function activeDb() { return LIVE ? LIVE.db : MONTHLY_STATISTICS_DB; }
+
+  /** ค่าตั้งต้นของตัวกรอง: เดือนล่าสุดที่มีข้อมูลจริง (live) หรือ 2568-07 (ตัวอย่าง) */
+  function getDefaultFilter() {
+    if (LIVE) {
+      const keys = Object.keys(LIVE.db).sort();
+      const month = keys.length ? keys[keys.length - 1] : 'all';
+      const year = keys.length ? LIVE.db[month].fiscalYear : (fiscalYearOfKey(monthKeyOf(new Date().toISOString().slice(0, 10)) || '2569-01'));
+      return { month, year, subcommitteeId: 'all' };
+    }
+    return { month: '2568-07', year: 2568, subcommitteeId: 'all' };
+  }
+
+  function emptyCategories() {
+    const out = {};
+    Object.keys(CATEGORIES).forEach(catKey => {
+      const c = CATEGORIES[catKey];
+      out[catKey] = { key: catKey, name: c.name, shortName: c.shortName, color: c.color, total: 0, items: {} };
+      Object.keys(c.items).forEach(itemKey => {
+        const it = c.items[itemKey];
+        out[catKey].items[itemKey] = { key: itemKey, code: it.code, label: it.label, color: it.color, order: it.order, count: 0, percentOfCategory: 0, percentOfTotal: 0 };
+      });
+    });
+    return out;
+  }
+
+  function liveCasesFor(filter) {
+    const month = filter.month || 'all';
+    const sub = filter.subcommitteeId || 'all';
+    return LIVE.cases.filter(x => {
+      if (month !== 'all' && x.monthKey !== month) return false;
+      if (month === 'all' && filter.year && x.fiscalYear && x.fiscalYear !== Number(filter.year)) return false;
+      if (sub !== 'all' && x.subId !== sub) return false;
+      return true;
+    });
+  }
+
+  function fetchLive(filter) {
+    const f = Object.assign({}, getDefaultFilter(), filter || {});
+    const isAllMonths = f.month === 'all' || f.month === 'fiscal_2568';
+    const scoped = liveCasesFor(isAllMonths ? Object.assign({}, f, { month: 'all' }) : f);
+
+    const cats = emptyCategories();
+    scoped.forEach(x => {
+      const c = cats[x.cat];
+      if (!c.items[x.item]) {
+        c.items[x.item] = { key: x.item, code: 'OTHER', label: 'อื่น ๆ', color: '#94A3B8', order: 99, count: 0, percentOfCategory: 0, percentOfTotal: 0 };
+      }
+      c.items[x.item].count += 1;
+      c.total += 1;
+    });
+    // ตัดรายการ "อื่น ๆ" ที่ไม่มีข้อมูลออก (ไม่ให้แถวว่างโผล่ในแบบรายงานทางการ)
+    Object.values(cats).forEach(c => { if (c.items.other && c.items.other.count === 0) delete c.items.other; });
+
+    const grandTotal = Object.values(cats).reduce((s, c) => s + c.total, 0);
+    Object.values(cats).forEach(cat => {
+      cat.percentOfTotal = grandTotal > 0 ? Number(((cat.total / grandTotal) * 100).toFixed(1)) : 0;
+      Object.values(cat.items).forEach(it => {
+        it.percentOfCategory = cat.total > 0 ? Number(((it.count / cat.total) * 100).toFixed(1)) : 0;
+        it.percentOfTotal = grandTotal > 0 ? Number(((it.count / grandTotal) * 100).toFixed(1)) : 0;
+      });
+    });
+
+    // แนวโน้มรายเดือน (ทุกเดือนที่มีข้อมูลจริง — สูงสุด 12 เดือนล่าสุด) ไม่กรองตามเดือนที่เลือกเหมือนแดชบอร์ดเดิม
+    const monthKeys = Object.keys(LIVE.db).sort().slice(-12);
+    const monthlyTrend = monthKeys.map(k => {
+      const m = LIVE.db[k];
+      const t = calculateMonthCategoryTotals(m);
+      return {
+        monthKey: k, monthLabel: m.monthLabel, shortLabel: m.monthLabel.split(' ')[0], quarter: m.quarter, total: t.total,
+        cat1: t.cat1, cat2: t.cat2, cat3: t.cat3, cat4: t.cat4, cat5: t.cat5,
+        crimAndDisc: (m.cat2 && m.cat2.crim_and_disc) || 0, dismissed: (m.cat2 && m.cat2.dismissed) || 0,
+        forwardNacc: ((m.cat1 && m.cat1.forward_nacc) || 0) + ((m.cat2 && m.cat2.forward_nacc) || 0)
+      };
+    });
+
+    // สัดส่วนตามคณะอนุกรรมการ (นับจริง)
+    const subBase = liveCasesFor(Object.assign({}, f, { subcommitteeId: 'all', month: isAllMonths ? 'all' : f.month }));
+    const subcommitteeBreakdown = SUBCOMMITTEES.filter(s => s.id !== 'all').map(sub => {
+      const mine = subBase.filter(x => x.subId === sub.id);
+      const by = k => mine.filter(x => x.cat === k).length;
+      return { id: sub.id, name: sub.name, shortName: sub.shortName, totalCases: mine.length,
+        percent: Number(((mine.length / (subBase.length || 1)) * 100).toFixed(1)),
+        cat1: by('cat1'), cat2: by('cat2'), cat3: by('cat3'), cat4: by('cat4'), cat5: by('cat5') };
+    });
+
+    const rulingTotal = cats.cat2.total || 0;
+    const both = cats.cat2.items.crim_and_disc ? cats.cat2.items.crim_and_disc.count : 0;
+    const dism = cats.cat2.items.dismissed ? cats.cat2.items.dismissed.count : 0;
+    const more = (cats.cat1.items.investigate_more ? cats.cat1.items.investigate_more.count : 0) +
+                 (cats.cat2.items.investigate_more ? cats.cat2.items.investigate_more.count : 0);
+    const dayVals = scoped.map(x => x.days).filter(v => v != null);
+    const slaVals = scoped.filter(x => x.slaUsed != null && x.slaLimit != null);
+    const kpis = {
+      grandTotal,
+      guiltyRatio: rulingTotal ? Number(((both / rulingTotal) * 100).toFixed(1)) : 0,
+      dismissedRatio: rulingTotal ? Number(((dism / rulingTotal) * 100).toFixed(1)) : 0,
+      investigateMoreRatio: grandTotal ? Number(((more / grandTotal) * 100).toFixed(1)) : 0,
+      avgProcessingDays: dayVals.length ? Number((dayVals.reduce((a, b) => a + b, 0) / dayVals.length).toFixed(1)) : null,
+      slaComplianceRate: slaVals.length ? Number(((slaVals.filter(x => x.slaUsed <= x.slaLimit).length / slaVals.length) * 100).toFixed(1)) : null,
+      totalMeetings: isAllMonths
+        ? new Set(scoped.map(x => x.meetingNo).filter(Boolean)).size
+        : ((LIVE.db[f.month] && LIVE.db[f.month].meetings.length) || 0),
+      slaOverdue: LIVE.openForSla.filter(x => x.used > x.limit).length,
+      slaWarning: LIVE.openForSla.filter(x => x.used <= x.limit && (x.limit - x.used) < 15).length
+    };
+
+    return {
+      selectedMonth: f.month,
+      monthLabel: isAllMonths ? `ภาพรวมทั้งปีงบประมาณ ${f.year}` : ((LIVE.db[f.month] && LIVE.db[f.month].monthLabel) || monthLabelOfKey(f.month)),
+      selectedSubcommittee: f.subcommitteeId || 'all',
+      categories: cats, grandTotal, kpis, monthlyTrend, subcommitteeBreakdown,
+      metadata: { generatedAt: new Date().toISOString(), dataSource: 'SUPABASE_LIVE', fiscalYear: f.year, loadedAt: LIVE.loadedAt }
+    };
+  }
+
+  function getDrilldownLive(params) {
+    const filter = { month: params.month || 'all', year: params.year, subcommitteeId: params.subcommitteeId || 'all' };
+    const search = (params.search || '').trim().toLowerCase();
+    const limit = parseInt(params.limit, 10) || 50;
+    const offset = parseInt(params.offset, 10) || 0;
+    const catKey = params.categoryKey || 'cat1';
+    const itemKey = params.itemKey || 'all';
+    let list = liveCasesFor(filter).filter(x => x.cat === catKey && (itemKey === 'all' || x.item === itemKey));
+    const catDef = CATEGORIES[catKey] || CATEGORIES.cat1;
+    const itemDef = (catDef.items && catDef.items[itemKey]) ? catDef.items[itemKey] : { label: itemKey === 'all' ? 'ทั้งหมดในหมวด' : 'อื่น ๆ', color: '#3B82F6' };
+    const mapped = list.map(x => {
+      let slaStatus = 'NORMAL', slaBadge = 'bg-success', slaLabel = x.days != null ? `${x.days} วัน (ปกติ)` : '—';
+      if (x.slaUsed != null && x.slaLimit != null) {
+        if (x.slaUsed > x.slaLimit) { slaStatus = 'OVERDUE'; slaBadge = 'bg-danger'; slaLabel = `${x.slaUsed}/${x.slaLimit} วัน (เกินกำหนด)`; }
+        else if (x.slaLimit - x.slaUsed < 15) { slaStatus = 'WARNING'; slaBadge = 'bg-warning text-dark'; slaLabel = `${x.slaUsed}/${x.slaLimit} วัน (ใกล้ครบกำหนด)`; }
+        else { slaLabel = `${x.slaUsed}/${x.slaLimit} วัน (ปกติ)`; }
+      }
+      return {
+        id: `CASE-${x.trrId}`, case_no: x.caseNo, case_year: String(x.caseNo).split('/')[1] || '',
+        categoryKey: x.cat, categoryName: (CATEGORIES[x.cat] || {}).shortName || '', itemKey: x.item, itemLabel: x.itemLabel, itemColor: x.itemColor,
+        subject: x.subject, accused: x.accused, agency: x.agency, subcommittee: x.subName,
+        meeting_no: x.meetingNo || '—', meeting_date: x.meetingDate || '—', resolution_date: x.resolutionDate || '—',
+        resolution_text: `ผลมติ: "${x.resolutionLabel}"`, status: 'บันทึกมติแล้ว',
+        sla_days: x.days, sla_status: slaStatus, sla_badge: slaBadge, sla_label: slaLabel, owner_name: x.owner || '—'
+      };
+    }).filter(ci => !search || `${ci.case_no} ${ci.subject} ${ci.accused} ${ci.agency}`.toLowerCase().includes(search));
+    return {
+      cases: mapped.slice(offset, offset + limit), totalCount: mapped.length, limit, offset,
+      month: filter.month, categoryKey: catKey, itemKey, categoryMeta: catDef, itemMeta: itemDef
+    };
+  }
+
+  // ==========================================
   // 6. PUBLIC API METHODS
   // ==========================================
 
@@ -466,8 +788,9 @@
    * คืนค่ารายการเดือนทั้งหมดที่ระบบมีข้อมูล จัดเรียงตามลำดับเวลา
    */
   function getAvailableMonths() {
-    return Object.keys(MONTHLY_STATISTICS_DB).map(key => {
-      const row = MONTHLY_STATISTICS_DB[key];
+    const DBX = activeDb();
+    return Object.keys(DBX).map(key => {
+      const row = DBX[key];
       const totals = calculateMonthCategoryTotals(row);
       return {
         key: row.monthKey,
@@ -490,7 +813,7 @@
     const years = new Set();
     const fiscalYears = new Set();
 
-    Object.values(MONTHLY_STATISTICS_DB).forEach(m => {
+    Object.values(activeDb()).forEach(m => {
       years.add(m.year);
       fiscalYears.add(m.fiscalYear);
     });
@@ -506,6 +829,10 @@
    * คืนค่ารายการการประชุมคณะกรรมการ ป.ป.ท.
    */
   function getAvailableMeetings(monthKey) {
+    if (LIVE) {
+      const rows = (monthKey && monthKey !== 'all') ? [LIVE.db[monthKey]].filter(Boolean) : Object.values(LIVE.db);
+      return rows.reduce((acc, m) => acc.concat(m.meetings), []);
+    }
     if (monthKey && monthKey !== 'all') {
       return MEETINGS_MASTER.filter(m => m.monthKey === monthKey);
     }
@@ -536,6 +863,7 @@
    * ดึงข้อมูลภาพรวมเชิงสถิติสำหรับสร้าง Dashboard, Metrics Cards, และ Charts
    */
   function fetchDashboardData(filter = {}) {
+    if (LIVE) return fetchLive(filter);
     const targetMonth = filter.month || '2568-07'; // ค่า Default เป็น กรกฎาคม 2568
     const targetSubcommittee = filter.subcommitteeId || 'all';
     const targetYear = filter.year || 2568;
@@ -694,6 +1022,7 @@
    * สร้างรายการสำนวนจำลอง (Mock Drilldown Cases) ที่สอดคล้องกับตัวเลขจริงในตาราง
    */
   function getDrilldownCases(params = {}) {
+    if (LIVE) return getDrilldownLive(params);
     const month = params.month || '2568-07';
     const categoryKey = params.categoryKey || 'cat1';
     const itemKey = params.itemKey || 'accepted';
@@ -964,6 +1293,7 @@
    * ทดสอบความถูกต้องของโมดูลและพิมพ์รายงานสถานะ
    */
   function healthCheck() {
+    if (LIVE) return { moduleName: 'DashboardAnalyticsService', status: 'READY', dataSource: 'SUPABASE_LIVE', caseCount: LIVE.cases.length };
     const jul = fetchDashboardData({ month: '2568-07' });
     const apr = fetchDashboardData({ month: '2568-04' });
 
@@ -1013,7 +1343,12 @@
     getChartData,
     exportToCSV,
     syncWithSupabase,
-    healthCheck
+    healthCheck,
+    // TOR ๗.๔ — ข้อมูลจริง + Real Time
+    loadLiveData,
+    isLive,
+    getLiveInfo,
+    getDefaultFilter
   };
 
   // Expose to window namespace

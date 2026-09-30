@@ -551,14 +551,22 @@
             </div>
 
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                <div class="an-hdr-ts d-none d-md-block" id="loadedTimestamp">
+                <div class="an-hdr-ts" id="loadedTimestamp">
                     <i class="fa-solid fa-clock me-1"></i>อัปเดตล่าสุด: กำลังโหลด...
                 </div>
-                <button class="btn btn-sm btn-outline-light border-secondary" onclick="DashboardExportService.exportToExcel()" title="ส่งออกไฟล์ Excel 1:1">
-                    <i class="fa-solid fa-file-excel text-success me-1"></i>ส่งออก Excel
-                </button>
-                <button class="btn btn-sm btn-outline-light border-secondary" onclick="DashboardExportService.printReport()" title="พิมพ์รายงานราชการ / PDF">
-                    <i class="fa-solid fa-print text-warning me-1"></i>พิมพ์ PDF
+                <div class="btn-group btn-group-sm" role="group" aria-label="ส่งออกข้อมูล">
+                    <button class="btn btn-outline-light border-secondary" id="btnExportDocx" onclick="exportDashboard('docx')" title="ส่งออกไฟล์ Word (.docx)">
+                        <i class="fa-solid fa-file-word text-primary me-1"></i>Word
+                    </button>
+                    <button class="btn btn-outline-light border-secondary" id="btnExportXlsx" onclick="exportDashboard('xlsx')" title="ส่งออกไฟล์ Excel (.xlsx)">
+                        <i class="fa-solid fa-file-excel text-success me-1"></i>Excel
+                    </button>
+                    <button class="btn btn-outline-light border-secondary" id="btnExportPdf" onclick="exportDashboard('pdf')" title="ส่งออกไฟล์ PDF (.pdf)">
+                        <i class="fa-solid fa-file-pdf text-danger me-1"></i>PDF
+                    </button>
+                </div>
+                <button class="btn btn-sm btn-outline-light border-secondary" onclick="DashboardExportService.printReport()" title="พิมพ์รายงานราชการ (หน้าต่างพิมพ์)">
+                    <i class="fa-solid fa-print text-warning me-1"></i>พิมพ์
                 </button>
                 <a href="followup-dashboard.html" class="btn btn-sm btn-gold" title="ไปหน้าติดตามผลมติ">
                     <i class="fa-solid fa-diagram-project me-1"></i>ติดตามผลมติ (SLA)
@@ -695,7 +703,7 @@
                         </h6>
                         <div class="d-flex align-items-center gap-1">
                             <span class="wr-panel-badge"><i class="fa-solid fa-shield-halved me-1"></i>แบบทางการ</span>
-                            <button class="btn btn-xs btn-outline-success py-1 px-2 text-nowrap" onclick="DashboardExportService.exportToExcel()" title="ส่งออก Excel">
+                            <button class="btn btn-xs btn-outline-success py-1 px-2 text-nowrap" onclick="exportDashboard('xlsx')" title="ส่งออก Excel (.xlsx)">
                                 <i class="fa-solid fa-file-excel me-1"></i>Excel
                             </button>
                         </div>
@@ -796,25 +804,31 @@
     <script src="assets/dashboard-analytics-service.js"></script>
     <script src="assets/dashboard-chart-service.js"></script>
     <script src="assets/dashboard-export-service.js"></script>
+    <script src="assets/report-export.js"></script>
 
     <script>
         // Initialize ECMIS Shell
         ECMIS.renderShell('dashboard.html');
 
-        let currentFilter = {
-            month: '2568-07',
-            year: 2568,
-            subcommitteeId: 'all'
-        };
+        /* 2026-09-30 (TOR ๗.๔): แดชบอร์ดใช้ข้อมูลจริงจาก Supabase + อัปเดตอัตโนมัติทุก 30 วินาที (Real Time แบบ polling)
+           ดู docs/memory/plans/2026-09-30-tor-7-4-dashboard-export.md */
+        const AUTO_REFRESH_MS = 30000;
+        let currentFilter = { month: 'all', year: 2569, subcommitteeId: 'all' };
+        let refreshTimer = null;
+        let refreshing = false;
+        let lastLoad = { ok: false, source: 'MOCK_FALLBACK' };
 
         let currentData = null;
 
         function applyFilters() {
             currentFilter.month = document.getElementById('filterMonth').value;
-            currentFilter.year = parseInt(document.getElementById('filterYear').value, 10) || 2568;
+            currentFilter.year = parseInt(document.getElementById('filterYear').value, 10) || currentFilter.year;
+            // เลือกเดือนใดเดือนหนึ่ง → ปีงบประมาณปรับตามเดือนนั้นอัตโนมัติ
+            const picked = DashboardAnalyticsService.getAvailableMonths().find(m => m.key === currentFilter.month);
+            if (picked) { currentFilter.year = picked.fiscalYear; document.getElementById('filterYear').value = String(picked.fiscalYear); }
             currentFilter.subcommitteeId = document.getElementById('filterSubcommittee').value;
 
-            refreshDashboardData();
+            renderDashboard();
         }
 
         function updateKpiCards(data) {
@@ -847,12 +861,103 @@
             const c5Tot = data.categories.cat5.total || 0;
             document.getElementById('kpiCat45Meta').textContent = `ถอน/เลื่อน ${c4Tot} | มิชอบ ${c5Tot}`;
 
-            // Timestamp
-            document.getElementById('loadedTimestamp').innerHTML =
-                `<i class="fa-solid fa-clock me-1"></i>อัปเดตล่าสุด: ${new Date().toLocaleTimeString('th-TH')}`;
+            // SLA banner จากข้อมูลจริง (สำนวนที่ยังเปิดอยู่และเกิน/ใกล้ครบกำหนด)
+            const sOver = document.getElementById('kpiSlaOverdue'); if (sOver) sOver.textContent = data.kpis.slaOverdue != null ? data.kpis.slaOverdue : 0;
+            const sWarn = document.getElementById('kpiSlaWarning'); if (sWarn) sWarn.textContent = data.kpis.slaWarning != null ? data.kpis.slaWarning : 0;
+            renderLiveStamp();
         }
 
-        function refreshDashboardData() {
+        /* ส่งออกข้อมูลแดชบอร์ดเป็นไฟล์จริง Word/Excel/PDF (TOR ๗.๔) — ตารางสรุป ๕ หมวด + (เมื่อใช้ข้อมูลจริง) รายละเอียดสำนวนแยกหมวด */
+        function buildDashboardExportDef() {
+            const d = currentData;
+            const live = DashboardAnalyticsService.isLive();
+            const subName = (DashboardAnalyticsService.getSubcommittees().find(x => x.id === currentFilter.subcommitteeId) || {}).name || 'ทั้งหมด';
+            const rows = [], bold = [];
+            Object.values(d.categories).forEach(cat => {
+                Object.values(cat.items).forEach(it => rows.push([cat.name, it.label, it.count, it.percentOfCategory + '%', it.percentOfTotal + '%']));
+                rows.push([cat.name, 'รวม ' + cat.shortName, cat.total, cat.total ? '100%' : '0%', cat.percentOfTotal + '%']);
+                bold.push(rows.length - 1);
+            });
+            rows.push(['ยอดรวมทั้งสิ้น', '', d.grandTotal, '', d.grandTotal ? '100%' : '0%']);
+            bold.push(rows.length - 1);
+            const sections = [{ title: 'สรุปสถิติมติคณะกรรมการ ป.ป.ท. ตามแบบรายงาน กบค. (๕ หมวด)', sheetName: 'สรุปสถิติ',
+                head: ['หมวด', 'รายการ', 'จำนวน (เรื่อง)', 'สัดส่วนในหมวด', 'สัดส่วนรวม'], rows, boldRows: bold, colWidths: [3, 4, 1.2, 1.4, 1.4] }];
+            if (live) {
+                const detail = [];
+                Object.keys(d.categories).forEach(catKey => {
+                    const r = DashboardAnalyticsService.getDrilldownCases({ month: currentFilter.month, year: currentFilter.year, subcommitteeId: currentFilter.subcommitteeId, categoryKey: catKey, itemKey: 'all', limit: 100000, offset: 0 });
+                    r.cases.forEach(c => detail.push([c.case_no, c.categoryName, c.itemLabel, c.subject, c.accused, c.agency, c.subcommittee, c.meeting_no, c.meeting_date, c.resolution_date, c.sla_days == null ? '' : c.sla_days]));
+                });
+                sections.push({ title: 'รายละเอียดสำนวนที่มีมติ', sheetName: 'รายละเอียดสำนวน',
+                    head: ['เลขสำนวน', 'หมวด', 'ผลมติ', 'เรื่อง', 'ผู้ถูกกล่าวหา', 'หน่วยงาน', 'คณะอนุกรรมการ', 'ประชุมครั้งที่', 'วันที่ประชุม', 'วันที่มติ', 'ระยะเวลา (วัน)'],
+                    rows: detail, colWidths: [1.3, 2, 1.8, 3.5, 2.5, 2, 1.8, 1.1, 1.3, 1.3, 1] });
+            }
+            return {
+                title: 'รายงานสถิติมติคณะกรรมการ ป.ป.ท.',
+                subtitle: d.monthLabel,
+                meta: [['ปีงบประมาณ', 'พ.ศ. ' + currentFilter.year], ['คณะอนุกรรมการ', subName],
+                       ['แหล่งข้อมูล', live ? 'ข้อมูลจริงจากฐานข้อมูล E-CMIS (Supabase)' : 'ข้อมูลตัวอย่าง (เชื่อมฐานข้อมูลไม่ได้)'],
+                       ['วันเวลาที่ส่งออก', new Date().toLocaleString('th-TH')]],
+                sections, filename: 'รายงานสถิติมติคณะกรรมการ_ปปท_' + d.monthLabel, landscape: true
+            };
+        }
+        function exportDashboard(kind) {
+            if (!currentData) { ECMIS.toastWarn('ยังไม่มีข้อมูลสำหรับส่งออก กรุณารอโหลดข้อมูลก่อน'); return; }
+            const def = buildDashboardExportDef();
+            if (kind === 'docx') return ReportExport.exportDocx(def);
+            if (kind === 'xlsx') return ReportExport.exportXlsx(def);
+            return ReportExport.exportPdf(def);
+        }
+
+        /* ป้าย "อัปเดตล่าสุด" + แหล่งข้อมูล (ข้อมูลจริง / ตัวอย่างออฟไลน์) */
+        function renderLiveStamp(errMsg) {
+            const el = document.getElementById('loadedTimestamp');
+            if (!el) return;
+            const live = DashboardAnalyticsService.isLive();
+            const t = new Date().toLocaleTimeString('th-TH');
+            const src = live
+                ? `<span class="badge bg-success ms-1"><i class="fa-solid fa-database me-1"></i>ข้อมูลจริง Supabase</span>`
+                : `<span class="badge bg-warning text-dark ms-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>ข้อมูลตัวอย่าง (เชื่อมฐานข้อมูลไม่ได้)</span>`;
+            const err = errMsg ? `<span class="badge bg-danger ms-1" title="${errMsg}"><i class="fa-solid fa-plug-circle-xmark me-1"></i>อัปเดตไม่สำเร็จ ใช้ข้อมูลเดิม</span>` : '';
+            el.innerHTML = `<i class="fa-solid fa-clock me-1"></i>อัปเดตล่าสุด: ${t} ${src}${err}
+                <span class="ms-1" style="opacity:.75"><i class="fa-solid fa-rotate me-1"></i>อัตโนมัติทุก ${AUTO_REFRESH_MS / 1000} วินาที</span>`;
+        }
+
+        /* เติมตัวเลือกเดือน/ปีงบประมาณจากข้อมูลที่มีจริง (เดิมเป็นรายการตายตัวของปี 2568) */
+        function populateFilters() {
+            const months = DashboardAnalyticsService.getAvailableMonths().slice().sort((a, b) => b.key.localeCompare(a.key));
+            const selM = document.getElementById('filterMonth');
+            selM.innerHTML = months.map(m => `<option value="${m.key}">${m.label} (รวม ${m.totalCases} เรื่อง)</option>`).join('') +
+                '<option value="all">ทั้งหมด</option>';
+            const cur = currentFilter.month;
+            selM.value = (cur === 'all' || months.some(m => m.key === cur)) ? cur : (months[0] ? months[0].key : 'all');
+            currentFilter.month = selM.value;
+            const fys = DashboardAnalyticsService.getAvailableYears().fiscalYears;
+            const selY = document.getElementById('filterYear');
+            const years = fys.length ? fys : [currentFilter.year];
+            selY.innerHTML = years.map(y => `<option value="${y}">พ.ศ. ${y}</option>`).join('');
+            if (!years.includes(currentFilter.year)) currentFilter.year = years[0];
+            selY.value = String(currentFilter.year);
+        }
+
+        /* isAuto = true เมื่อมาจากตัวตั้งเวลา: ห้ามล้างหน้า ถ้าดึงไม่สำเร็จให้คงข้อมูลเดิม */
+        async function refreshDashboardData(isAuto) {
+            if (refreshing) return;
+            refreshing = true;
+            const btn = document.getElementById('btnRefresh');
+            if (btn && !isAuto) btn.disabled = true;
+            try {
+                lastLoad = await DashboardAnalyticsService.loadLiveData();
+                if (!isAuto || lastLoad.ok) populateFilters();
+                renderDashboard();
+                if (!lastLoad.ok && isAuto) renderLiveStamp(lastLoad.error);
+            } finally {
+                refreshing = false;
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function renderDashboard() {
             // 1. Fetch Analytics Data
             currentData = DashboardAnalyticsService.fetchDashboardData(currentFilter);
 
@@ -943,8 +1048,14 @@
         }
 
         // Initialize on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            refreshDashboardData();
+        document.addEventListener('DOMContentLoaded', async () => {
+            lastLoad = await DashboardAnalyticsService.loadLiveData();
+            currentFilter = DashboardAnalyticsService.getDefaultFilter();
+            populateFilters();
+            renderDashboard();
+            // Real Time: ดึงซ้ำทุก 30 วินาที (หยุดเมื่อแท็บถูกซ่อน และดึงทันทีเมื่อกลับมา)
+            refreshTimer = setInterval(() => { if (document.visibilityState === 'visible') refreshDashboardData(true); }, AUTO_REFRESH_MS);
+            document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshDashboardData(true); });
         });
 
         // Auto-detect theme changes from ECMIS shell toggle and re-render charts
@@ -957,7 +1068,7 @@
                         Chart.defaults.borderColor = isDark ? 'rgba(255,255,255,0.08)' : '#f1f5f9';
                     }
                     if (currentData) {
-                        refreshDashboardData();
+                        renderDashboard();
                     }
                 }
             });

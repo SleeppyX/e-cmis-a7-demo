@@ -204,26 +204,8 @@
        ไม่เรียก updatePaginationUI()/applyZoom() เพราะไม่มี toolbar/pagination ในหน้านี้
        ดู docs/memory/plans/2026-09-23-affairs-case-detail-a4-preview.md */
     function renderAffairsDoc(k) {
-      const docType = ECMIS.DOC_TYPES[k.docType] || ECMIS.DOC_TYPES['213'];
-      const priorOpinions = (k.chainOpinions || []).map(o =>
-        `<div>${ECMIS.getRole(o.roleId).title}: เห็นชอบ — ${M(o.note)}
-          <span style="font-size:11px;color:#666">(${ECMIS.toThaiDigits(ECMIS.thaiDate(o.date))})</span></div>`).join('');
-
-      document.getElementById('docPaperPage').innerHTML = `
-        <div class="doc-secret">ลับ</div>
-        <div class="doc-title">${docType.label}</div>
-        <div class="doc-sub">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
-        <div class="doc-row"><span class="k">เรื่องที่</span> ${M(k.id)}</div>
-        <div class="doc-row"><span class="k">เรื่อง</span> ${M(k.subject)}</div>
-        <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(k.owner)}</div>
-        <div class="doc-row"><span class="k">สังกัด</span> ${M(k.ownerOrg)}</div>
-        ${(k.accused && k.accused.length) ? `<div class="doc-h">ผู้ถูกกล่าวหา</div>${k.accused.map(a => `<div>${a.no}. ${M(a.name)} ${M(a.pos)} ${M(a.agency)}</div>`).join('')}` : ''}
-        <div class="doc-h">${ECMIS.isCase73(k) ? 'สาระสำคัญ / ข้อเสนอ' : 'ข้อกล่าวหา'}</div>
-        <div class="doc-indent">${M(k.allegation)}</div>
-        <div class="doc-h">ความเห็นตามสายอนุมัติ</div>
-        <div class="doc-indent">${priorOpinions || '<span class="text-muted">— ยังไม่มีข้อมูล —</span>'}</div>
-        <div class="doc-h">ความเห็นของเลขาธิการฯ</div>
-        <div class="doc-indent">${k.secgenOpinion ? M(k.secgenOpinion) : '<span class="text-muted">— ยังไม่มีข้อมูล —</span>'}</div>`;
+      /* ใช้เอกสารเดียวกับที่เลขาธิการฯ เห็น/ลงนาม (ECMIS.renderSecgenReportDoc) — ไม่ทำ stub แยกอีก */
+      document.getElementById('docPaperPage').innerHTML = ECMIS.renderSecgenReportDoc(k, { signed: true });
     }
 
     /* ── ขั้นที่ ②: กลุ่มงานกิจการคณะกรรมการ (affairs) ทำความเห็นเสนอประธานฯ ──────────

@@ -657,6 +657,51 @@ const LAW_PACC = {
   PR_AGENDA:  { kind:'PRACTICE', m:'เล่ม 5 RES013', p:'',
     t:'แนวปฏิบัติภายใน: ประธานกรรมการ ป.ป.ท. ลงนามสั่งบรรจุเรื่องไต่สวนชี้มูลเข้าวาระการประชุม' }
 };
+/* ── เอกสารรายงานที่เลขาธิการฯ เห็น/ลงนาม (อ่านอย่างเดียว) — ใช้ร่วมกันทุกหน้าที่ต้องแสดงให้ประธานฯ/กจ. ดู ─────
+   2026-09-30: เดิมแต่ละหน้าทำ stub ของตัวเอง (ขึ้นหัว 644 แต่เนื้อเป็นแบบ 213 คนละแบบกับที่เลขาฯ ลงนาม)
+   ตอนนี้ใช้เค้าโครงเดียวกับที่หน้าเลขาฯ (approval-review.html) ลงนามจริง: หัวเอกสารตาม kase.docType,
+   ผู้ถูกร้อง, ข้อกล่าวหา, ความเห็นตามลำดับชั้น (+ คณะอนุสนับสนุนฯ + ความเห็นเลขาฯ), ลายเซ็นเลขาธิการฯ */
+const SECGEN_SIG_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 70">' +
+  '<path d="M8 50 C 30 10, 55 10, 70 40 S 110 65, 130 30 S 165 5, 185 35 S 205 55, 212 40" ' +
+  'fill="none" stroke="#0a2647" stroke-width="4" stroke-linecap="round"/></svg>');
+function renderSecgenReportDoc(kase, opts){
+  const o = opts || {};
+  const M = mergeField;
+  const dt = DOC_TYPES[kase.docType] || DOC_TYPES['213'];
+  const prior = (kase.chainOpinions || []).map(op => {
+    const r = getRole(op.roleId) || { title: op.roleId };
+    const lbl = (OPINION_TYPES[op.type] && OPINION_TYPES[op.type].label) || 'เห็นชอบ';
+    return `<div>${r.title}: ${lbl} — ${M(op.note)}<span style="font-size:11px;color:#666"> (${toThaiDigits(thaiDate(op.date))})</span></div>`;
+  }).join('');
+  let support = '';
+  if (kase.supportOpinion || kase.supportOpinion72) {
+    const team = (kase.supportTeam === 'TEAM2' || kase.supportTeam72 === 'TEAM2') ? 'คณะที่ 2' : 'คณะที่ 1';
+    const dec = kase.supportDecision === 'AGREE' ? 'เห็นพ้อง' : (kase.supportDecision === 'DIFFER' ? 'เห็นต่าง' : 'ขอข้อมูลเพิ่ม');
+    support = `<div><strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ (${team}):</strong> [${dec}] ${M(kase.supportOpinion || kase.supportOpinion72)}</div>`;
+  }
+  const secgen = kase.secgenOpinion ? `<div>เลขาธิการฯ: ${M(kase.secgenOpinion)}</div>` : '';
+  const signed = o.signed !== false;
+  return `
+  <div class="doc-secret">ลับ</div>
+  <div class="doc-title">${dt.label}</div>
+  <div class="doc-sub">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
+  <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+  <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
+  <div class="doc-row"><span class="k">ผู้รับผิดชอบ</span> ${M(kase.owner)}</div>
+  <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
+  <div class="doc-h">ผู้ถูกร้อง</div>
+  ${(kase.accused || []).map(a => `<div>${a.no}. ${M(a.name)} ${M(a.pos)}</div>`).join('')}
+  <div class="doc-h">ข้อกล่าวหา</div>
+  <div class="doc-indent">${M(kase.allegation)}</div>
+  <div class="doc-h">ความเห็นตามลำดับชั้น</div>
+  <div class="doc-indent">${(prior + support + secgen) || '<span class="text-muted">— ยังไม่มีข้อมูล —</span>'}</div>
+  <div class="doc-sign">
+    ${signed ? `<img class="doc-sig-img" src="${SECGEN_SIG_IMG}" alt="ลายมือชื่อ"><span style="color:#166434"><i class="fa-solid fa-signature"></i> ลงนามดิจิทัลแล้ว</span><br>` : 'ลงชื่อ <span class="doc-dots"></span><br>'}
+    (นายอภิชาติ สุจริตกุล)<br>เลขาธิการคณะกรรมการ ป.ป.ท.
+  </div>`;
+}
+
 function lawEntries(keys){ return (keys || []).map(k => LAW_PACC[k]).filter(Boolean); }
 /* HTML กล่อง "ฐานกฎหมาย" ใช้ร่วมทุกหน้า (class .law-row / .law-kind อยู่ใน ecmis-app.css) — ข้อความเป็นค่าคงที่ในไฟล์นี้ ไม่มี input ผู้ใช้ */
 function renderLawBox(keys){
@@ -7833,7 +7878,7 @@ if (typeof localStorage !== 'undefined') {
   subScreeningStatus, slaEffectiveDays, slaIsOnHold, isScreeningLocked, pushCaseHistory,
   CASE_ADMIN_INTAKE, CASE_ADMIN_SCREEN_STATUSES, isCaseAdminQueue, caseAdminRouted,
   AFFAIRS_COMPLEXITY_STATUSES, isAffairsComplexityQueue,
-  caseAdminIntakeStep, SUBCOMMITTEE_ACTIVE_STATUSES, subcommitteeActiveLoad, nextSubcommitteeTeam, CASE_ADMIN_LAW, caseAdminLaw, LAW_PACC, lawEntries, renderLawBox,
+  caseAdminIntakeStep, SUBCOMMITTEE_ACTIVE_STATUSES, subcommitteeActiveLoad, nextSubcommitteeTeam, CASE_ADMIN_LAW, caseAdminLaw, LAW_PACC, lawEntries, renderLawBox, renderSecgenReportDoc,
   BOARD_MIN_IN_OFFICE, boardQuorum,
   M24P1_MIN_PANEL, M24P1_STAFF_FREE, panelComposition,
   CONFIG, RETURN_SCOPES, MATERIAL_FIELDS, daysUntil,

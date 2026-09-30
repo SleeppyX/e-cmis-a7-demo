@@ -812,6 +812,9 @@ function row(c){
       chairTarget = `ruling-report.html?case=${encodeURIComponent(c.id)}`;
     } else if (c.status === 'PENDING_CHAIRMAN_URGENT_72') {
       chairTarget = `urgent-agenda.html?case=${encodeURIComponent(c.id)}`;
+    } else if (c.status === 'PENDING_CASE_ADMIN_SCREEN_72') {
+      /* 2026-09-30: ประธานฯ ลงรับ/คัดกรองสาย 7.2 — ไปหน้าฟอร์มคัดกรอง (เดิมตกไป chairman-agenda.html ซึ่งเป็นหน้าลงนามเก่า) */
+      chairTarget = `affairs-case-detail.html?case=${encodeURIComponent(c.id)}`;
     } else {
       /* PENDING_CHAIRMAN (7.1) / PENDING_CHAIRMAN_72 (ลงนามมอบหมายส่งกลั่นกรอง)
          / PENDING_SIGN_AGENDA_72 (ลงนามสั่งบรรจุวาระ หลังกลั่นกรอง) — ทั้งหมดใช้ chairman-agenda.html */

@@ -151,8 +151,8 @@
                                         class="fa-solid fa-file-signature me-1"></i>เอกสารคำสั่ง /
                                     รายงานรอลงนาม</button>
                                 <button class="ws-doc-tab" data-doc="report213" id="tabReport213"><i
-                                        class="fa-solid fa-file-contract me-1"></i>รายงาน ๒-๑๓ (เลขาฯ
-                                    ลงนามแล้ว)</button>
+                                        class="fa-solid fa-file-contract me-1"></i><span id="tabReport213Label">รายงาน ๒-๑๓ (เลขาฯ
+                                    ลงนามแล้ว)</span></button>
                             </div>
                             <div class="d-flex gap-1 align-items-center">
                                 <button type="button" class="btn-doc-edit" id="btnDocEdit"
@@ -342,6 +342,10 @@
                 updateSigBoxUI(true, { mode: 'cert' }, ECMIS.thaiDate(kase.chairSignedAt || new Date().toISOString()));
             }
 
+            if (ECMIS.isCase72(kase)) {
+                const lbl = document.getElementById('tabReport213Label');
+                if (lbl) lbl.textContent = 'รายงาน ๖-๔๔ (เลขาฯ ลงนามแล้ว)';
+            }
             renderDoc();
             renderLawAndOpinion();
             renderActionButtons();
@@ -400,7 +404,10 @@
             const docPaperEl = document.getElementById('docPaper');
             if (!docPaperEl) return;
 
-            if (docTab === 'report213') {
+            if (docTab === 'report213' && ECMIS.isCase72(kase)) {
+                // 2026-09-30: สาย 7.2 แสดงรายงาน 644 ฉบับเดียวกับที่เลขาธิการฯ เห็น/ลงนาม (ไม่ใช่เค้าโครง ๒-๑๓)
+                docPaperEl.innerHTML = `<div class="doc-paper a4-paper active-page" id="docPaperPage">${ECMIS.renderSecgenReportDoc(kase, { signed: true })}</div>`;
+            } else if (docTab === 'report213') {
                 const chainOpinionsHtml = (kase.chainOpinions || []).map(o => `
                     <div class="mb-2 p-2 bg-light rounded border">
                         <strong>${ECMIS.getRole(o.roleId)?.title || o.roleId}:</strong> ${o.note}
@@ -1234,7 +1241,7 @@
 
         $('#btnDocx').on('click', function () {
             if (typeof ECMIS !== 'undefined' && typeof ECMIS.exportDocToDocx === 'function') {
-                const title = docTab === 'report213' ? 'รายงานแบบ_ปปท_2-13' : (ECMIS.isCase72(kase) ? 'รายงาน_ปปท_7-02' : 'คำสั่งแต่งตั้ง_ปปท_5-02');
+                const title = docTab === 'report213' ? (ECMIS.isCase72(kase) ? 'รายงานแบบ_ปปท_6-44' : 'รายงานแบบ_ปปท_2-13') : (ECMIS.isCase72(kase) ? 'รายงาน_ปปท_7-02' : 'คำสั่งแต่งตั้ง_ปปท_5-02');
                 ECMIS.exportDocToDocx('docPaper', `${title}_${kase.id.replace(/\//g, '-')}.docx`);
             } else {
                 window.print();

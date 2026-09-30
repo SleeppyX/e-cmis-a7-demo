@@ -66,6 +66,31 @@
           </div>
         </div>
 
+        <!-- 1.5 ฟอร์มคัดกรองสำนวน (ประธานฯ) — 2026-09-30 ย้ายจาก pop-up มาเป็นการ์ดบนหน้า -->
+        <div class="card card-ecmis mb-3" id="screenFormCard">
+          <div class="card-header"><i class="fa-solid fa-scale-unbalanced text-primary"></i> <span class="fw-bold">ฟอร์มคัดกรองสำนวน</span>
+            <span class="ms-2 small text-muted">(เลือกผล + ความเห็น แล้วกด "ลงนามคัดกรอง" ที่แถบด้านล่าง)</span>
+          </div>
+          <div class="card-body">
+            <div class="p-2 mb-3 rounded-3" style="background:#F8FAFC; border:1px solid #E2E8F0; font-size:.8rem; color:#475569;">
+              <div class="fw-semibold mb-1" style="color:#1E293B;"><i class="fa-solid fa-clipboard-check me-1"></i>เกณฑ์พิจารณาว่า "ยุ่งยาก" (ส่งคณะอนุกรรมการกลั่นกรองฯ) — ตรงข้อใดข้อหนึ่ง</div>
+              <div>1) มีประเด็นข้อกฎหมายหรือข้อเท็จจริงซับซ้อน (ม.๒๔ วรรคสาม — เรื่องสำคัญหรือซับซ้อน)</div>
+              <div>2) มีความเห็นไม่ตรงกันในสายบังคับบัญชาของสำนวนนี้</div>
+            </div>
+            <label class="form-label fw-semibold d-block mb-2">ผลการคัดกรอง <span style="color:#DB2626">*</span></label>
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="radio" name="caComplex" id="caComplexYes" value="YES">
+              <label class="form-check-label" for="caComplexYes"><strong>ยุ่งยาก</strong> — ลงนามสั่งส่งคณะอนุกลั่นกรองฯ (กบค. กำหนดคณะที่ ๑–๘ ต่อ)</label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="radio" name="caComplex" id="caComplexNo" value="NO">
+              <label class="form-check-label" for="caComplexNo"><strong>ไม่ยุ่งยาก</strong> — ลงนามมอบหมายให้กลุ่มงานกิจการฯ ทำความเห็นเสนอ (อิงรายงาน 644)</label>
+            </div>
+            <label class="form-label fw-semibold">ความเห็นประธานฯ (ถ้ามี)</label>
+            <textarea id="caOpinion" class="form-control" rows="3" placeholder="ระบุความเห็นหรือข้อสั่งการเพิ่มเติม (ไม่บังคับ)"></textarea>
+          </div>
+        </div>
+
         <!-- 2. ความเห็นตามสายอนุมัติ -->
         <div class="card card-ecmis mb-4">
           <div class="card-header"><i class="fa-solid fa-comments text-primary"></i> <span class="fw-bold">ความเห็นตามสายอนุมัติ</span>
@@ -148,6 +173,7 @@
         `<span class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>ประเมินว่าสำนวนนี้ยุ่งยากหรือไม่ ก่อนส่งเข้าคณะอนุกลั่นกรองฯ หรือเสนอประธานฯ ลงนามมอบหมาย — กดดำเนินการที่แถบด้านล่าง</span>`;
 
       renderActionButtons(k);
+      if (!ECMIS.canAct(k, role.id)) document.querySelectorAll('#screenFormCard input, #screenFormCard textarea').forEach(el => { el.disabled = true; });
 
       const opinions = Array.isArray(k.chainOpinions) ? k.chainOpinions : [];
       const chainHtml = opinions.map(o => {
@@ -188,9 +214,9 @@
        ดู docs/memory/plans/2026-09-23-affairs-case-detail-a4-preview.md */
     function renderActionButtons(k) {
       document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(k, role.id,
-        [{ act: 'screen', label: 'คัดกรองสำนวน', icon: 'fa-scale-unbalanced', cls: 'btn-navy' }]);
+        [{ act: 'screen', label: 'ลงนามคัดกรอง', icon: 'fa-signature', cls: 'btn-navy' }]);
       document.querySelectorAll('.action-bar [data-act]').forEach(b =>
-        b.addEventListener('click', () => { if (b.dataset.act === 'screen') openComplexityModal(k.id); }));
+        b.addEventListener('click', () => { if (b.dataset.act === 'screen') submitScreening(k.id); }));
     }
 
     /* A4 preview อ่านอย่างเดียว — adapt จาก renderDoc() ของ approval-review.html (บรรทัด 1663-1699)
@@ -199,29 +225,11 @@
        ไม่เรียก updatePaginationUI()/applyZoom() เพราะไม่มี toolbar/pagination ในหน้านี้
        ดู docs/memory/plans/2026-09-23-affairs-case-detail-a4-preview.md */
     function renderAffairsDoc(k) {
-      const docType = ECMIS.DOC_TYPES[k.docType] || ECMIS.DOC_TYPES['213'];
-      const priorOpinions = (k.chainOpinions || []).map(o =>
-        `<div>${ECMIS.getRole(o.roleId).title}: เห็นชอบ — ${M(o.note)}
-          <span style="font-size:11px;color:#666">(${ECMIS.toThaiDigits(ECMIS.thaiDate(o.date))})</span></div>`).join('');
-
-      document.getElementById('docPaperPage').innerHTML = `
-        <div class="doc-secret">ลับ</div>
-        <div class="doc-title">${docType.label}</div>
-        <div class="doc-sub">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
-        <div class="doc-row"><span class="k">เรื่องที่</span> ${M(k.id)}</div>
-        <div class="doc-row"><span class="k">เรื่อง</span> ${M(k.subject)}</div>
-        <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(k.owner)}</div>
-        <div class="doc-row"><span class="k">สังกัด</span> ${M(k.ownerOrg)}</div>
-        ${(k.accused && k.accused.length) ? `<div class="doc-h">ผู้ถูกกล่าวหา</div>${k.accused.map(a => `<div>${a.no}. ${M(a.name)} ${M(a.pos)} ${M(a.agency)}</div>`).join('')}` : ''}
-        <div class="doc-h">${ECMIS.isCase73(k) ? 'สาระสำคัญ / ข้อเสนอ' : 'ข้อกล่าวหา'}</div>
-        <div class="doc-indent">${M(k.allegation)}</div>
-        <div class="doc-h">ความเห็นตามสายอนุมัติ</div>
-        <div class="doc-indent">${priorOpinions || '<span class="text-muted">— ยังไม่มีข้อมูล —</span>'}</div>
-        <div class="doc-h">ความเห็นของเลขาธิการฯ</div>
-        <div class="doc-indent">${k.secgenOpinion ? M(k.secgenOpinion) : '<span class="text-muted">— ยังไม่มีข้อมูล —</span>'}</div>`;
+      /* ใช้เอกสารเดียวกับที่เลขาธิการฯ เห็น/ลงนาม (ECMIS.renderSecgenReportDoc) — ไม่ทำ stub แยกอีก */
+      document.getElementById('docPaperPage').innerHTML = ECMIS.renderSecgenReportDoc(k, { signed: true });
     }
 
-    /* ── ฟอร์มคัดกรองสำนวน 7.2 ของประธานฯ (ขั้นที่ ①: ลงนามคัดกรอง) ──────────────────
+    /* ── ฟอร์มคัดกรองสำนวน 7.2 ของประธานฯ (ขั้นที่ ①: ลงนามคัดกรอง) — การ์ดบนหน้า + ปุ่ม 'ลงนามคัดกรอง' ด้านล่าง ──────────────────
        2026-09-30: ประธานฯ เป็นผู้คัดกรอง และ "ต้องลงนามดิจิทัลทั้งสองทาง" ตามเล่ม 5 (RES011–012)
        ซับซ้อน    → ลงนามสั่งส่งคณะอนุกลั่นกรองฯ → SCREEN_COMPLEX_72 เข้า IN_SCREENING_72 (subCommittee=null ให้ case_admin กำหนดคณะ ๑–๘)
        ไม่ซับซ้อน  → ลงนามมอบหมาย (อิงรายงาน 644) ให้กลุ่มงานกิจการฯ ทำความเห็นเสนอ → SCREEN_ASSIGN_72 เข้า
@@ -240,44 +248,19 @@
       return true;
     }
 
-    function openComplexityModal(caseId) {
+    function submitScreening(caseId) {
       const k = ECMIS.getCase(caseId);
-      if (!k) return;
-      const is72 = ECMIS.isCase72(k);
-      if (!is72) return; // gate นี้ใช้เฉพาะสาย 7.2 เท่านั้น
-      Swal.fire({
-        title: 'ฟอร์มคัดกรองสำนวน',
-        html: `<div class="text-start small">
-            <div class="mb-3">สำนวน <strong>${k.id}</strong> — วินิจฉัยชี้มูล</div>
-            <div class="p-2 mb-3 rounded-3" style="background:#F8FAFC; border:1px solid #E2E8F0; font-size:.78rem; color:#475569;">
-              <div class="fw-semibold mb-1" style="color:#1E293B;"><i class="fa-solid fa-clipboard-check me-1"></i>เกณฑ์พิจารณาว่า "ยุ่งยาก" (เข้าคณะอนุกลั่นกรองฯ) — ตรงข้อใดข้อหนึ่ง</div>
-              <div>1) มีประเด็นข้อกฎหมายหรือข้อเท็จจริงซับซ้อน (ม.๒๔ วรรคสาม — เรื่องสำคัญหรือซับซ้อน)</div>
-              <div>2) มีความเห็นไม่ตรงกันในสายบังคับบัญชาของสำนวนนี้</div>
-            </div>
-            <label class="form-label fw-semibold d-block mb-2">ผลการคัดกรอง</label>
-            <div class="form-check mb-1">
-              <input class="form-check-input" type="radio" name="caComplex" id="caComplexYes" value="YES" checked>
-              <label class="form-check-label" for="caComplexYes">ยุ่งยาก — ลงนามสั่งส่งคณะอนุกลั่นกรองฯ (กบค. กำหนดคณะที่ ๑–๘ ต่อ)</label>
-            </div>
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="radio" name="caComplex" id="caComplexNo" value="NO">
-              <label class="form-check-label" for="caComplexNo">ไม่ยุ่งยาก — ลงนามมอบหมายให้กลุ่มงานกิจการฯ ทำความเห็นเสนอ (อิงรายงาน 644)</label>
-            </div>
-            <label class="form-label fw-semibold mt-2">ความเห็นประธานฯ (ถ้ามี)</label>
-            <textarea id="caOpinion" class="form-control form-control-sm" rows="3" placeholder="ระบุความเห็นหรือข้อสั่งการเพิ่มเติม (ไม่บังคับ)"></textarea>
-            <div class="mt-2 text-muted" style="font-size:.74rem"><i class="fa-solid fa-signature me-1"></i>กดยืนยันแล้วจะต้องลงนามดิจิทัลก่อนบันทึกผล</div>
-          </div>`,
-        showCancelButton: true,
-        confirmButtonText: 'ยืนยันผลคัดกรอง แล้วลงนาม',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#0F2A62',
-        preConfirm: () => ({
-          complex: document.getElementById('caComplexYes').checked,
-          opinion: (document.getElementById('caOpinion').value || '').trim()
-        })
-      }).then(async res => {
-        if (!res.isConfirmed) return;
-        const { complex, opinion } = res.value;
+      if (!k || !ECMIS.isCase72(k)) return; // gate นี้ใช้เฉพาะสาย 7.2 เท่านั้น
+      const yes = document.getElementById('caComplexYes').checked;
+      const no = document.getElementById('caComplexNo').checked;
+      if (!yes && !no) {
+        ECMIS.toastWarn('กรุณาเลือกผลการคัดกรอง (ยุ่งยาก / ไม่ยุ่งยาก) ก่อนลงนาม');
+        document.getElementById('screenFormCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      const complex = yes;
+      const opinion = (document.getElementById('caOpinion').value || '').trim();
+      (async () => {
         const docType = complex
           ? 'บันทึกสั่งส่งคณะอนุกรรมการกลั่นกรองฯ (ประธานฯ คัดกรอง — ยุ่งยาก)'
           : 'บันทึกมอบหมายกลุ่มงานกิจการฯ ทำความเห็นเสนอ (อิงรายงาน 644 — ไม่ยุ่งยาก)';
@@ -313,7 +296,7 @@
           ? `ลงนามสั่งส่งสำนวน ${k.id} เข้าคณะอนุกลั่นกรองฯ เรียบร้อย`
           : `ลงนามมอบหมายสำนวน ${k.id} แล้ว — ส่งกลุ่มงานกิจการฯ ทำความเห็นเสนอ`);
         location.href = 'inbox.html';
-      });
+      })();
     }
   </script>
 </body>

@@ -793,6 +793,7 @@ function isCase72(kase){
   return !!kase && (
     kase.procType === '7.2' ||
     kase.docType === 'RULING' ||
+    kase.docType === '644' ||
     String(kase.status || '').endsWith('_72') ||
     String(kase.id || '').includes('1119/') ||
     String(kase.id || '').includes('1396/') ||

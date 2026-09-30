@@ -1768,3 +1768,13 @@ a, button, .btn, .card, .kpi-card, .form-control, .form-select, .badge, .st,
 }
 
 
+
+
+/* ── กล่องฐานกฎหมาย (ECMIS.renderLawBox) — 2026-09-30 ── */
+.law-row { display: flex; gap: .6rem; padding: .5rem 0; border-bottom: 1px dashed var(--border-divider, #E2E8F0); font-size: .84rem; }
+.law-row:last-child { border-bottom: none; }
+.law-row .chip { flex-shrink: 0; align-self: flex-start; }
+.law-row .law-statute { background: #E0E7FF; color: #1E3A8A; }
+.law-row .law-practice { background: #FEF3C7; color: #92400E; }
+.law-row .law-page { color: #64748B; font-size: .76rem; }
+.law-row .law-kind { display: inline-block; margin-left: .25rem; padding: 0 .4rem; border-radius: 4px; background: #FEF3C7; color: #92400E; font-size: .72rem; font-weight: 600; }

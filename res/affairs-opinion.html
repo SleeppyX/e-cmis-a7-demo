@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ฟอร์มคัดกรองสำนวน | E-CMIS</title>
+  <title>ทำความเห็นเสนอ (กลุ่มงานกิจการฯ) | E-CMIS</title>
   <link rel="icon" type="image/png" href="../assets/pacc_logo.png">
   <link
     href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap"
@@ -43,8 +43,8 @@
     <div class="page-head d-flex align-items-center justify-content-between flex-wrap gap-2">
       <div>
         <a href="inbox.html" class="text-decoration-none small d-block mb-1"
-          style="color:var(--ecmis-muted)"><i class="fa-solid fa-arrow-left me-1"></i>กลับรายการสำนวน</a>
-        <h1><i class="fa-solid fa-scale-unbalanced me-2" style="color:#0F2A62"></i><span id="pageTitle">ฟอร์มคัดกรองสำนวน</span></h1>
+          style="color:var(--ecmis-muted)"><i class="fa-solid fa-arrow-left me-1"></i>กลับรายการเรื่องที่ต้องจัดทำ</a>
+        <h1><i class="fa-solid fa-pen-to-square me-2" style="color:#0F2A62"></i><span id="pageTitle">ทำความเห็นเสนอประธานฯ</span></h1>
       </div>
       <div class="ms-auto"></div>
     </div>
@@ -119,7 +119,7 @@
     const params = new URLSearchParams(location.search);
     let kase = ECMIS.getCase(params.get('case') || '');
 
-    if (!kase || !ECMIS.isAffairsComplexityQueue(kase)) {
+    if (!kase || kase.status !== 'PENDING_AFFAIRS_OPINION_72') {
       document.getElementById('notFoundBox').classList.remove('d-none');
     } else {
       document.getElementById('detailWrap').classList.remove('d-none');
@@ -131,21 +131,26 @@
 
     function renderDetail() {
       const k = kase;
-      document.getElementById('pageTitle').textContent = 'ฟอร์มคัดกรองสำนวน ' + k.id;
+      document.getElementById('pageTitle').textContent = 'ทำความเห็นเสนอประธานฯ ' + k.id;
       document.getElementById('headBadges').innerHTML = ECMIS.typeBadge(k) + ' ' + ECMIS.statusBadge(k.status) + ' ' + ECMIS.slaBadge(k);
 
       const accused = (k.accused || []).map(a => `${esc(a.name || '')}${a.pos ? ' — ' + esc(a.pos) : ''}`).join('<br>') || '—';
+      const scr = k.screen72 || {};
+      const screenRow = scr.result
+        ? `<dt>ผลคัดกรองประธานฯ</dt><dd>${scr.result === 'NOT_COMPLEX' ? 'ไม่ยุ่งยาก — ลงนามมอบหมายกลุ่มงานกิจการฯ' : 'ยุ่งยาก'}${scr.opinion ? ' · ความเห็น: ' + esc(scr.opinion) : ''}${scr.signedAt ? ' <span class="text-muted">(ลงนาม ' + ECMIS.thaiDate(scr.signedAt.slice(0, 10)) + ')</span>' : ''}</dd>`
+        : '';
       document.getElementById('headKv').innerHTML = `
         <dt>เลขสำนวน</dt><dd>${esc(k.id)}</dd>
         <dt>ประเภทเรื่อง</dt><dd>${ECMIS.isCase72(k) ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</dd>
         <dt>ผู้ถูกกล่าวหา</dt><dd>${accused}</dd>
         <dt>เจ้าของสำนวน</dt><dd>${esc(k.owner || '—')}${k.ownerOrg ? ' · ' + esc(k.ownerOrg) : ''}</dd>
         <dt>ข้อกล่าวหา</dt><dd>${esc(k.allegation || k.subject || '—')}</dd>
+        ${screenRow}
         <dt>เลขรับ / อ้างอิง</dt><dd>${esc(k.docRef || '—')}</dd>
         <dt>วันที่รับเรื่อง</dt><dd>${k.receivedDate ? ECMIS.thaiDate(k.receivedDate) : '—'}</dd>`;
 
       document.getElementById('headActions').innerHTML =
-        `<span class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>ประเมินว่าสำนวนนี้ยุ่งยากหรือไม่ ก่อนส่งเข้าคณะอนุกลั่นกรองฯ หรือเสนอประธานฯ ลงนามมอบหมาย — กดดำเนินการที่แถบด้านล่าง</span>`;
+        `<span class=\"small text-muted\"><i class=\"fa-solid fa-circle-info me-1\"></i>ประธานฯ คัดกรองและลงนามมอบหมายแล้ว — โปรดทำความเห็นเสนอเพื่อให้ประธานฯ พิจารณาลงนามสั่งบรรจุวาระการประชุม</span>`;
 
       renderActionButtons(k);
 
@@ -180,7 +185,7 @@
         '<div class="text-muted small">ยังไม่มีความเห็นตามสายอนุมัติของสำนวนนี้ในระบบ</div>';
 
       renderAffairsDoc(k);
-      document.getElementById('lawBox').innerHTML = ECMIS.renderLawBox(['M24_P3', 'M17_10', 'M18_LAST', 'PR_SCREEN']);
+      document.getElementById('lawBox').innerHTML = ECMIS.renderLawBox(['M18_LAST', 'PR_SCREEN', 'PR_OPINION', 'M14']);
     }
 
     /* ปุ่ม "ลงรับ / คัดกรองสำนวน" (ประธานฯ — 2026-09-30 เดิมเป็นของ affairs) ย้ายมาเป็น sticky action bar ด้านล่างจอผ่าน ECMIS.actionBar() เหมือน
@@ -188,9 +193,9 @@
        ดู docs/memory/plans/2026-09-23-affairs-case-detail-a4-preview.md */
     function renderActionButtons(k) {
       document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(k, role.id,
-        [{ act: 'screen', label: 'คัดกรองสำนวน', icon: 'fa-scale-unbalanced', cls: 'btn-navy' }]);
+        [{ act: 'screen', label: 'ทำความเห็นเสนอ', icon: 'fa-pen-to-square', cls: 'btn-navy' }]);
       document.querySelectorAll('.action-bar [data-act]').forEach(b =>
-        b.addEventListener('click', () => { if (b.dataset.act === 'screen') openComplexityModal(k.id); }));
+        b.addEventListener('click', () => { if (b.dataset.act === 'screen') openOpinionModal(k.id); }));
     }
 
     /* A4 preview อ่านอย่างเดียว — adapt จาก renderDoc() ของ approval-review.html (บรรทัด 1663-1699)
@@ -221,97 +226,57 @@
         <div class="doc-indent">${k.secgenOpinion ? M(k.secgenOpinion) : '<span class="text-muted">— ยังไม่มีข้อมูล —</span>'}</div>`;
     }
 
-    /* ── ฟอร์มคัดกรองสำนวน 7.2 ของประธานฯ (ขั้นที่ ①: ลงนามคัดกรอง) ──────────────────
-       2026-09-30: ประธานฯ เป็นผู้คัดกรอง และ "ต้องลงนามดิจิทัลทั้งสองทาง" ตามเล่ม 5 (RES011–012)
-       ซับซ้อน    → ลงนามสั่งส่งคณะอนุกลั่นกรองฯ → SCREEN_COMPLEX_72 เข้า IN_SCREENING_72 (subCommittee=null ให้ case_admin กำหนดคณะ ๑–๘)
-       ไม่ซับซ้อน  → ลงนามมอบหมาย (อิงรายงาน 644) ให้กลุ่มงานกิจการฯ ทำความเห็นเสนอ → SCREEN_ASSIGN_72 เข้า
-                     PENDING_AFFAIRS_OPINION_72 (affairs-opinion.html) → 122 (chairman-agenda.html ลงนามสั่งบรรจุวาระ)
-       ฐานกฎหมาย: ม.๒๔ วรรคสาม / ม.๑๗(๑๐) / ม.๑๘ วรรคท้าย + แนวปฏิบัติเล่ม 5 — ดู docs/memory/plans/2026-09-30-72-law-referenced-flow.md */
-    const SIGNER_NAME = 'นายวิชัย ยุติธรรม';
-    const SIGNER_TITLE = 'ประธานกรรมการ ป.ป.ท.';
-
-    /* เขียนฟิลด์เสริมลง trr_resolution_data (merge กับของเดิม) เพื่อให้ผลคัดกรองอยู่ข้ามเครื่อง/หลังรีเฟรช */
+    /* ── ขั้นที่ ②: กลุ่มงานกิจการคณะกรรมการ (affairs) ทำความเห็นเสนอประธานฯ ──────────
+       2026-09-30: ทางไม่ยุ่งยากของสาย 7.2 — ประธานฯ ลงนามมอบหมาย (affairs-case-detail.html) แล้วมาที่นี่
+       affairs บันทึกความเห็น (บังคับ ไม่มีลายเซ็นของ กจ.) → AFFAIRS_OPINION_72 เข้า PENDING_CHAIRMAN_ASSIGN_72 (122)
+       ประธานฯ ลงนามสั่งบรรจุวาระที่ chairman-agenda.html โดยอ้างความเห็นนี้ (kase.affairsOpinion72)
+       ฐานกฎหมาย: แนวปฏิบัติเล่ม 5 RES012 + ม.๑๘ วรรคท้าย/ม.๑๔ — ดู docs/memory/plans/2026-09-30-72-law-referenced-flow.md */
     async function persistResolutionData(k, patch) {
       if (!sb || !k.trr_id) return true;
       const merged = Object.assign({}, k.resolutionData || {}, patch);
       const { error } = await sb.from('tbl_res_request').update({ trr_resolution_data: merged }).eq('trr_id', k.trr_id);
-      if (error) { console.error('บันทึกผลคัดกรองลงฐานข้อมูลไม่สำเร็จ:', error); ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่'); return false; }
+      if (error) { console.error('บันทึกความเห็นลงฐานข้อมูลไม่สำเร็จ:', error); ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่'); return false; }
       k.resolutionData = merged;
       return true;
     }
 
-    function openComplexityModal(caseId) {
+    function openOpinionModal(caseId) {
       const k = ECMIS.getCase(caseId);
-      if (!k) return;
-      const is72 = ECMIS.isCase72(k);
-      if (!is72) return; // gate นี้ใช้เฉพาะสาย 7.2 เท่านั้น
+      if (!k || k.status !== 'PENDING_AFFAIRS_OPINION_72') return;
       Swal.fire({
-        title: 'ฟอร์มคัดกรองสำนวน',
+        title: 'ทำความเห็นเสนอประธานฯ',
         html: `<div class="text-start small">
-            <div class="mb-3">สำนวน <strong>${k.id}</strong> — วินิจฉัยชี้มูล</div>
-            <div class="p-2 mb-3 rounded-3" style="background:#F8FAFC; border:1px solid #E2E8F0; font-size:.78rem; color:#475569;">
-              <div class="fw-semibold mb-1" style="color:#1E293B;"><i class="fa-solid fa-clipboard-check me-1"></i>เกณฑ์พิจารณาว่า "ยุ่งยาก" (เข้าคณะอนุกลั่นกรองฯ) — ตรงข้อใดข้อหนึ่ง</div>
-              <div>1) มีประเด็นข้อกฎหมายหรือข้อเท็จจริงซับซ้อน (ม.๒๔ วรรคสาม — เรื่องสำคัญหรือซับซ้อน)</div>
-              <div>2) มีความเห็นไม่ตรงกันในสายบังคับบัญชาของสำนวนนี้</div>
-            </div>
-            <label class="form-label fw-semibold d-block mb-2">ผลการคัดกรอง</label>
-            <div class="form-check mb-1">
-              <input class="form-check-input" type="radio" name="caComplex" id="caComplexYes" value="YES" checked>
-              <label class="form-check-label" for="caComplexYes">ยุ่งยาก — ลงนามสั่งส่งคณะอนุกลั่นกรองฯ (กบค. กำหนดคณะที่ ๑–๘ ต่อ)</label>
-            </div>
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="radio" name="caComplex" id="caComplexNo" value="NO">
-              <label class="form-check-label" for="caComplexNo">ไม่ยุ่งยาก — ลงนามมอบหมายให้กลุ่มงานกิจการฯ ทำความเห็นเสนอ (อิงรายงาน 644)</label>
-            </div>
-            <label class="form-label fw-semibold mt-2">ความเห็นประธานฯ (ถ้ามี)</label>
-            <textarea id="caOpinion" class="form-control form-control-sm" rows="3" placeholder="ระบุความเห็นหรือข้อสั่งการเพิ่มเติม (ไม่บังคับ)"></textarea>
-            <div class="mt-2 text-muted" style="font-size:.74rem"><i class="fa-solid fa-signature me-1"></i>กดยืนยันแล้วจะต้องลงนามดิจิทัลก่อนบันทึกผล</div>
+            <div class="mb-2">สำนวน <strong>${esc(k.id)}</strong> — วินิจฉัยชี้มูล (ประธานฯ คัดกรองแล้วว่าไม่ยุ่งยาก)</div>
+            <label class="form-label fw-semibold">ความเห็นเสนอ <span style="color:#DB2626">*</span></label>
+            <textarea id="afOpinion" class="form-control form-control-sm" rows="5"
+              placeholder="ระบุความเห็นของกลุ่มงานกิจการคณะกรรมการ เพื่อเสนอประธานฯ พิจารณาลงนามสั่งบรรจุเรื่องเข้าวาระการประชุม"></textarea>
+            <div class="mt-2 text-muted" style="font-size:.74rem"><i class="fa-solid fa-circle-info me-1"></i>ความเห็นนี้จะถูกอ้างในบันทึกสั่งบรรจุวาระที่ประธานฯ ลงนาม (ไม่ต้องลงนามในขั้นนี้)</div>
           </div>`,
         showCancelButton: true,
-        confirmButtonText: 'ยืนยันผลคัดกรอง แล้วลงนาม',
+        confirmButtonText: 'ส่งความเห็นเสนอประธานฯ',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#0F2A62',
-        preConfirm: () => ({
-          complex: document.getElementById('caComplexYes').checked,
-          opinion: (document.getElementById('caOpinion').value || '').trim()
-        })
+        preConfirm: () => {
+          const v = (document.getElementById('afOpinion').value || '').trim();
+          if (!v) { Swal.showValidationMessage('กรุณากรอกความเห็นเสนอ'); return false; }
+          return v;
+        }
       }).then(async res => {
         if (!res.isConfirmed) return;
-        const { complex, opinion } = res.value;
-        const docType = complex
-          ? 'บันทึกสั่งส่งคณะอนุกรรมการกลั่นกรองฯ (ประธานฯ คัดกรอง — ยุ่งยาก)'
-          : 'บันทึกมอบหมายกลุ่มงานกิจการฯ ทำความเห็นเสนอ (อิงรายงาน 644 — ไม่ยุ่งยาก)';
-        const signed = await ECMIS.signDialog(docType, `${SIGNER_NAME} — ${SIGNER_TITLE}`);
-        if (!signed.isConfirmed) return;
-
+        const opinion = res.value;
         const fromStatus = k.status;
-        const nextStatus = complex ? 'IN_SCREENING_72' : 'PENDING_AFFAIRS_OPINION_72';
-        const signedAt = new Date().toISOString();
-        const screen72 = { result: complex ? 'COMPLEX' : 'NOT_COMPLEX', opinion, signedAt, docType };
-
-        ECMIS.Model.SignatureStore.create({
-          caseId: k.id, docType, signerRole: 'chairman', signerName: `${SIGNER_NAME} — ${SIGNER_TITLE}`,
-          method: (signed.value && signed.value.mode) || 'cert', signedAt
-        });
+        const nextStatus = 'PENDING_CHAIRMAN_ASSIGN_72';
+        const affairsOpinion72 = { text: opinion, by: role.id, at: new Date().toISOString() };
         ECMIS.pushCaseHistory(k, {
-          event: complex ? 'SCREEN_COMPLEX_72' : 'SCREEN_ASSIGN_72', from: fromStatus, to: nextStatus, actor: 'chairman',
-          note: (complex
-            ? 'ประธานฯ ลงนามสั่งส่งคณะอนุกลั่นกรองฯ (ยุ่งยาก)'
-            : 'ประธานฯ ลงนามมอบหมายกลุ่มงานกิจการฯ ทำความเห็นเสนอ (ไม่ยุ่งยาก)') + (opinion ? ` (${opinion})` : '')
+          event: 'AFFAIRS_OPINION_72', from: fromStatus, to: nextStatus, actor: 'affairs',
+          note: 'กลุ่มงานกิจการฯ ทำความเห็นเสนอประธานฯ: ' + opinion
         });
-        if (!await persistResolutionData(k, { screen72 })) return;
-        const rest = { screen72, history: k.history, subCommittee: null };
+        if (!await persistResolutionData(k, { affairsOpinion72 })) return;
+        const rest = { affairsOpinion72, subOpinion: opinion, directAssign: true, history: k.history };
         Object.assign(k, rest);
         ECMIS.Model.CaseStore.update(k.id, rest);
         await ECMIS.updateCaseStatus(k, nextStatus, sb);
-        if (k.trr_id && sb) {
-          await ECMIS.logRequestEvent(k.trr_id, fromStatus, nextStatus, {
-            type: 'SIGNED', actorRole: 'chairman', data: { docType, signerName: SIGNER_NAME, signerTitle: SIGNER_TITLE }
-          });
-        }
-        ECMIS.toastOk(complex
-          ? `ลงนามสั่งส่งสำนวน ${k.id} เข้าคณะอนุกลั่นกรองฯ เรียบร้อย`
-          : `ลงนามมอบหมายสำนวน ${k.id} แล้ว — ส่งกลุ่มงานกิจการฯ ทำความเห็นเสนอ`);
+        ECMIS.toastOk(`ส่งความเห็นสำนวน ${k.id} เสนอประธานฯ เรียบร้อย`);
         location.href = 'inbox.html';
       });
     }

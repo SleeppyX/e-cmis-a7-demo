@@ -263,7 +263,8 @@ function isChairDone(c) {
    ดู docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md) */
 /* 2026-09-30: PENDING_CASE_ADMIN_SCREEN_72 ถอดออกจากคิว affairs แล้ว — ประธานฯ เป็นผู้ลงรับ/คัดกรองสาย 7.2 เอง
    (ดู docs/memory/plans/2026-09-30-72-chairman-intake-screening.md) */
-const AFFAIRS_STATUSES = ['RESOLVED', 'RESOLVED_PENDING_72', 'PENDING_DISPATCH_GUILTY_72'];
+const AFFAIRS_STATUSES = ['RESOLVED', 'RESOLVED_PENDING_72', 'PENDING_DISPATCH_GUILTY_72',
+  'PENDING_AFFAIRS_OPINION_72']; // 2026-09-30: ทางไม่ยุ่งยาก 7.2 — กจ. ทำความเห็นเสนอหลังประธานฯ ลงนามมอบหมาย
 /* RESOLVED ใช้ร่วมกันทั้งสาย 7.1 (ต้องจัดทำคำสั่ง ม.24 ต่อ) และสาย 7.3 (เรื่องของ กกม./ทั่วไป ซึ่ง
    ไม่มีคำสั่ง ม.24 — จบที่แจ้งมติ/ปิดเรื่องแทน ดู FLOW_STEPS_73 ใน ecmis-app.js) — งานแจ้งมติของ
    สาย 7.3 ยังไม่ได้ออกแบบหน้าจอ/สถานะเฉพาะ จึงยังไม่ดึงเข้าคิวนี้ ป้องกันป้ายผิดว่า "รอจัดทำคำสั่ง"
@@ -289,7 +290,8 @@ function isAffairsQueueCase(c) {
    นับตรงๆ จะปนเคสที่ไม่เกี่ยวกับ affairs เข้ามาเยอะเกินไป */
 function isAffairsDone(c) {
   // 2026-09-30: IN_SCREENING_72 / PENDING_CHAIRMAN_ASSIGN_72 ไม่นับเป็นงานที่ affairs ส่งต่อแล้วอีก (ประธานฯ คัดกรองเอง)
-  return c.status === 'PENDING_SIGN_RULING_72' || c.status === 'CLOSED_72' ||
+  // 2026-09-30: PENDING_CHAIRMAN_ASSIGN_72 นับเป็นงานที่ affairs ส่งต่อแล้วอีกครั้ง (กจ. ทำความเห็นเสนอเสร็จแล้วส่งประธานฯ)
+  return c.status === 'PENDING_CHAIRMAN_ASSIGN_72' || c.status === 'PENDING_SIGN_RULING_72' || c.status === 'CLOSED_72' ||
          c.status === 'PENDING_SIGN_ORDER_SECGEN' || c.status === 'PENDING_SIGN_ORDER_CHAIRMAN';
 }
 
@@ -445,6 +447,7 @@ if(ECMIS.isUpstreamRole(role.id)){
   if (sf) {
     sf.innerHTML = `
       <option value="ALL">ทั้งหมด</option>
+      <option value="AFFAIRS_OPINION">รอทำความเห็นเสนอ</option>
       <option value="RESOLVED">รอจัดทำคำสั่ง</option>
       <option value="RESOLVED_PENDING_72">รอจัดทำรายงานชี้มูล / หนังสือลงโทษทางวินัย</option>
       <option value="PENDING_DISPATCH_GUILTY_72">รอส่งดำเนินคดี</option>
@@ -532,6 +535,7 @@ function renderKPICards() {
   if (role.id === 'affairs') {
     const orderCount     = allCasesCombined.filter(c => c.status === 'RESOLVED').length;
     const rulingCount    = allCasesCombined.filter(c => c.status === 'RESOLVED_PENDING_72').length;
+    const opinionCount   = allCasesCombined.filter(c => c.status === 'PENDING_AFFAIRS_OPINION_72').length;
     /* gate คัดกรองความยุ่งยากก่อนถึงประธานฯ (ย้ายมาเป็นของ affairs เมื่อ 2026-09-17 แก้ไข) —
        รวม 7.1/7.2 เข้าการ์ดเดียว เหมือน pattern "PENDING_NORMAL" ของ chairman ด้านบน */
     const doneCount = allCasesCombined.filter(c => isAffairsDone(c)).length;
@@ -541,6 +545,7 @@ function renderKPICards() {
        ด้านล่างเพื่อยังกรองดูได้ เคสยังนับรวมอยู่ใน "รายการทั้งหมด" เหมือนเดิม */
     const kpis = [
       { id:'ALL', n: allCasesCombined.length, l:'รายการทั้งหมด', i:'fa-folder-open', c:'#0F2A62' },
+      { id:'AFFAIRS_OPINION', n: opinionCount, l:'รอทำความเห็นเสนอ', i:'fa-pen-to-square', c:'#7E22CE' },
       { id:'RESOLVED', n: orderCount, l:'รอจัดทำคำสั่ง', i:'fa-file-signature', c:'#DB2626' },
       { id:'RESOLVED_PENDING_72', n: rulingCount, l:'รอจัดทำรายงานชี้มูล / หนังสือลงโทษทางวินัย', i:'fa-file-pen', c:'#D0A830' },
       { id:'AFFAIRS_DONE', n: doneCount, l:'จัดทำแล้ว', i:'fa-circle-check', c:'#16A34A' }
@@ -711,6 +716,9 @@ function getSecgenActionBadge(c) {
    ทำตามรูปแบบเดียวกับ getSecgenActionBadge()/chairman catBadge — ป้ายเฉพาะของ affairs 3 แบบ
    ตรงกับงาน 3 อย่างที่กลุ่มกิจการฯ ต้องทำต่อจริง ๆ */
 function getAffairsActionBadge(c) {
+  if (c.status === 'PENDING_AFFAIRS_OPINION_72') {
+    return `<span class="meet-badge meet-review"><i class="fa-solid fa-pen-to-square me-1"></i>รอทำความเห็นเสนอ</span>`;
+  }
   if (c.status === 'PENDING_CASE_ADMIN_SCREEN_72') {
     return `<span class="meet-badge meet-review"><i class="fa-solid fa-scale-unbalanced me-1"></i>รอคัดกรองความยุ่งยาก</span>`;
   }
@@ -788,7 +796,7 @@ function row(c){
     else if (c.status === 'PENDING_SIGN_RULING_72') catBadge = `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามรายงานชี้มูล</span>`;
     else if (c.status === 'PENDING_SIGN_ORDER_CHAIRMAN') catBadge = `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามคำสั่ง ม.24</span>`;
     else if (c.status === 'PENDING_CASE_ADMIN_SCREEN_72') catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-scale-unbalanced me-1"></i>รอลงรับ / คัดกรองสำนวน</span>`;
-    else if (c.status === 'PENDING_CHAIRMAN_ASSIGN_72') catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-bolt-lightning me-1"></i>รอลงนามมอบหมาย (ทางลัด กจ.)</span>`;
+    else if (c.status === 'PENDING_CHAIRMAN_ASSIGN_72') catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-bolt-lightning me-1"></i>รอลงนามสั่งบรรจุวาระ</span>`;
     else if (isChairDone(c)) catBadge = `<span class="meet-badge" style="background:#DCFCE7;color:#166534"><i class="fa-solid fa-circle-check me-1"></i>สั่งการบรรจุวาระเรียบร้อย</span>`;
     else catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-hourglass-half me-1"></i>รอสั่งการวาระปกติ</span>`;
 
@@ -1008,6 +1016,7 @@ function applyFilters() {
     } else if (role.id === 'affairs') {
       if (st !== 'ALL') {
         if (st === 'SCREEN_COMPLEXITY') matchSt = ECMIS.isAffairsComplexityQueue(c);
+        else if (st === 'AFFAIRS_OPINION') matchSt = (c.status === 'PENDING_AFFAIRS_OPINION_72');
         else if (st === 'AFFAIRS_DONE') matchSt = isAffairsDone(c);
         else matchSt = (c.status === st);
       }

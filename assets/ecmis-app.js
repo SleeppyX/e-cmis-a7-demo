@@ -215,7 +215,8 @@ const STATUS = {
      2026-09-23 gate นี้ใช้เฉพาะสาย 7.2 เท่านั้น (สาย 7.1 ถูกตัดออกแล้ว ดูคอมเมนต์ที่ PENDING_CHAIRMAN
      ด้านบน และ docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md) */
   PENDING_CASE_ADMIN_SCREEN_72: { label:'รอประธานฯ ลงรับ / คัดกรอง (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'chairman' },
-  PENDING_CHAIRMAN_ASSIGN_72:   { label:'รอประธานฯ ลงนามคำสั่งมอบหมาย / บรรจุวาระ (ไม่ซับซ้อน — วินิจฉัยชี้มูล)', cls:'st-pending', owner:'chairman' },
+  PENDING_CHAIRMAN_ASSIGN_72:   { label:'รอประธานฯ ลงนามสั่งบรรจุวาระ (ไม่ซับซ้อน — วินิจฉัยชี้มูล)', cls:'st-pending', owner:'chairman' },
+  PENDING_AFFAIRS_OPINION_72:   { label:'รอกลุ่มงานกิจการฯ ทำความเห็นเสนอ (ไม่ซับซ้อน — วินิจฉัยชี้มูล)', cls:'st-pending', owner:'affairs' },
   PENDING_CHAIRMAN_72: { label:'รอประธานฯ ลงนามมอบหมาย (ส่งคณะอนุกลั่นกรองฯ)',   cls:'st-pending', owner:'chairman' },
   IN_SCREENING_72:     { label:'อยู่คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง',      cls:'st-review',  owner:'subcommittee' },
   SCREENING_MORE_INFO_72: { label:'อนุกลั่นกรองฯ ขอข้อมูลเพิ่มเติม (วินิจฉัยชี้มูล)', cls:'st-review', owner:'subcommittee' },
@@ -249,7 +250,8 @@ const STATUS_CODE = {
   PENDING_SIGN_RULING_72:'112', PENDING_AREA_NOTICE_72:'113', DISPATCHING_NACC_72:'114',
   PENDING_DISPATCH_GUILTY_72:'115', CLOSED_72:'116', SCREENING_MORE_INFO_72:'117',
   PENDING_CHAIRMAN_72:'118', PENDING_SIGN_AGENDA_72:'119', PENDING_SECGEN_URGENT_CONFIRM_72:'120',
-  PENDING_CASE_ADMIN_SCREEN_72:'121', PENDING_CHAIRMAN_ASSIGN_72:'122', PENDING_SUPPORT_ASSIGN_72:'123'
+  PENDING_CASE_ADMIN_SCREEN_72:'121', PENDING_CHAIRMAN_ASSIGN_72:'122', PENDING_SUPPORT_ASSIGN_72:'123',
+  PENDING_AFFAIRS_OPINION_72:'124'
   // 025/123 ต้องคลาย Supabase CHECK constraint ก่อน (tbl_res_request_trr_status_check เดิมรับแค่
   // 000-024, 100-122 — probe 2026-09-28) ดู plan 2026-09-28-complex-case-dir-case-assign
 };
@@ -393,11 +395,17 @@ const TRANSITIONS = [
      (ย้าย owner จาก case_admin มา affairs เมื่อ 2026-09-17 แก้ไข — ดู
      docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md) */
   { from:'PENDING_CASE_ADMIN_SCREEN_72', to:'IN_SCREENING_72', event:'SCREEN_COMPLEX_72', actor:'chairman',
-    ref:'ประธานฯ ลงรับ/คัดกรองว่ายุ่งยาก', note:'สำนวนยุ่งยาก — ประธานฯ ส่งเข้าคณะอนุกลั่นกรองฯ (subCommittee=null ให้ case_admin กำหนดคณะ ๑–๘ ต่อ) — 2026-09-30: เปลี่ยน actor จาก affairs เป็น chairman' },
-  { from:'PENDING_CASE_ADMIN_SCREEN_72', to:'PENDING_CHAIRMAN_ASSIGN_72', event:'SCREEN_ASSIGN_72', actor:'chairman',
-    ref:'ประธานฯ คัดกรองว่าไม่ยุ่งยาก', note:'ไม่ยุ่งยาก — ประธานฯ บันทึกผลคัดกรอง (ฟอร์มคัดกรอง) แล้วไปขั้นลงนามคำสั่งมอบหมาย/บรรจุวาระ (2 ขั้นแยกกัน — 2026-09-30)' },
+    ref:'ประธานฯ ลงนามสั่งส่งคณะอนุกลั่นกรองฯ (ยุ่งยาก)', law:['M24_P3','M17_10','PR_SCREEN'],
+    note:'สำนวนยุ่งยาก — ประธานฯ ลงนามสั่งส่งคณะอนุกลั่นกรองฯ (subCommittee=null ให้ case_admin กำหนดคณะ ๑–๘ ต่อ)' },
+  { from:'PENDING_CASE_ADMIN_SCREEN_72', to:'PENDING_AFFAIRS_OPINION_72', event:'SCREEN_ASSIGN_72', actor:'chairman',
+    ref:'ประธานฯ ลงนามมอบหมายกลุ่มงานกิจการฯ (ไม่ยุ่งยาก)', law:['M18_LAST','PR_SCREEN'],
+    note:'ไม่ยุ่งยาก — ประธานฯ ลงนามมอบหมาย (อิงรายงาน 644) ให้กลุ่มงานกิจการคณะกรรมการทำความเห็นเสนอ' },
+  { from:'PENDING_AFFAIRS_OPINION_72', to:'PENDING_CHAIRMAN_ASSIGN_72', event:'AFFAIRS_OPINION_72', actor:'affairs',
+    ref:'กลุ่มงานกิจการฯ ทำความเห็นเสนอ', law:['PR_OPINION'],
+    note:'กลุ่มงานกิจการคณะกรรมการทำความเห็นเสนอประธานฯ (บันทึกความเห็นลง trr_resolution_data)' },
   { from:'PENDING_CHAIRMAN_ASSIGN_72', to:'PENDING_INVITE_72', event:'SIGN_ASSIGN_72', actor:'chairman',
-    ref:'ประธานฯ ลงนามคำสั่งมอบหมาย', note:'ลงนามคำสั่งมอบหมาย/บรรจุวาระตามผลคัดกรองของประธานฯ — ข้าม PENDING_SIGN_AGENDA_72 ตรงไปยังจุดเดียวกับปลายทางฝั่งอนุกลั่นกรอง' },
+    ref:'ประธานฯ ลงนามสั่งบรรจุวาระ', law:['M14','PR_AGENDA'],
+    note:'ลงนามสั่งบรรจุวาระตามความเห็นของกลุ่มงานกิจการฯ — ข้าม PENDING_SIGN_AGENDA_72 ตรงไปยังจุดเดียวกับปลายทางฝั่งอนุกลั่นกรอง' },
   { from:'PENDING_CHAIRMAN_72', to:'RETURNED_72', event:'CHAIRMAN_RETURN_72', actor:'chairman',
     ref:'ประธานฯ ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข',
     note:'ส่งคืนเจ้าของสำนวน (RETURNED_72 owner=owner) — แก้ไขแล้วเสนอกลับตามสาย' },
@@ -427,7 +435,7 @@ const TRANSITIONS = [
 
   { from:'RESOLVED_PENDING_72', to:'PENDING_SIGN_RULING_72', event:'DRAFT_RULING_72', actor:'affairs', ref:'ร่างรายงานวินิจฉัยชี้มูล' },
   { from:'PENDING_SIGN_RULING_72', to:'PENDING_SECTION_72', event:'SIGN_MORE_INVESTIGATE_72', actor:'chairman',
-    ref:'สั่งไต่สวนเพิ่มเติม · ม.24 วรรคท้าย', guard:k => k.resolution72 === 'MORE_INVESTIGATE_72',
+    ref:'สั่งไต่สวนเพิ่มเติม · ม.24 วรรคสี่', law:['M24_P4'], guard:k => k.resolution72 === 'MORE_INVESTIGATE_72',
     note:'"จะสั่งให้ไต่สวนเพิ่มเติม หรือจะไต่สวนเองใหม่ทั้งหมดหรือบางส่วนก็ได้" — วนกลับเข้าสายอนุมัติใหม่ทั้งสาย (round72++)' },
   { from:'PENDING_SIGN_RULING_72', to:'PENDING_AREA_NOTICE_72', event:'SIGN_NO_MERIT_72', actor:'chairman',
     ref:'ข้อกล่าวหาไม่มีมูล · ม.32', guard:k => k.resolution72 === 'NO_MERIT_72' },
@@ -621,6 +629,44 @@ const CASE_ADMIN_LAW = [
 /* คืนรายการ law entries — งานด่านรับใช้ชุดเดียวทุกประเภทเรื่อง */
 function caseAdminLaw(){ return CASE_ADMIN_LAW.slice(); }
 
+/* ── อิงกฎหมายของ flow 7.2 (2026-09-30) ──────────────────────────────────────────
+   แหล่งอ้างอิง: พ.ร.บ.มาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ ฉบับรวมถึงฉบับที่ ๔
+   พ.ศ. ๒๕๖๘ (law_pacc_68.pdf) — เนื้อหาทุกมาตราตรวจจากภาพตัวบทจริง (หน้า = หน้าพิมพ์ในเล่ม)
+   kind:'STATUTE'  = บทบัญญัติของกฎหมาย
+   kind:'PRACTICE' = แนวปฏิบัติภายใน (เล่ม 5 กิจกรรม 7) ที่ "ไม่มีในตัวบท" — ห้ามแสดงเป็นมาตรา
+   ดู docs/memory/plans/2026-09-30-72-law-referenced-flow.md §2 */
+const LAW_PACC = {
+  M24_P3:  { kind:'STATUTE', m:'ม.๒๔ วรรคสาม', p:'๒๐',
+    t:'เรื่องสำคัญหรือมีความซับซ้อน คณะกรรมการ ป.ป.ท. จะแต่งตั้งคณะอนุกรรมการไต่สวนตามข้อเสนอแนะของเลขาธิการเพื่อดำเนินการไต่สวนก็ได้' },
+  M24_P4:  { kind:'STATUTE', m:'ม.๒๔ วรรคสี่', p:'๒๐',
+    t:'เมื่อไต่สวนแล้วเสร็จ ให้เสนอสำนวนต่อคณะกรรมการ ป.ป.ท. เพื่อพิจารณาให้ความเห็นและวินิจฉัยชี้มูล — คณะกรรมการจะสั่งให้ไต่สวนเพิ่มเติมหรือไต่สวนเองใหม่ทั้งหมดหรือบางส่วนก็ได้' },
+  M17_10:  { kind:'STATUTE', m:'ม.๑๗ (๑๐)', p:'๑๑',
+    t:'คณะกรรมการ ป.ป.ท. แต่งตั้งคณะอนุกรรมการเมื่อมีความจำเป็นเพื่อดำเนินการที่คณะกรรมการมอบหมายในเรื่องอื่นที่มิใช่การไต่สวน (เว้นการแต่งตั้งตาม ม.๒๔ วรรคสาม) — ฐานของคณะอนุกรรมการกลั่นกรองฯ' },
+  M17_3_4: { kind:'STATUTE', m:'ม.๑๗ (๓)(๔)', p:'๑๐–๑๑',
+    t:'คณะกรรมการ ป.ป.ท. ไต่สวนและวินิจฉัยชี้มูลตามพระราชบัญญัตินี้ รวมทั้งพิจารณาให้ความเห็นชอบสำนวนการไต่สวน' },
+  M18_LAST:{ kind:'STATUTE', m:'ม.๑๘ วรรคท้าย', p:'๑๓',
+    t:'ในการปฏิบัติหน้าที่ของประธานกรรมการ ประธานกรรมการจะมอบหมายให้เลขาธิการลงนามในเอกสารแทนก็ได้' },
+  M14:     { kind:'STATUTE', m:'ม.๑๔', p:'๑๐',
+    t:'ประธานกรรมการมีอำนาจหน้าที่ดำเนินการประชุมและรักษาความเรียบร้อยในการประชุม (ฐานของการสั่งบรรจุเรื่องเข้าวาระการประชุม)' },
+  M23:     { kind:'STATUTE', m:'ม.๒๓', p:'๑๙–๒๐',
+    t:'ต้องเริ่มดำเนินการไต่สวนภายในหกสิบวันนับแต่ได้รับเรื่อง และต้องไต่สวนวินิจฉัยให้แล้วเสร็จภายในสองปี (ขยายได้ตามที่กฎหมายกำหนด)' },
+  PR_SCREEN:  { kind:'PRACTICE', m:'เล่ม 5 RES011–012', p:'',
+    t:'แนวปฏิบัติภายใน: ประธานกรรมการ ป.ป.ท. คัดกรองสำนวน — ยุ่งยาก ส่งคณะอนุกรรมการกลั่นกรองฯ ๑–๘ / ไม่ยุ่งยาก มอบหมายกลุ่มงานกิจการคณะกรรมการ (ตัวบทไม่ได้กำหนดขั้นตอนคัดกรองนี้)' },
+  PR_OPINION: { kind:'PRACTICE', m:'เล่ม 5 RES012', p:'',
+    t:'แนวปฏิบัติภายใน: กลุ่มงานกิจการคณะกรรมการทำความเห็นเสนอประธานกรรมการ ป.ป.ท. เพื่อพิจารณาสั่งบรรจุวาระ' },
+  PR_AGENDA:  { kind:'PRACTICE', m:'เล่ม 5 RES013', p:'',
+    t:'แนวปฏิบัติภายใน: ประธานกรรมการ ป.ป.ท. ลงนามสั่งบรรจุเรื่องไต่สวนชี้มูลเข้าวาระการประชุม' }
+};
+function lawEntries(keys){ return (keys || []).map(k => LAW_PACC[k]).filter(Boolean); }
+/* HTML กล่อง "ฐานกฎหมาย" ใช้ร่วมทุกหน้า (class .law-row / .law-kind อยู่ใน ecmis-app.css) — ข้อความเป็นค่าคงที่ในไฟล์นี้ ไม่มี input ผู้ใช้ */
+function renderLawBox(keys){
+  const rows = lawEntries(keys).map(e =>
+    `<div class="law-row"><span class="chip ${e.kind === 'PRACTICE' ? 'law-practice' : 'law-statute'}">${e.m}</span>` +
+    `<span>${e.t}${e.p ? ` <span class="law-page">(เล่มกฎหมาย หน้า ${e.p})</span>` : ''}` +
+    `${e.kind === 'PRACTICE' ? ' <span class="law-kind">แนวปฏิบัติภายใน — ไม่ใช่บทบัญญัติ</span>' : ''}</span></div>`).join('');
+  return rows || '<div class="text-muted small">— ไม่มีข้อมูลอ้างอิง —</div>';
+}
+
 function transitionsBetween(from, to){
   return TRANSITIONS.filter(t => t.from === from && t.to === to);
 }
@@ -732,6 +778,7 @@ const PAGE_FOR_72 = {
   PENDING_SIGN_AGENDA_72:'chairman-agenda.html',
   PENDING_CASE_ADMIN_SCREEN_72:'affairs-case-detail.html',
   PENDING_CHAIRMAN_ASSIGN_72:'chairman-agenda.html',
+  PENDING_AFFAIRS_OPINION_72:'affairs-opinion.html',
   IN_SCREENING_72:'subcommittee-screening.html',
   SCREENING_MORE_INFO_72:'subcommittee-screening.html',
   PENDING_INVITE_72:'agenda-registry.html',
@@ -3209,7 +3256,7 @@ const STATUS_STEP_72 = {
   PENDING_SECTION_72:'secgen72', PENDING_DIRECTOR_72:'secgen72', PENDING_DEPUTY_72:'secgen72', RETURNED_72:'secgen72',
   PENDING_SECGEN_72:'secgen72',
   PENDING_SUPPORT_ASSIGN_72:'agenda72', IN_SUPPORT_SUB_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_SECGEN_URGENT_CONFIRM_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', PENDING_CHAIRMAN_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72', PENDING_SIGN_AGENDA_72:'agenda72',
-  PENDING_CASE_ADMIN_SCREEN_72:'agenda72', PENDING_CHAIRMAN_ASSIGN_72:'agenda72',
+  PENDING_CASE_ADMIN_SCREEN_72:'agenda72', PENDING_CHAIRMAN_ASSIGN_72:'agenda72', PENDING_AFFAIRS_OPINION_72:'agenda72',
   PENDING_INVITE_72:'meeting72', IN_MEETING_72:'meeting72',
   RESOLVED_PENDING_72:'ruling72', PENDING_SIGN_RULING_72:'ruling72',
   PENDING_AREA_NOTICE_72:'dispatch72', DISPATCHING_NACC_72:'dispatch72', PENDING_DISPATCH_GUILTY_72:'dispatch72',
@@ -3485,6 +3532,7 @@ const PAGE_PERMISSIONS = {
   'case-admin-inbox.html': ['case_admin'],
   'case-admin-detail.html': ['case_admin'],
   'affairs-case-detail.html': ['chairman'],  // 2026-09-30: ประธานฯ ลงรับ/คัดกรองสาย 7.2 แทน affairs (ชื่อไฟล์คงเดิมเพื่อไม่ให้ลิงก์/route แตก)
+  'affairs-opinion.html': ['affairs'],  // 2026-09-30: กลุ่มงานกิจการฯ ทำความเห็นเสนอ (ทางไม่ยุ่งยาก 7.2)
 
   // Registry Screens (Strictly removed for chairman & affairs per rules — case_admin ก็ไม่ให้ เพื่อความปลอดภัย มี home ของตัวเองแล้ว)
   'agenda-registry.html': ['board_sec', 'board', 'board_ex', 'support_sub'],
@@ -7785,7 +7833,7 @@ if (typeof localStorage !== 'undefined') {
   subScreeningStatus, slaEffectiveDays, slaIsOnHold, isScreeningLocked, pushCaseHistory,
   CASE_ADMIN_INTAKE, CASE_ADMIN_SCREEN_STATUSES, isCaseAdminQueue, caseAdminRouted,
   AFFAIRS_COMPLEXITY_STATUSES, isAffairsComplexityQueue,
-  caseAdminIntakeStep, SUBCOMMITTEE_ACTIVE_STATUSES, subcommitteeActiveLoad, nextSubcommitteeTeam, CASE_ADMIN_LAW, caseAdminLaw,
+  caseAdminIntakeStep, SUBCOMMITTEE_ACTIVE_STATUSES, subcommitteeActiveLoad, nextSubcommitteeTeam, CASE_ADMIN_LAW, caseAdminLaw, LAW_PACC, lawEntries, renderLawBox,
   BOARD_MIN_IN_OFFICE, boardQuorum,
   M24P1_MIN_PANEL, M24P1_STAFF_FREE, panelComposition,
   CONFIG, RETURN_SCOPES, MATERIAL_FIELDS, daysUntil,

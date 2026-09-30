@@ -102,6 +102,16 @@
                     </div>
                 </div>
 
+                <!-- Card 3.5: ฐานกฎหมาย + (ขั้น 122) ผลคัดกรองและความเห็นกลุ่มงานกิจการฯ — 2026-09-30 -->
+                <div class="ws-card mb-3" id="lawCard">
+                    <div class="card-header"><i class="fa-solid fa-scale-balanced"></i> ฐานอำนาจ / กฎหมายที่เกี่ยวข้อง
+                        <span class="ms-2 small text-muted">(พ.ร.บ. มาตรการฝ่ายบริหารฯ แก้ไขถึงฉบับที่ ๔ พ.ศ. ๒๕๖๘)</span></div>
+                    <div class="card-body">
+                        <div id="affairsOpinionBox" class="d-none mb-3"></div>
+                        <div id="lawBox"></div>
+                    </div>
+                </div>
+
                 <!-- Card 4: Chairman Note -->
                 <div class="ws-card mb-3">
                     <div class="card-header"><i class="fa-solid fa-pen-fancy"></i>
@@ -333,6 +343,7 @@
             }
 
             renderDoc();
+            renderLawAndOpinion();
             renderActionButtons();
         }
 
@@ -360,6 +371,26 @@
            docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md */
         function isDirectAssignSignStep() {
             return kase.status === 'PENDING_CHAIRMAN_ASSIGN_72';
+        }
+
+        /* ฐานกฎหมาย + ผลคัดกรอง/ความเห็น กจ. (ขั้นลงนามสั่งบรรจุวาระของทางไม่ซับซ้อน, สถานะ 122) — 2026-09-30 */
+        function renderLawAndOpinion() {
+            const lawBox = document.getElementById('lawBox');
+            if (!lawBox) return;
+            let keys = ['M14', 'M24_P4', 'PR_AGENDA'];
+            if (isDirectAssignSignStep()) {
+                keys = ['M14', 'M18_LAST', 'PR_OPINION', 'PR_AGENDA', 'M24_P4'];
+                const ob = document.getElementById('affairsOpinionBox');
+                const scr = kase.screen72 || {};
+                const op = (kase.affairsOpinion72 && kase.affairsOpinion72.text) || kase.subOpinion || '';
+                ob.classList.remove('d-none');
+                ob.innerHTML = `
+                    <div class="small mb-1"><strong>ผลคัดกรองของประธานฯ:</strong> ${scr.result === 'NOT_COMPLEX' ? 'ไม่ยุ่งยาก — ลงนามมอบหมายกลุ่มงานกิจการฯ แล้ว' : '—'}</div>
+                    <div class="small"><strong>ความเห็นเสนอของกลุ่มงานกิจการคณะกรรมการ:</strong><br>${ECMIS.escapeHtml(op) || '<span class="text-muted">— ยังไม่มีข้อมูล —</span>'}</div>`;
+            } else if (isDocketSignStep()) {
+                keys = ['M14', 'M17_10', 'PR_AGENDA', 'M24_P4'];
+            }
+            lawBox.innerHTML = ECMIS.renderLawBox(keys);
         }
 
         /* ---------- Live A4 Document Rendering ---------- */
@@ -410,26 +441,30 @@
                         </div>
                     </div>`;
             } else if (isDirectAssignSignStep()) {
-                // ขั้นที่ 2 ของด่านประธานฯ (2026-09-30): "คำสั่งมอบหมาย/บรรจุวาระ" ของประธานฯ เอง — แยกจากฟอร์มคัดกรอง
-                // (affairs-case-detail.html) อ้างผลคัดกรอง+ความเห็นที่ประธานฯ บันทึกไว้ใน kase.subOpinion
-                const chairOpinion = (kase.subOpinion || '').trim();
+                // ขั้นที่ ③ (2026-09-30): ประธานฯ ลงนาม "บันทึกสั่งบรรจุวาระการประชุม" ของทางไม่ยุ่งยาก — อ้างรายงาน 644 ที่เลขาธิการฯ ลงนาม,
+                // ผลคัดกรองที่ประธานฯ ลงนามมอบหมายไว้ (kase.screen72) และความเห็นเสนอของกลุ่มงานกิจการฯ (kase.affairsOpinion72)
+                const chairOpinion = ((kase.affairsOpinion72 && kase.affairsOpinion72.text) || kase.subOpinion || '').trim();
                 docPaperEl.innerHTML = `
                     <div class="doc-paper a4-paper active-page" id="docPaperPage">
                         <div class="text-center mb-2">
                             <img src="../assets/doc_logo.jpg" alt="ตราครุฑ" style="width:62px; height:auto;">
                         </div>
                         <div class="doc-secret">ลับ</div>
-                        <div class="doc-title" style="font-size:20pt;font-weight:700;text-align:center;line-height:1.3;margin-top:4px;">คำสั่งประธานกรรมการ ป.ป.ท.</div>
+                        <div class="doc-title" style="font-size:20pt;font-weight:700;text-align:center;line-height:1.3;margin-top:4px;">บันทึกสั่งบรรจุวาระการประชุมคณะกรรมการ ป.ป.ท.</div>
                         <div style="margin-top:12px;font-size:16pt;line-height:1.5;text-align:center;">
-                            เรื่อง มอบหมายและบรรจุเรื่องเข้าระเบียบวาระการประชุมคณะกรรมการ ป.ป.ท.
+                            เรื่อง สั่งบรรจุเรื่องเข้าระเบียบวาระการประชุม (สำนวนไม่ยุ่งยากซับซ้อน)
                         </div>
                         <div class="doc-indent" style="margin-top:14px;font-size:16pt;line-height:1.4;text-indent:2.5em;">
-                            ตามที่ประธานกรรมการ ป.ป.ท. ได้ลงรับและคัดกรองสำนวนเรื่องเสร็จที่ <strong>${M(kase.id)}</strong> เรื่อง ${M(kase.subject)}
-                            ซึ่งมี ${M(kase.ownerOrg || '')} เป็นผู้รับผิดชอบสำนวน แล้วเห็นว่าไม่เป็นเรื่องยุ่งยากซับซ้อน
-                            ${chairOpinion ? `โดยมีความเห็นว่า ${M(chairOpinion)}` : ''} นั้น
+                            ตามที่เลขาธิการคณะกรรมการ ป.ป.ท. ได้พิจารณาและลงนามรายงานการไต่สวนวินิจฉัยชี้มูล (รายงาน ปปท. ๖-๔๔) เรื่องเสร็จที่ <strong>${M(kase.id)}</strong>
+                            เรื่อง ${M(kase.subject)} ซึ่งมี ${M(kase.ownerOrg || '')} เป็นผู้รับผิดชอบสำนวน และประธานกรรมการ ป.ป.ท. ได้คัดกรองแล้วเห็นว่าไม่เป็นเรื่องยุ่งยากซับซ้อน
+                            พร้อมมอบหมายให้กลุ่มงานกิจการคณะกรรมการทำความเห็นเสนอ นั้น
                         </div>
                         <div class="doc-indent" style="margin-top:10px;font-size:16pt;line-height:1.4;text-indent:2.5em;">
-                            จึงสั่งให้บรรจุเรื่องดังกล่าวเข้าระเบียบวาระการประชุมคณะกรรมการ ป.ป.ท. เพื่อพิจารณา โดยไม่ต้องผ่านคณะอนุกรรมการกลั่นกรองฯ
+                            กลุ่มงานกิจการคณะกรรมการมีความเห็นเสนอว่า ${chairOpinion ? M(chairOpinion) : 'เห็นควรเสนอคณะกรรมการ ป.ป.ท. พิจารณาตามที่คณะพนักงานไต่สวนเสนอ'}
+                        </div>
+                        <div class="doc-indent" style="margin-top:10px;font-size:16pt;line-height:1.4;text-indent:2.5em;">
+                            อาศัยอำนาจตามมาตรา ๑๔ แห่งพระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ จึงสั่งให้บรรจุเรื่องดังกล่าวเข้าระเบียบวาระการประชุมคณะกรรมการ ป.ป.ท.
+                            เพื่อพิจารณาให้ความเห็นและวินิจฉัยชี้มูลตามมาตรา ๒๔ วรรคสี่ ต่อไป โดยไม่ต้องผ่านคณะอนุกรรมการกลั่นกรองฯ
                         </div>
                         <div style="margin-top:28px; width:60%; margin-left:auto; text-align:center; font-size:16pt; line-height:1.4;">
                             ${signed && pendingSigData && pendingSigData.sig ? `<img class="doc-sig-img" src="${pendingSigData.sig}" alt="ลายมือชื่อ" style="max-height:56px;margin:0 auto 4px;"><br>` : ''}
@@ -660,7 +695,7 @@
         function buildButtons() {
             if (isDirectAssignSignStep()) {
                 return [
-                    { act: 'sign_assign', label: 'ลงนามคำสั่งมอบหมาย / บรรจุวาระ', icon: 'fa-signature', cls: 'btn-gold' }
+                    { act: 'sign_assign', label: 'ลงนามสั่งบรรจุวาระ', icon: 'fa-signature', cls: 'btn-gold' }
                 ];
             }
             if (isDocketSignStep()) {
@@ -799,7 +834,7 @@
                             }
                             await Swal.fire({
                                 icon: 'success',
-                                title: 'ลงนามมอบหมายสำเร็จ',
+                                title: 'ลงนามสั่งบรรจุวาระสำเร็จ',
                                 html: `<div class="text-start">
                                           สำนวนเรื่องที่ <strong>${kase.id}</strong><br>
                                           สถานะใหม่: <strong>${ECMIS.STATUS[nextStatus]?.label || nextStatus}</strong><br><br>
@@ -883,10 +918,10 @@
                 const nextStatus = is72 ? 'PENDING_INVITE_72' : 'AGENDA_SET';
                 const event = is72 ? 'SIGN_ASSIGN_72' : 'SIGN_ASSIGN';
                 const nextTarget = ECMIS.resolvePage ? ECMIS.resolvePage('inbox.html') : 'inbox.html';
-                const docType = 'คำสั่งประธานกรรมการ ป.ป.ท. — มอบหมายและบรรจุวาระ (ไม่ซับซ้อน)';
+                const docType = 'บันทึกสั่งบรรจุวาระการประชุมคณะกรรมการ ป.ป.ท. (ไม่ซับซ้อน)';
                 const fromStatus = kase.status;
 
-                ECMIS.signDialog(`คำสั่งประธานกรรมการ ป.ป.ท. มอบหมายและบรรจุวาระ เรื่องที่ ${kase.id}`,
+                ECMIS.signDialog(`บันทึกสั่งบรรจุวาระการประชุม เรื่องที่ ${kase.id}`,
                     `${SIGNER_NAME} — ${SIGNER_TITLE}`)
                     .then(res => {
                         if (!res.isConfirmed) return;
@@ -907,7 +942,7 @@
                         }
                         ECMIS.pushCaseHistory(kase, {
                             from: fromStatus, to: nextStatus, event, actor: 'chairman',
-                            note: 'ประธานฯ ลงนามคำสั่งมอบหมาย/บรรจุวาระ ตามผลคัดกรองของประธานฯ เอง (ไม่ผ่านคณะอนุกลั่นกรองฯ)'
+                            note: 'ประธานฯ ลงนามสั่งบรรจุวาระ ตามความเห็นของกลุ่มงานกิจการฯ (ไม่ผ่านคณะอนุกลั่นกรองฯ)'
                         });
 
                         (async () => {
@@ -920,7 +955,7 @@
                             }
                             await Swal.fire({
                                 icon: 'success',
-                                title: 'ลงนามมอบหมายสำเร็จ',
+                                title: 'ลงนามสั่งบรรจุวาระสำเร็จ',
                                 html: `<div class="text-start">
                                           สำนวนเรื่องที่ <strong>${kase.id}</strong><br>
                                           สถานะใหม่: <strong>${ECMIS.STATUS[nextStatus]?.label || nextStatus}</strong><br><br>

@@ -479,8 +479,9 @@
                 <div class="ws-doc-tabs" id="docTabs">
                   <button class="ws-doc-tab active" data-doc="ruling">รายงานวินิจฉัยชี้มูล</button>
                   <button class="ws-doc-tab" data-doc="discipline">หนังสือลงโทษทางวินัย</button>
-                  <button class="ws-doc-tab" data-doc="ruling_v2">รายงานวินิจฉัยชี้มูล (v.2)</button>
-                  <button class="ws-doc-tab" data-doc="discipline_v2">แจ้งโทษวินัย (v.2)</button>
+                  <!-- ซ่อนแท็บ v.2 ชั่วคราว (d-none) — โค้ดเรนเดอร์/ส่งออก DOCX ของ v.2 ยังอยู่ครบ ลบ class d-none เพื่อเปิดกลับ -->
+                  <button class="ws-doc-tab d-none" data-doc="ruling_v2">รายงานวินิจฉัยชี้มูล (v.2)</button>
+                  <button class="ws-doc-tab d-none" data-doc="discipline_v2">แจ้งโทษวินัย (v.2)</button>
                 </div>
                 <div class="d-none align-items-center gap-1 ms-1" id="splitReportPane" style="font-size:.78rem">
                   <span class="text-secondary small fw-medium"><i class="fa-solid fa-files me-1"></i>ฉบับ:</span>

@@ -960,20 +960,9 @@
                                     data: { docType, signerName: SIGNER_NAME, signerTitle: SIGNER_TITLE, method: pendingSigData?.mode || 'cert' }
                                 });
                             }
-                            await Swal.fire({
-                                icon: 'success',
-                                title: 'ลงนามสั่งบรรจุวาระสำเร็จ',
-                                html: `<div class="text-start">
-                                          สำนวนเรื่องที่ <strong>${kase.id}</strong><br>
-                                          สถานะใหม่: <strong>${ECMIS.STATUS[nextStatus]?.label || nextStatus}</strong><br><br>
-                                          <span style="font-size:.9rem;color:#475569">
-                                              <i class="fa-solid fa-arrow-right me-1 text-primary"></i>ส่งกลุ่มงานคำวินิจฉัยและมติฯ จัดทำระเบียบวาระต่อไป
-                                          </span>
-                                       </div>`,
-                                confirmButtonColor: '#0F2A62',
-                                confirmButtonText: 'ตกลง (กลับหน้ารายการสั่งการ)'
-                            });
-                            location.href = nextTarget;
+                            /* ไม่ใช้ Swal ค้างรอกดตกลง — หน้าลงนามอื่นของประธานฯ แจ้งผลด้วย toast แล้วเด้งกลับ inbox เลย */
+                            ECMIS.toastOk(`ลงนามสั่งบรรจุวาระสำนวน ${kase.id} แล้ว — ส่งต่อกลุ่มงานคำวินิจฉัยและมติฯ จัดทำระเบียบวาระ`);
+                            setTimeout(() => { location.href = nextTarget; }, 1200);
                         })();
                     });
                 return;

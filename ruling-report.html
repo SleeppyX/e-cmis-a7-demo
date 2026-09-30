@@ -1489,7 +1489,7 @@
           Object.assign(kase, dbCase);
           syncFromBoardResolution(kase, true);
           renderDoc();
-          renderDispatchDisciplineCard();
+          renderActions();
         }
       } catch (e) {
         console.warn('DB load fallback:', e);
@@ -2015,12 +2015,24 @@
     }
 
     function renderActions() {
+      /* renderDispatchDisciplineCard() ต้องเรียกก่อนเสมอ — สร้างการ์ด/ช่องกรอกเลข ป.วินัย ให้พร้อม
+         ในหน้าก่อนที่ปุ่ม "ส่ง ป.วินัย → กจ.8" ด้านล่าง (ย้ายมาอยู่ในแถบ action-bar มุมขวาล่างร่วมกับ
+         ปุ่มอื่นๆ ตาม /grill-me — ไม่ใช่ปุ่มลอยในการ์ดเหมือนเดิม) จะอ่านค่าจากช่องกรอกเหล่านั้นได้ */
+      renderDispatchDisciplineCard();
+
+      const dispTrack = kase.disciplinaryTrack72 || {};
+      const showDispatchAction = !!kase.guiltyDiscipline72 && mayEdit &&
+        kase.status === 'PENDING_DISPATCH_GUILTY_72' && dispTrack.status !== 'DISPATCHED';
+
       const actions = [];
       if (mayEdit && kase.status === 'RESOLVED_PENDING_72') {
         actions.push('<button class="btn btn-sm btn-navy" id="btnDraftDone"><i class="fa-solid fa-file-circle-check me-1"></i>จัดทำรายงานวินิจฉัยชี้มูลเสร็จ</button>');
       }
       if (maySign && kase.status === 'PENDING_SIGN_RULING_72') {
         actions.push('<button class="btn btn-sm btn-success" id="btnSignRuling"><i class="fa-solid fa-signature me-1"></i>ลงนามรายงานวินิจฉัยชี้มูล</button>');
+      }
+      if (showDispatchAction) {
+        actions.push('<button class="btn btn-sm btn-navy" id="btnDispatchDiscipline"><i class="fa-solid fa-paper-plane me-1"></i>ส่ง ป.วินัย → กจ.8</button>');
       }
       if (mayEdit || maySign) {
         actions.push('<button class="btn btn-sm btn-outline-secondary" id="btnSaveDraft"><i class="fa-solid fa-floppy-disk me-1"></i>บันทึกฉบับร่าง</button>');
@@ -2089,14 +2101,74 @@
         location.href = 'register.html';
       });
 
-      renderDispatchDisciplineCard();
+      const btnDispatch = document.getElementById('btnDispatchDiscipline');
+      if (btnDispatch) btnDispatch.addEventListener('click', () => dispatchDisciplineToKKM8());
     }
 
     /* ส่ง ป.วินัย ให้ กจ.8 — เฉพาะสายวินัย (guiltyDiscipline72) ที่อยู่ที่ PENDING_DISPATCH_GUILTY_72 (115)
        เมื่อส่งแล้วเขียน disciplinaryTrack72={status:'DISPATCHED',...} ลง trr_resolution_data,
        ถ้า bothTracksDone72() เป็นจริง (ไม่มีสายอาญาค้าง) จะปิดสำนวนเป็น CLOSED_72 ต่อทันที
        (transition CLOSE_GUILTY_72 ที่มีอยู่แล้วใน ecmis-app.js) — ตัวเลขทุกตัวในการ์ดนี้ (ป.วินัย/
-       เลขหนังสือส่งมติ/ชุดข้อมูล) ใช้แค่เพื่ออ้างอิงให้ตรงกับเดโม กจ.8.3 แยกต่างหาก ไม่มีการส่งข้อมูลข้ามระบบจริง */
+       เลขหนังสือส่งมติ/ชุดข้อมูล) ใช้แค่เพื่ออ้างอิงให้ตรงกับเดโม กจ.8.3 แยกต่างหาก ไม่มีการส่งข้อมูลข้ามระบบจริง —
+       ปุ่มกดจริงอยู่ในแถบ action-bar มุมขวาล่าง (ดู renderActions()) ส่วนฟังก์ชันนี้อ่านค่าจากช่องกรอก
+       ในการ์ดฝั่งซ้าย */
+    async function dispatchDisciplineToKKM8() {
+      const pWinaiNo = document.getElementById('dispPWinaiNo').value.trim();
+      const letterNo = document.getElementById('dispLetterNo').value.trim();
+      const batchId = document.getElementById('dispBatchId').value.trim();
+      if (!pWinaiNo || !letterNo || !batchId) {
+        ECMIS.toastWarn('กรุณากรอกเลข ป.วินัย, เลขหนังสือส่งมติ และชุดข้อมูลให้ครบ');
+        return;
+      }
+      const acc0 = (kase.accused && kase.accused[0]) || {};
+      const accusedName = acc0.name || kase.discAccused72 || '';
+      const confirmed = await ECMIS.confirmAction({
+        title: 'ยืนยันส่ง ป.วินัย ให้ กจ.8?',
+        html: `เลข ป.วินัย <strong>${ECMIS.escapeHtml(pWinaiNo)}</strong> ของผู้ถูกกล่าวหา <strong>${ECMIS.escapeHtml(accusedName)}</strong>`,
+        confirmText: 'ส่ง'
+      });
+      if (!confirmed.isConfirmed) return;
+
+      const fromStatus = kase.status;
+      const disciplinaryTrack72 = { status: 'DISPATCHED', pWinaiNo, letterNo, batchId, dispatchedAt: new Date().toISOString(), to: 'กจ.8.3' };
+      const resPatch = { disciplinaryTrack72, pWinaiNo72: pWinaiNo, discLetterNo72: letterNo, discBatchId72: batchId };
+
+      if (sb && kase.trr_id) {
+        const resolutionData = Object.assign({}, kase.resolutionData || {}, resPatch);
+        const { error } = await sb.from('tbl_res_request').update({ trr_resolution_data: resolutionData }).eq('trr_id', kase.trr_id);
+        if (error) {
+          console.error('บันทึกการส่ง ป.วินัย ลงฐานข้อมูลไม่สำเร็จ:', error);
+          ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่');
+          return;
+        }
+        kase.resolutionData = resolutionData;
+      }
+      Object.assign(kase, resPatch);
+      ECMIS.Model.CaseStore.update(kase.id, resPatch);
+
+      /* updateCaseStatus() ต้องเรียกก่อน logRequestEvent เสมอ (จับ fromStatus เองจาก kase.status
+         ตอนถูกเรียก) — ตามแบบแผนเดียวกับ btnSignRuling ด้านบน */
+      if (ECMIS.bothTracksDone72(kase)) {
+        await ECMIS.updateCaseStatus(kase, 'CLOSED_72', sb);
+        await ECMIS.logRequestEvent(kase.trr_id, fromStatus, 'CLOSED_72', {
+          type: 'DISPATCH_DISCIPLINE_72', actorRole: role.id,
+          data: { pWinaiNo, letterNo, batchId, to: 'กจ.8.3' }
+        });
+      } else {
+        await ECMIS.logRequestEvent(kase.trr_id, fromStatus, fromStatus, {
+          type: 'DISPATCH_DISCIPLINE_72', actorRole: role.id,
+          data: { pWinaiNo, letterNo, batchId, to: 'กจ.8.3' }
+        });
+      }
+
+      ECMIS.toastOk('ส่ง ป.วินัย ให้ กจ.8 เรียบร้อยแล้ว — ฝั่ง กจ.8 จะเห็นสถานะ "01 รอ ป.วินัยตัวจริง"');
+      location.reload();
+    }
+
+    /* การ์ด "ส่ง ป.วินัย ให้ กจ.8" — แสดงข้อมูลอ้างอิง + ช่องกรอกเลข ป.วินัย/เลขหนังสือส่งมติ/ชุดข้อมูล
+       เฉพาะเมื่อ kase.guiltyDiscipline72 เป็นจริง ปุ่มส่งจริง ("ส่ง ป.วินัย → กจ.8") อยู่ในแถบ action-bar
+       มุมขวาล่างร่วมกับปุ่มอื่น (ดู renderActions()/dispatchDisciplineToKKM8()) ไม่ใช่ปุ่มในการ์ดนี้ —
+       ตัวเลขทุกตัวในการ์ดนี้ใช้แค่เพื่ออ้างอิงให้ตรงกับเดโม กจ.8.3 แยกต่างหาก ไม่มีการส่งข้อมูลข้ามระบบจริง */
     function renderDispatchDisciplineCard() {
       const card = document.getElementById('dispatchDisciplineCard');
       const body = document.getElementById('dispatchDisciplineBody');
@@ -2141,65 +2213,12 @@
       }
 
       body.innerHTML = infoRows + `
-        <div class="row g-2 mb-2">
+        <div class="row g-2">
           <div class="col-md-4"><label class="form-label field-req">เลข ป.วินัย</label><input class="form-control" id="dispPWinaiNo" value="${ECMIS.escapeHtml(defaultPWinai)}" ${canSend ? '' : 'disabled'}></div>
           <div class="col-md-4"><label class="form-label field-req">เลขหนังสือส่งมติ</label><input class="form-control" id="dispLetterNo" value="${ECMIS.escapeHtml(defaultLetterNo)}" ${canSend ? '' : 'disabled'}></div>
           <div class="col-md-4"><label class="form-label field-req">ชุดข้อมูล</label><input class="form-control" id="dispBatchId" value="${ECMIS.escapeHtml(defaultBatchId)}" ${canSend ? '' : 'disabled'}></div>
         </div>
-        ${canSend ? '<button class="btn btn-sm btn-navy" id="btnDispatchDiscipline"><i class="fa-solid fa-paper-plane me-1"></i>ส่ง ป.วินัย → กจ.8</button>' : (kase.status === 'PENDING_DISPATCH_GUILTY_72' ? '' : '<div class="no-permission"><i class="fa-solid fa-lock me-1"></i>สถานะนี้ไม่มีการกระทำเพิ่มเติมสำหรับบทบาทนี้</div>')}
       `;
-
-      const btnDispatch = document.getElementById('btnDispatchDiscipline');
-      if (btnDispatch) btnDispatch.addEventListener('click', async () => {
-        const pWinaiNo = document.getElementById('dispPWinaiNo').value.trim();
-        const letterNo = document.getElementById('dispLetterNo').value.trim();
-        const batchId = document.getElementById('dispBatchId').value.trim();
-        if (!pWinaiNo || !letterNo || !batchId) {
-          ECMIS.toastWarn('กรุณากรอกเลข ป.วินัย, เลขหนังสือส่งมติ และชุดข้อมูลให้ครบ');
-          return;
-        }
-        const confirmed = await ECMIS.confirmAction({
-          title: 'ยืนยันส่ง ป.วินัย ให้ กจ.8?',
-          html: `เลข ป.วินัย <strong>${ECMIS.escapeHtml(pWinaiNo)}</strong> ของผู้ถูกกล่าวหา <strong>${ECMIS.escapeHtml(accusedName)}</strong>`,
-          confirmText: 'ส่ง'
-        });
-        if (!confirmed.isConfirmed) return;
-
-        const fromStatus = kase.status;
-        const disciplinaryTrack72 = { status: 'DISPATCHED', pWinaiNo, letterNo, batchId, dispatchedAt: new Date().toISOString(), to: 'กจ.8.3' };
-        const resPatch = { disciplinaryTrack72, pWinaiNo72: pWinaiNo, discLetterNo72: letterNo, discBatchId72: batchId };
-
-        if (sb && kase.trr_id) {
-          const resolutionData = Object.assign({}, kase.resolutionData || {}, resPatch);
-          const { error } = await sb.from('tbl_res_request').update({ trr_resolution_data: resolutionData }).eq('trr_id', kase.trr_id);
-          if (error) {
-            console.error('บันทึกการส่ง ป.วินัย ลงฐานข้อมูลไม่สำเร็จ:', error);
-            ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่');
-            return;
-          }
-          kase.resolutionData = resolutionData;
-        }
-        Object.assign(kase, resPatch);
-        ECMIS.Model.CaseStore.update(kase.id, resPatch);
-
-        /* updateCaseStatus() ต้องเรียกก่อน logRequestEvent เสมอ (จับ fromStatus เองจาก kase.status
-           ตอนถูกเรียก) — ตามแบบแผนเดียวกับ btnSignRuling ด้านบน */
-        if (ECMIS.bothTracksDone72(kase)) {
-          await ECMIS.updateCaseStatus(kase, 'CLOSED_72', sb);
-          await ECMIS.logRequestEvent(kase.trr_id, fromStatus, 'CLOSED_72', {
-            type: 'DISPATCH_DISCIPLINE_72', actorRole: role.id,
-            data: { pWinaiNo, letterNo, batchId, to: 'กจ.8.3' }
-          });
-        } else {
-          await ECMIS.logRequestEvent(kase.trr_id, fromStatus, fromStatus, {
-            type: 'DISPATCH_DISCIPLINE_72', actorRole: role.id,
-            data: { pWinaiNo, letterNo, batchId, to: 'กจ.8.3' }
-          });
-        }
-
-        ECMIS.toastOk('ส่ง ป.วินัย ให้ กจ.8 เรียบร้อยแล้ว — ฝั่ง กจ.8 จะเห็นสถานะ "01 รอ ป.วินัยตัวจริง"');
-        location.reload();
-      });
     }
 
     /* ---------- Document workspace: collapsible pane ---------- */

@@ -215,7 +215,7 @@ const STATUS = {
      2026-09-23 gate นี้ใช้เฉพาะสาย 7.2 เท่านั้น (สาย 7.1 ถูกตัดออกแล้ว ดูคอมเมนต์ที่ PENDING_CHAIRMAN
      ด้านบน และ docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md) */
   PENDING_CASE_ADMIN_SCREEN_72: { label:'รอประธานฯ ลงรับ / คัดกรอง (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'chairman' },
-  PENDING_CHAIRMAN_ASSIGN_72:   { label:'รอประธานฯ ลงนามมอบหมาย (ทางลัด กบค. — วินิจฉัยชี้มูล)', cls:'st-pending', owner:'chairman' },
+  PENDING_CHAIRMAN_ASSIGN_72:   { label:'รอประธานฯ ลงนามคำสั่งมอบหมาย / บรรจุวาระ (ไม่ซับซ้อน — วินิจฉัยชี้มูล)', cls:'st-pending', owner:'chairman' },
   PENDING_CHAIRMAN_72: { label:'รอประธานฯ ลงนามมอบหมาย (ส่งคณะอนุกลั่นกรองฯ)',   cls:'st-pending', owner:'chairman' },
   IN_SCREENING_72:     { label:'อยู่คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง',      cls:'st-review',  owner:'subcommittee' },
   SCREENING_MORE_INFO_72: { label:'อนุกลั่นกรองฯ ขอข้อมูลเพิ่มเติม (วินิจฉัยชี้มูล)', cls:'st-review', owner:'subcommittee' },
@@ -364,7 +364,7 @@ const TRANSITIONS = [
     ref:'เสนอขอเพิ่มวาระด่วน', guard:k => !k.complex72 && !!k.urgent72 },
   { from:'PENDING_SECGEN_72', to:'PENDING_CASE_ADMIN_SCREEN_72', event:'SIGN_NORMAL_72', actor:'secgen',
     ref:'เสนอตามขั้นตอนปกติ', guard:k => !k.complex72 && !k.urgent72,
-    note:'เข้า gate คัดกรองความยุ่งยากของ affairs ก่อนถึงประธานฯ (เพิ่ม 2026-09-17)' },
+    note:'เข้าด่านประธานฯ ลงรับและคัดกรองสำนวน (เดิมเป็น gate ของ affairs ตั้งแต่ 2026-09-17 — เปลี่ยนเป็นประธานฯ 2026-09-30)' },
   /* แก้ 2026-09-28 (Q-D): ของจริงคืนเลขาธิการฯ เสมอ ไม่ได้ไปประธานฯ/ใบด่วนตรง */
   { from:'IN_SUPPORT_SUB_72', to:'PENDING_SECGEN_72', event:'SUPPORT_OPINION_RETURNED_72', actor:'support_sub',
     ref:'เสนอความเห็นคืนเลขาธิการฯ', note:'แนบใบบันทึกความเห็นอนุสนับสนุน — เลขาธิการฯ พิจารณาและลงนามต่อ' },
@@ -394,13 +394,10 @@ const TRANSITIONS = [
      docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md) */
   { from:'PENDING_CASE_ADMIN_SCREEN_72', to:'IN_SCREENING_72', event:'SCREEN_COMPLEX_72', actor:'chairman',
     ref:'ประธานฯ ลงรับ/คัดกรองว่ายุ่งยาก', note:'สำนวนยุ่งยาก — ประธานฯ ส่งเข้าคณะอนุกลั่นกรองฯ (subCommittee=null ให้ case_admin กำหนดคณะ ๑–๘ ต่อ) — 2026-09-30: เปลี่ยน actor จาก affairs เป็น chairman' },
-  { from:'PENDING_CASE_ADMIN_SCREEN_72', to:'PENDING_INVITE_72', event:'SIGN_ASSIGN_72', actor:'chairman',
-    ref:'ประธานฯ ลงรับ/คัดกรองว่าไม่ยุ่งยาก + ลงนามมอบหมาย', note:'ไม่ยุ่งยาก — ประธานฯ ลงนามมอบหมายและบรรจุวาระในขั้นเดียว (ยุบขั้น PENDING_CHAIRMAN_ASSIGN_72 เดิม) ข้าม PENDING_SIGN_AGENDA_72 ตรงไปยังจุดเดียวกับปลายทางฝั่งอนุกลั่นกรอง' },
-  /* เคสเก่าที่ค้างที่ 122 (affairs คัดกรองก่อน 2026-09-30) — คง transition ไว้ให้ประธานฯ ลงนามต่อได้ */
-  { from:'PENDING_CASE_ADMIN_SCREEN_72', to:'PENDING_CHAIRMAN_ASSIGN_72', event:'SCREEN_ASSIGN_72', actor:'affairs',
-    ref:'(legacy) กจ. คัดกรองว่าไม่ยุ่งยาก + เสนอความเห็น', note:'เลิกใช้แล้วตั้งแต่ 2026-09-30 — คงไว้เพื่อความเข้ากันได้ย้อนหลังเท่านั้น' },
+  { from:'PENDING_CASE_ADMIN_SCREEN_72', to:'PENDING_CHAIRMAN_ASSIGN_72', event:'SCREEN_ASSIGN_72', actor:'chairman',
+    ref:'ประธานฯ คัดกรองว่าไม่ยุ่งยาก', note:'ไม่ยุ่งยาก — ประธานฯ บันทึกผลคัดกรอง (ฟอร์มคัดกรอง) แล้วไปขั้นลงนามคำสั่งมอบหมาย/บรรจุวาระ (2 ขั้นแยกกัน — 2026-09-30)' },
   { from:'PENDING_CHAIRMAN_ASSIGN_72', to:'PENDING_INVITE_72', event:'SIGN_ASSIGN_72', actor:'chairman',
-    ref:'ประธานฯ ลงนามมอบหมาย', note:'ลงนามมอบหมายตามความเห็นของ กบค. — ข้าม PENDING_SIGN_AGENDA_72 ตรงไปยังจุดเดียวกับปลายทางฝั่งอนุกลั่นกรอง' },
+    ref:'ประธานฯ ลงนามคำสั่งมอบหมาย', note:'ลงนามคำสั่งมอบหมาย/บรรจุวาระตามผลคัดกรองของประธานฯ — ข้าม PENDING_SIGN_AGENDA_72 ตรงไปยังจุดเดียวกับปลายทางฝั่งอนุกลั่นกรอง' },
   { from:'PENDING_CHAIRMAN_72', to:'RETURNED_72', event:'CHAIRMAN_RETURN_72', actor:'chairman',
     ref:'ประธานฯ ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข',
     note:'ส่งคืนเจ้าของสำนวน (RETURNED_72 owner=owner) — แก้ไขแล้วเสนอกลับตามสาย' },

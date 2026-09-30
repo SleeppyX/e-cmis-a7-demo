@@ -409,7 +409,37 @@
                             <div class="small text-success mt-1"><i class="fa-solid fa-shield-check me-1"></i>Digital Certificate Verified · ${kase.secgenSignedAt || '04 ส.ค. 2569'}</div>
                         </div>
                     </div>`;
-            } else if (isDocketSignStep() || isDirectAssignSignStep()) {
+            } else if (isDirectAssignSignStep()) {
+                // ขั้นที่ 2 ของด่านประธานฯ (2026-09-30): "คำสั่งมอบหมาย/บรรจุวาระ" ของประธานฯ เอง — แยกจากฟอร์มคัดกรอง
+                // (affairs-case-detail.html) อ้างผลคัดกรอง+ความเห็นที่ประธานฯ บันทึกไว้ใน kase.subOpinion
+                const chairOpinion = (kase.subOpinion || '').trim();
+                docPaperEl.innerHTML = `
+                    <div class="doc-paper a4-paper active-page" id="docPaperPage">
+                        <div class="text-center mb-2">
+                            <img src="assets/doc_logo.jpg" alt="ตราครุฑ" style="width:62px; height:auto;">
+                        </div>
+                        <div class="doc-secret">ลับ</div>
+                        <div class="doc-title" style="font-size:20pt;font-weight:700;text-align:center;line-height:1.3;margin-top:4px;">คำสั่งประธานกรรมการ ป.ป.ท.</div>
+                        <div style="margin-top:12px;font-size:16pt;line-height:1.5;text-align:center;">
+                            เรื่อง มอบหมายและบรรจุเรื่องเข้าระเบียบวาระการประชุมคณะกรรมการ ป.ป.ท.
+                        </div>
+                        <div class="doc-indent" style="margin-top:14px;font-size:16pt;line-height:1.4;text-indent:2.5em;">
+                            ตามที่ประธานกรรมการ ป.ป.ท. ได้ลงรับและคัดกรองสำนวนเรื่องเสร็จที่ <strong>${M(kase.id)}</strong> เรื่อง ${M(kase.subject)}
+                            ซึ่งมี ${M(kase.ownerOrg || '')} เป็นผู้รับผิดชอบสำนวน แล้วเห็นว่าไม่เป็นเรื่องยุ่งยากซับซ้อน
+                            ${chairOpinion ? `โดยมีความเห็นว่า ${M(chairOpinion)}` : ''} นั้น
+                        </div>
+                        <div class="doc-indent" style="margin-top:10px;font-size:16pt;line-height:1.4;text-indent:2.5em;">
+                            จึงสั่งให้บรรจุเรื่องดังกล่าวเข้าระเบียบวาระการประชุมคณะกรรมการ ป.ป.ท. เพื่อพิจารณา โดยไม่ต้องผ่านคณะอนุกรรมการกลั่นกรองฯ
+                        </div>
+                        <div style="margin-top:28px; width:60%; margin-left:auto; text-align:center; font-size:16pt; line-height:1.4;">
+                            ${signed && pendingSigData && pendingSigData.sig ? `<img class="doc-sig-img" src="${pendingSigData.sig}" alt="ลายมือชื่อ" style="max-height:56px;margin:0 auto 4px;"><br>` : ''}
+                            <div>(ลงชื่อ)...................................................................</div>
+                            <div style="margin-top:4px;">(${SIGNER_NAME})</div>
+                            <div style="font-weight:600;">${SIGNER_TITLE}</div>
+                            ${signed ? `<div style="font-size:0.8rem; color:#16A34A; margin-top:4px;"><i class="fa-solid fa-certificate me-1"></i>Digital Signature Verified (${pendingSigData?.certCode || SIGNER_CERT})</div>` : ''}
+                        </div>
+                    </div>`;
+            } else if (isDocketSignStep()) {
                 // บันทึกความเห็นนำเรียนประธานฯ เพื่อสั่งบรรจุวาระ (house-style บันทึกข้อความ) — ใช้ UI เดียวกัน
                 // ทั้งเส้นทางผ่านคณะอนุกลั่นกรองฯ จริง (isDocketSignStep) และทางลัด กจ. คัดกรองเอง
                 // (isDirectAssignSignStep, gate ใหม่ 2026-09-17, ย้าย owner มา affairs เมื่อ
@@ -630,7 +660,7 @@
         function buildButtons() {
             if (isDirectAssignSignStep()) {
                 return [
-                    { act: 'sign_assign', label: 'ลงนามมอบหมาย', icon: 'fa-signature', cls: 'btn-gold' }
+                    { act: 'sign_assign', label: 'ลงนามคำสั่งมอบหมาย / บรรจุวาระ', icon: 'fa-signature', cls: 'btn-gold' }
                 ];
             }
             if (isDocketSignStep()) {
@@ -853,10 +883,10 @@
                 const nextStatus = is72 ? 'PENDING_INVITE_72' : 'AGENDA_SET';
                 const event = is72 ? 'SIGN_ASSIGN_72' : 'SIGN_ASSIGN';
                 const nextTarget = ECMIS.resolvePage ? ECMIS.resolvePage('inbox.html') : 'inbox.html';
-                const docType = 'บันทึกความเห็นของกลุ่มงานกิจการคณะกรรมการ (มอบหมาย — ทางลัด)';
+                const docType = 'คำสั่งประธานกรรมการ ป.ป.ท. — มอบหมายและบรรจุวาระ (ไม่ซับซ้อน)';
                 const fromStatus = kase.status;
 
-                ECMIS.signDialog(`บันทึกความเห็นของกลุ่มงานกิจการคณะกรรมการ นำเรียนประธานฯ ลงนามมอบหมาย — เรื่องที่ ${kase.id}`,
+                ECMIS.signDialog(`คำสั่งประธานกรรมการ ป.ป.ท. มอบหมายและบรรจุวาระ เรื่องที่ ${kase.id}`,
                     `${SIGNER_NAME} — ${SIGNER_TITLE}`)
                     .then(res => {
                         if (!res.isConfirmed) return;
@@ -877,7 +907,7 @@
                         }
                         ECMIS.pushCaseHistory(kase, {
                             from: fromStatus, to: nextStatus, event, actor: 'chairman',
-                            note: 'ประธานฯ ลงนามมอบหมายตามความเห็นของกลุ่มงานกิจการคณะกรรมการ (ทางลัด ไม่ผ่านคณะอนุกลั่นกรอง) — บรรจุวาระทันที'
+                            note: 'ประธานฯ ลงนามคำสั่งมอบหมาย/บรรจุวาระ ตามผลคัดกรองของประธานฯ เอง (ไม่ผ่านคณะอนุกลั่นกรองฯ)'
                         });
 
                         (async () => {

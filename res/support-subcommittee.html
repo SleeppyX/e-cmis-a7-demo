@@ -333,7 +333,7 @@
     const role = ECMIS.currentRole();
     const currentGroup = ECMIS.currentSupportGroup();
     const returnInboxUrl = 'support-subcommittee-inbox.html';
-    let kase = null, docType, isRuling;
+    let kase = null, docType, isRuling, is72Track;
     let pageReadOnly = false;
 
     const TEAMS = [
@@ -360,12 +360,16 @@
 
       docType = ECMIS.DOC_TYPES[kase.docType] || ECMIS.DOC_TYPES['213'];
       isRuling = (kase.docType === 'RULING');
+      /* สายของเคส (7.1/7.2) ต้องดูจากสถานะจริง (IN_SUPPORT_SUB_72 ฯลฯ) ไม่ใช่ docType==='RULING' — เคส 7.2
+         ปกติเข้ามาด้วยรายงาน 644 จึง isRuling=false แล้วสถานะขาออกทั้ง 3 จุดด้านล่างเคยหลุดไปเป็นของสาย 7.1
+         (เช่น คืนเลขาฯ เป็น PENDING_SECGEN แทน PENDING_SECGEN_72) พบตอนทดสอบ flow ผอ.กบค. 2026-09-30 */
+      is72Track = ECMIS.isCase72(kase);
 
       // ตรวจสอบว่าสำนวนได้รับการกลั่นกรองและส่งต่อแล้ว หรือส่งคืนต้นทางแล้ว หรือรอข้อมูลเพิ่มหรือไม่ ถ้าใช่ให้เปิดโหมด Read-only ล็อกข้อมูล
       if (kase.status === 'PENDING_SECGEN' || kase.status === 'PENDING_SECGEN_72' || kase.status === 'SIGNED' || kase.status === 'DONE' || kase.status === 'RETURNED' || kase.status === 'RETURNED_72' || pageReadOnly) {
         pageReadOnly = true;
       } else if (kase.status !== 'IN_SUPPORT_SUB' && kase.status !== 'IN_SUPPORT_SUB_72') {
-        kase.status = isRuling ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB';
+        kase.status = is72Track ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB';
       }
 
       renderPage();
@@ -373,7 +377,7 @@
 
     function renderPage() {
       document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
-      document.getElementById('stepper').innerHTML = isRuling
+      document.getElementById('stepper').innerHTML = is72Track
         ? ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
         : ECMIS.stepperHtml(kase.status);
 
@@ -864,7 +868,7 @@
             supportLaw: lawVal,
             dissentReason: dissent.value.trim(),
             moreInfoItems: items,
-            status: 'IN_SUPPORT_SUB'
+            status: is72Track ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB'
           });
           ECMIS.toastOk('ส่งคำขอข้อมูลเพิ่มเติมเรียบร้อย');
           setTimeout(() => location.href = returnInboxUrl, 1400);
@@ -891,7 +895,7 @@
             supportOpinion72: op.value.trim(),
             supportOpinion: op.value.trim(),
             supportDecision: dec,
-            status: isRuling ? 'RETURNED_72' : 'RETURNED'
+            status: is72Track ? 'RETURNED_72' : 'RETURNED'
           });
           ECMIS.toastOk('ส่งคืนสำนวนเรียบร้อย');
           setTimeout(() => location.href = returnInboxUrl, 1400);
@@ -956,7 +960,7 @@
             supportDecision: dec,
             supportLaw: lawVal,
             dissentReason: dissent.value.trim(),
-            status: isRuling ? 'PENDING_SECGEN_72' : 'PENDING_SECGEN'
+            status: is72Track ? 'PENDING_SECGEN_72' : 'PENDING_SECGEN'
           });
 
           await Swal.fire({

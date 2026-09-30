@@ -1364,6 +1364,8 @@
             if (!r.isConfirmed) return;
             const g1yes = document.getElementById('g1yes');
             if (g1yes) g1yes.checked = true;
+            // persistCase() mutates kase.status — capture the pre-transition status for the event log
+            const fromStatus = kase.status;
 
             try {
               await persistCase(kase, {
@@ -1375,8 +1377,8 @@
                   complexMemoAtIso: new Date().toISOString()
                 }
               });
-              await ECMIS.logRequestEvent(kase.trr_id, kase.status, nextStatus, {
-                type: 'SIGN_COMPLEX',
+              await ECMIS.logRequestEvent(kase.trr_id, fromStatus, nextStatus, {
+                type: ECMIS.isCase72(kase) ? 'SIGN_COMPLEX_72' : 'SIGN_COMPLEX',
                 actorRole: 'secgen',
                 data: { complexReason: reasonText }
               });
@@ -1471,6 +1473,7 @@
             ECMIS.toastWarn('สำนวนนี้เป็นกรณีเร่งด่วน — กรุณาแนบไฟล์ใบด่วนก่อนบันทึก/ลงนาม');
             return;
           }
+          const fromStatus = kase.status; // persistCase() below mutates kase.status
           try {
             const secOp = document.getElementById('myOpinion')?.value.trim() || '';
             const urgentNow = kase.urgent || urgentYes();
@@ -1499,7 +1502,7 @@
               urgent: urgentNow,
               resolutionData
             });
-            await ECMIS.logRequestEvent(kase.trr_id, kase.status, targetStatus, {
+            await ECMIS.logRequestEvent(kase.trr_id, fromStatus, targetStatus, {
               type: 'SIGNED_SECGEN',
               actorRole: 'secgen',
               data: { opinion: secOp, signedAt: new Date().toISOString() }

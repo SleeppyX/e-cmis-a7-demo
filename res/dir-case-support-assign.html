@@ -196,18 +196,21 @@
         .in('trr_status', codes)
         .eq('is_deleted', false);
       if (error) throw error;
-      const loads = { 'คณะที่ 1': 0, 'คณะที่ 2': 0 };
+      /* เคสเก่าที่เข้าคณะอนุสนับสนุนฯ ก่อนมีขั้น ผอ.กบค. ส่วนใหญ่ไม่มี supportSubTeam — นับแยกเป็น
+         "ยังไม่ระบุคณะ" แทนการปล่อยให้ทั้งสองคณะดูเหมือนว่างงาน */
+      const loads = { 'คณะที่ 1': 0, 'คณะที่ 2': 0, unassigned: 0 };
       (data || []).forEach(r => {
-        const t = String((r.trr_resolution_data && r.trr_resolution_data.supportSubTeam) || '');
+        const t = String((r.trr_resolution_data && (r.trr_resolution_data.supportSubTeam || r.trr_resolution_data.supportTeam)) || '');
         if (t.includes('2')) loads['คณะที่ 2']++;
         else if (t.includes('1')) loads['คณะที่ 1']++;
+        else loads.unassigned++;
       });
       return loads;
     }
 
     const params = new URLSearchParams(location.search);
     const role = ECMIS.currentRole();
-    let kase = null, is72 = false, isAssignStep = false, loads = { 'คณะที่ 1': 0, 'คณะที่ 2': 0 };
+    let kase = null, is72 = false, isAssignStep = false, loads = { 'คณะที่ 1': 0, 'คณะที่ 2': 0, unassigned: 0 };
     const secgen = ECMIS.getRole('secgen');
     const dirCase = ECMIS.getRole('dir_case');
 
@@ -273,6 +276,7 @@
                 <span class="chip ms-2">งานค้าง ${ECMIS.toThaiDigits(loads[t] || 0)} เรื่อง</span>
               </label>`).join('')}
           </div>
+          ${loads.unassigned ? `<div class="text-muted mt-2" style="font-size:.78rem"><i class="fa-solid fa-circle-info me-1"></i>มีสำนวนในคณะอนุสนับสนุนฯ อีก ${ECMIS.toThaiDigits(loads.unassigned)} เรื่องที่เข้ามาก่อนมีขั้นนี้ จึงไม่มีข้อมูลว่าอยู่คณะใด</div>` : ''}
           <div class="val-msg val-err" data-for="supportTeam">กรุณาเลือกคณะอนุกรรมการสนับสนุนเลขาธิการฯ</div>`;
         document.querySelectorAll('input[name="supportTeam"]').forEach(r => r.addEventListener('change', () => {
           document.querySelectorAll('.team-option').forEach(o => o.classList.toggle('selected', o.querySelector('input').checked));

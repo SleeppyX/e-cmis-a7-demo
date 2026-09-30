@@ -214,7 +214,7 @@ const STATUS = {
   /* gate คัดกรองความยุ่งยากสาย 7.2 (2026-09-17, แก้ owner เป็น affairs เมื่อ 2026-09-17) — ตั้งแต่
      2026-09-23 gate นี้ใช้เฉพาะสาย 7.2 เท่านั้น (สาย 7.1 ถูกตัดออกแล้ว ดูคอมเมนต์ที่ PENDING_CHAIRMAN
      ด้านบน และ docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md) */
-  PENDING_CASE_ADMIN_SCREEN_72: { label:'รอ กจ. คัดกรองความยุ่งยาก (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'affairs' },
+  PENDING_CASE_ADMIN_SCREEN_72: { label:'รอประธานฯ ลงรับ / คัดกรอง (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'chairman' },
   PENDING_CHAIRMAN_ASSIGN_72:   { label:'รอประธานฯ ลงนามมอบหมาย (ทางลัด กบค. — วินิจฉัยชี้มูล)', cls:'st-pending', owner:'chairman' },
   PENDING_CHAIRMAN_72: { label:'รอประธานฯ ลงนามมอบหมาย (ส่งคณะอนุกลั่นกรองฯ)',   cls:'st-pending', owner:'chairman' },
   IN_SCREENING_72:     { label:'อยู่คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง',      cls:'st-review',  owner:'subcommittee' },
@@ -392,10 +392,13 @@ const TRANSITIONS = [
   /* gate คัดกรองความยุ่งยากโดยกลุ่มงานกิจการคณะกรรมการ (affairs) สาย 7.2 — เพิ่ม 2026-09-17
      (ย้าย owner จาก case_admin มา affairs เมื่อ 2026-09-17 แก้ไข — ดู
      docs/memory/plans/2026-09-17-move-screening-gate-to-affairs.md) */
-  { from:'PENDING_CASE_ADMIN_SCREEN_72', to:'IN_SCREENING_72', event:'SCREEN_COMPLEX_72', actor:'affairs',
-    ref:'กจ. คัดกรองว่ายุ่งยาก', note:'สำนวนยุ่งยาก — ส่งเข้าคณะอนุกลั่นกรองฯ ตามเดิม ข้ามขั้นตอนประธานฯ ไปเลย' },
+  { from:'PENDING_CASE_ADMIN_SCREEN_72', to:'IN_SCREENING_72', event:'SCREEN_COMPLEX_72', actor:'chairman',
+    ref:'ประธานฯ ลงรับ/คัดกรองว่ายุ่งยาก', note:'สำนวนยุ่งยาก — ประธานฯ ส่งเข้าคณะอนุกลั่นกรองฯ (subCommittee=null ให้ case_admin กำหนดคณะ ๑–๘ ต่อ) — 2026-09-30: เปลี่ยน actor จาก affairs เป็น chairman' },
+  { from:'PENDING_CASE_ADMIN_SCREEN_72', to:'PENDING_INVITE_72', event:'SIGN_ASSIGN_72', actor:'chairman',
+    ref:'ประธานฯ ลงรับ/คัดกรองว่าไม่ยุ่งยาก + ลงนามมอบหมาย', note:'ไม่ยุ่งยาก — ประธานฯ ลงนามมอบหมายและบรรจุวาระในขั้นเดียว (ยุบขั้น PENDING_CHAIRMAN_ASSIGN_72 เดิม) ข้าม PENDING_SIGN_AGENDA_72 ตรงไปยังจุดเดียวกับปลายทางฝั่งอนุกลั่นกรอง' },
+  /* เคสเก่าที่ค้างที่ 122 (affairs คัดกรองก่อน 2026-09-30) — คง transition ไว้ให้ประธานฯ ลงนามต่อได้ */
   { from:'PENDING_CASE_ADMIN_SCREEN_72', to:'PENDING_CHAIRMAN_ASSIGN_72', event:'SCREEN_ASSIGN_72', actor:'affairs',
-    ref:'กจ. คัดกรองว่าไม่ยุ่งยาก + เสนอความเห็น', note:'ไม่ยุ่งยาก — กจ. ทำความเห็นเสนอ เสนอประธานฯ ลงนามมอบหมาย (ทางลัด ไม่ผ่านคณะอนุกลั่นกรอง)' },
+    ref:'(legacy) กจ. คัดกรองว่าไม่ยุ่งยาก + เสนอความเห็น', note:'เลิกใช้แล้วตั้งแต่ 2026-09-30 — คงไว้เพื่อความเข้ากันได้ย้อนหลังเท่านั้น' },
   { from:'PENDING_CHAIRMAN_ASSIGN_72', to:'PENDING_INVITE_72', event:'SIGN_ASSIGN_72', actor:'chairman',
     ref:'ประธานฯ ลงนามมอบหมาย', note:'ลงนามมอบหมายตามความเห็นของ กบค. — ข้าม PENDING_SIGN_AGENDA_72 ตรงไปยังจุดเดียวกับปลายทางฝั่งอนุกลั่นกรอง' },
   { from:'PENDING_CHAIRMAN_72', to:'RETURNED_72', event:'CHAIRMAN_RETURN_72', actor:'chairman',
@@ -559,6 +562,9 @@ const CASE_ADMIN_SCREEN_STATUSES = ['IN_SCREENING', 'IN_SCREENING_72'];
    ซึ่งยังเป็นของ case_admin เหมือนเดิม (กระจายสำนวนที่ถึงชั้นกลั่นกรองแล้วเข้าคณะ 1-8)
    2026-09-23: จำกัดเหลือเฉพาะสาย 7.2 — สาย 7.1 (PENDING_CASE_ADMIN_SCREEN ไม่มี _72) ถูกตัดออกแล้ว
    ดู docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md */
+/* 2026-09-30: ด่านนี้เปลี่ยนเจ้าของเป็นประธานฯ (chairman) แล้ว — ดู
+   docs/memory/plans/2026-09-30-72-chairman-intake-screening.md ชื่อ AFFAIRS_COMPLEXITY_STATUSES /
+   isAffairsComplexityQueue คงไว้เพื่อไม่ให้กระทบผู้เรียกเดิม (หมายถึง "คิวด่านคัดกรองความยุ่งยาก 7.2") */
 const AFFAIRS_COMPLEXITY_STATUSES = ['PENDING_CASE_ADMIN_SCREEN_72'];
 /* คิวคัดกรองความยุ่งยากของ affairs — ทุกสำนวนที่อยู่ในสถานะนี้ถือว่า "รอดำเนินการ" เสมอ (ไม่มีเงื่อนไขย่อย) */
 function isAffairsComplexityQueue(kase){
@@ -3481,7 +3487,7 @@ const PAGE_PERMISSIONS = {
   // หน้ารายการ/รายละเอียดของ role กองบริหารคดี (case_admin)
   'case-admin-inbox.html': ['case_admin'],
   'case-admin-detail.html': ['case_admin'],
-  'affairs-case-detail.html': ['affairs'],
+  'affairs-case-detail.html': ['chairman'],  // 2026-09-30: ประธานฯ ลงรับ/คัดกรองสาย 7.2 แทน affairs (ชื่อไฟล์คงเดิมเพื่อไม่ให้ลิงก์/route แตก)
 
   // Registry Screens (Strictly removed for chairman & affairs per rules — case_admin ก็ไม่ให้ เพื่อความปลอดภัย มี home ของตัวเองแล้ว)
   'agenda-registry.html': ['board_sec', 'board', 'board_ex', 'support_sub'],

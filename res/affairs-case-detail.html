@@ -7,7 +7,7 @@
   <title>ฟอร์มคัดกรองสำนวน | E-CMIS</title>
   <link rel="icon" type="image/png" href="../assets/pacc_logo.png">
   <link
-    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap"
     rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
@@ -15,272 +15,288 @@
   <link href="../assets/ecmis-app.css" rel="stylesheet">
   <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
   <style>
-    .kv { display: grid; grid-template-columns: 150px 1fr; gap: .3rem .8rem; font-size: .86rem; }
-    .kv dt { color: var(--ecmis-muted); font-weight: 600; }
-    .kv dd { margin: 0; }
-    .opinion-row { display: flex; gap: .6rem; padding: .5rem 0; border-bottom: 1px dashed var(--border-divider); font-size: .84rem; }
-    .opinion-row:last-child { border-bottom: none; }
-    @media(max-width:700px){ .kv { grid-template-columns: 1fr; } }
-
-    /* หน้านี้ไม่ดึง ECMIS.initDocEditor()/applyZoom() มาใช้ (อ่านอย่างเดียว ไม่มี toolbar/pagination)
-       จึงย่อขนาดกระดาษ A4 ด้วย zoom ธรรมดาแทน — เทียบ pattern เดียวกับ officer-preview-viewport
-       ใน assets/a4-ecmis-workspace.css (บรรทัด ~423-430) ที่ใช้แก้ปัญหาเดียวกัน (โชว์ A4 หน้าเดียว
-       ในกรอบที่เล็กกว่าตัวเอกสารจริง โดยไม่ต้องพึ่ง JS pagination engine) */
-    #docPaperStage .a4-paper { zoom: .72; margin: 0 auto; }
-    @media(max-width:900px){ #docPaperStage .a4-paper { zoom: .58; } }
-    @media(max-width:620px){ #docPaperStage .a4-paper { zoom: .42; } }
-    /* ws-paper-stage ของระบบใช้ align-items:center !important (a4-ecmis-workspace.css:1342) ซึ่ง
-       ปกติโอเคเมื่อ JS pagination engine คำนวณ zoom ให้พอดีกรอบเสมอ — แต่หน้านี้ไม่มี engine นั้น
-       (fixed zoom ตายตัว) กระดาษ A4 เต็มหน้าจึงมักสูงกว่ากรอบเสมอ ถ้า center จะโดนตัดขอบบนแบบไม่สมมาตร
-       เห็นเป็นแถบพื้นหลังเข้มโผล่ด้านบน จึงเปลี่ยนเป็นชิดบนแทนสำหรับหน้านี้เท่านั้น */
-    #docPaperStage { align-items: flex-start !important; }
+    .kv .k { color: var(--ecmis-muted); font-weight: 600; }
+    .is-invalid-ecmis { border-color: #DB2626 !important; box-shadow: 0 0 0 .15rem rgba(219,38,38,.15); }
   </style>
 </head>
 
 <body>
 
   <main class="app-main">
-    <div class="page-head d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <!-- 2026-09-30: จัดหน้าตาม format เดียวกับ chairman-agenda.html / approval-review.html (stepper + การ์ดซ้าย + แผงเอกสารขวา + แถบลงนามล่าง) -->
+    <div class="page-head">
       <div>
-        <a href="inbox.html" class="text-decoration-none small d-block mb-1"
-          style="color:var(--ecmis-muted)"><i class="fa-solid fa-arrow-left me-1"></i>กลับรายการสำนวน</a>
-        <h1><i class="fa-solid fa-scale-unbalanced me-2" style="color:#0F2A62"></i><span id="pageTitle">ฟอร์มคัดกรองสำนวน</span></h1>
+        <div class="mb-1"></div>
+        <h1><i class="fa-solid fa-scale-unbalanced me-2" style="color:#0F2A62"></i>ฟอร์มคัดกรองสำนวน</h1>
       </div>
-      <div class="ms-auto"></div>
+      <div class="ms-auto text-end">
+        <span class="flow-ref"><strong>ด่านประธานฯ ลงรับและคัดกรองสำนวน (7.2)</strong></span>
+        <div class="mt-1" id="stBadge"></div>
+      </div>
     </div>
 
     <div id="notFoundBox" class="alert alert-warning d-none">ไม่พบสำนวนนี้ในระบบ — <a href="inbox.html">กลับรายการ</a></div>
 
-    <div id="detailWrap" class="d-none document-workspace">
-      <div id="docLeftCol">
-
-        <!-- 1. หัวสำนวน -->
-        <div class="card card-ecmis mb-3">
-          <div class="card-header d-flex align-items-center flex-wrap gap-2">
-            <i class="fa-solid fa-circle-info text-primary"></i><span class="fw-bold">หัวสำนวน</span>
-            <span class="ms-auto d-flex align-items-center gap-2" id="headBadges"></span>
-          </div>
-          <div class="card-body">
-            <dl class="kv" id="headKv"></dl>
-            <div class="mt-3 d-flex align-items-center gap-2 flex-wrap" id="headActions"></div>
-          </div>
-        </div>
-
-        <!-- 1.5 ฟอร์มคัดกรองสำนวน (ประธานฯ) — 2026-09-30 ย้ายจาก pop-up มาเป็นการ์ดบนหน้า -->
-        <div class="card card-ecmis mb-3" id="screenFormCard">
-          <div class="card-header"><i class="fa-solid fa-scale-unbalanced text-primary"></i> <span class="fw-bold">ฟอร์มคัดกรองสำนวน</span>
-            <span class="ms-2 small text-muted">(เลือกผล + ความเห็น แล้วกด "ลงนามคัดกรอง" ที่แถบด้านล่าง)</span>
-          </div>
-          <div class="card-body">
-            <div class="p-2 mb-3 rounded-3" style="background:#F8FAFC; border:1px solid #E2E8F0; font-size:.8rem; color:#475569;">
-              <div class="fw-semibold mb-1" style="color:#1E293B;"><i class="fa-solid fa-clipboard-check me-1"></i>เกณฑ์พิจารณาว่า "ยุ่งยาก" (ส่งคณะอนุกรรมการกลั่นกรองฯ) — ตรงข้อใดข้อหนึ่ง</div>
-              <div>1) มีประเด็นข้อกฎหมายหรือข้อเท็จจริงซับซ้อน (ม.๒๔ วรรคสาม — เรื่องสำคัญหรือซับซ้อน)</div>
-              <div>2) มีความเห็นไม่ตรงกันในสายบังคับบัญชาของสำนวนนี้</div>
-            </div>
-            <label class="form-label fw-semibold d-block mb-2">ผลการคัดกรอง <span style="color:#DB2626">*</span></label>
-            <div class="form-check mb-1">
-              <input class="form-check-input" type="radio" name="caComplex" id="caComplexYes" value="YES">
-              <label class="form-check-label" for="caComplexYes"><strong>ยุ่งยาก</strong> — ลงนามสั่งส่งคณะอนุกลั่นกรองฯ (กบค. กำหนดคณะที่ ๑–๘ ต่อ)</label>
-            </div>
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="radio" name="caComplex" id="caComplexNo" value="NO">
-              <label class="form-check-label" for="caComplexNo"><strong>ไม่ยุ่งยาก</strong> — ลงนามมอบหมายให้กลุ่มงานกิจการฯ ทำความเห็นเสนอ (อิงรายงาน 644)</label>
-            </div>
-            <label class="form-label fw-semibold">ความเห็นประธานฯ (ถ้ามี)</label>
-            <textarea id="caOpinion" class="form-control" rows="3" placeholder="ระบุความเห็นหรือข้อสั่งการเพิ่มเติม (ไม่บังคับ)"></textarea>
-          </div>
-        </div>
-
-        <!-- 2. ความเห็นตามสายอนุมัติ -->
-        <div class="card card-ecmis mb-4">
-          <div class="card-header"><i class="fa-solid fa-comments text-primary"></i> <span class="fw-bold">ความเห็นตามสายอนุมัติ</span>
-            <span class="ms-2 small text-muted">(ใช้ประกอบการพิจารณาเกณฑ์ข้อ ๒ — ความเห็นไม่ตรงกันในสายบังคับบัญชา)</span>
-          </div>
-          <div class="card-body" id="opinionBox"></div>
-        </div>
-
-        <!-- 3. ฐานกฎหมาย (ตัวบทจริง — พ.ร.บ.มาตรการฯ ฉบับรวมถึงฉบับที่ ๔ พ.ศ. ๒๕๖๘) -->
-        <div class="card card-ecmis mb-4">
-          <div class="card-header"><i class="fa-solid fa-scale-balanced text-primary"></i> <span class="fw-bold">ฐานอำนาจ / กฎหมายที่เกี่ยวข้อง</span>
-            <span class="ms-2 small text-muted">(พ.ร.บ. มาตรการฝ่ายบริหารฯ แก้ไขถึงฉบับที่ ๔ พ.ศ. ๒๕๖๘)</span>
-          </div>
-          <div class="card-body" id="lawBox"></div>
-        </div>
-
+    <div id="wrap" class="d-none">
+      <div class="ws-card mb-3">
+        <div class="card-body pb-1" id="stepper"></div>
       </div>
 
-      <!-- 4. เอกสารประกอบการพิจารณา (อ่านอย่างเดียว — กจ. ไม่ใช่เจ้าของสำนวน จึงไม่มีปุ่มพิมพ์/ส่งออก/แก้ไข
-           ดู docs/memory/plans/2026-09-23-affairs-case-detail-a4-preview.md) -->
-      <aside class="ws-doc-pane" style="top:calc(var(--topbar-h) + 14px)">
-        <div class="ws-doc-toolbar">
-          <span class="name"><i class="fa-solid fa-file-lines"></i> เอกสารประกอบการพิจารณา (อ่านอย่างเดียว)</span>
-        </div>
-        <div class="ws-paper-stage" id="docPaperStage">
-          <div id="docPaper">
-            <div class="doc-paper a4-paper" id="docPaperPage"></div>
+      <div class="document-workspace" id="docWorkspace">
+        <div id="docLeftCol">
+
+          <!-- 1. สรุปสำนวน -->
+          <div class="ws-card mb-3">
+            <div class="card-header"><i class="fa-solid fa-circle-info"></i> สรุปสำนวนสำหรับผู้พิจารณา</div>
+            <div class="card-body">
+              <div class="row g-2 kv" id="summary"></div>
+              <hr>
+              <div class="mb-2"><span class="k text-muted">ข้อกล่าวหา / พฤติการณ์</span>
+                <div class="v fw-medium" id="sAllegation"></div>
+              </div>
+              <div><span class="k text-muted">ผู้ถูกกล่าวหา / ผู้ถูกร้อง</span>
+                <div class="v" id="sAccused"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. เส้นทางการเสนอความเห็น -->
+          <div class="ws-card mb-3">
+            <div class="card-header"><i class="fa-solid fa-list-ol"></i> เส้นทางการเสนอความเห็นตามลำดับชั้น (ต้นทาง กว.5 → เลขาธิการฯ)</div>
+            <div class="card-body"><ul class="tl mb-0" id="chain"></ul></div>
+          </div>
+
+          <!-- 3. ฟอร์มของผู้พิจารณาชั้นนี้ -->
+          <div class="ws-card mb-3" id="formCard">
+            <div class="card-header"><i class="fa-solid fa-pen-nib"></i> ความเห็นของผู้พิจารณาชั้นนี้ (ประธานกรรมการ ป.ป.ท.)</div>
+            <div class="card-body">
+              <label class="form-label field-req">สำนวนนี้เป็นเรื่องยุ่งยากซับซ้อนหรือไม่? <small class="text-muted fw-normal">(ดุลพินิจประธานฯ)</small></label>
+              <div class="d-flex gap-3 flex-wrap mb-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="g1" id="g1no" value="no" checked>
+                  <label class="form-check-label" for="g1no">ไม่ซับซ้อน — ลงนามมอบหมายกลุ่มงานกิจการฯ ทำความเห็นเสนอ</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="g1" id="g1yes" value="yes">
+                  <label class="form-check-label" for="g1yes">ซับซ้อน — ลงนามสั่งส่งคณะอนุกรรมการกลั่นกรองฯ</label>
+                </div>
+              </div>
+              <div class="small text-muted mb-2" style="font-size:.76rem">
+                เกณฑ์ "ซับซ้อน" (ตรงข้อใดข้อหนึ่ง): ๑) มีประเด็นข้อกฎหมายหรือข้อเท็จจริงซับซ้อน (ม.๒๔ วรรคสาม) ๒) มีความเห็นไม่ตรงกันในสายบังคับบัญชา
+              </div>
+              <div id="complexReasonBox" class="mt-2 mb-2 d-none">
+                <label class="form-label field-req" for="complexReason">เหตุผลที่เห็นว่าเป็นเรื่องยุ่งยากซับซ้อน
+                  <small class="text-muted fw-normal">(ใช้ในบันทึกสั่งส่งคณะอนุกรรมการกลั่นกรองฯ)</small></label>
+                <textarea class="form-control" id="complexReason" rows="3"
+                  placeholder="เช่น มีผู้ถูกกล่าวหาหลายราย พยานหลักฐานจำนวนมาก ประเด็นข้อกฎหมายซับซ้อน หรือความเห็นในสายบังคับบัญชาไม่ตรงกัน"></textarea>
+              </div>
+              <hr>
+              <label class="form-label" for="caOpinion">ความเห็น / ข้อสั่งการเพิ่มเติมของประธานฯ <small class="text-muted fw-normal">(ถ้ามี)</small></label>
+              <textarea class="form-control" id="caOpinion" rows="3" placeholder="ระบุความเห็นหรือข้อสั่งการเพิ่มเติม (ไม่บังคับ)"></textarea>
+            </div>
+          </div>
+
+          <!-- 4. ฐานกฎหมาย (ตัวบทจริง — พ.ร.บ.มาตรการฯ ฉบับรวมถึงฉบับที่ ๔ พ.ศ. ๒๕๖๘) -->
+          <div class="ws-card mb-3">
+            <div class="card-header"><i class="fa-solid fa-scale-balanced"></i> ฐานอำนาจ / กฎหมายที่เกี่ยวข้อง
+              <span class="ms-2 small text-muted">(พ.ร.บ. มาตรการฝ่ายบริหารฯ แก้ไขถึงฉบับที่ ๔ พ.ศ. ๒๕๖๘)</span></div>
+            <div class="card-body" id="lawBox"></div>
           </div>
         </div>
-      </aside>
+
+        <aside class="ws-doc-pane" style="top:calc(var(--topbar-h) + 14px)">
+          <div class="ws-doc-toolbar"></div>
+          <div class="ws-paper-stage" id="docPaperStage">
+            <div id="docPaper"></div>
+          </div>
+        </aside>
+      </div>
     </div>
 
     <div id="actionBarSlot"></div>
   </main>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
   <script src="../assets/ecmis-app.js"></script>
   <script src="../assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('inbox.html');
 
     const M = ECMIS.mergeField;
-    /* ต้องประกาศก่อนเรียก renderDetail() ด้านล่าง — เดิมประกาศไว้หลังจุดเรียก ทำให้เกิด TDZ ReferenceError กับสำนวนที่มี chainOpinions */
-    const OPINION_LABEL = { section_head: 'หัวหน้ากลุ่มงาน', director: 'ผู้อำนวยการกอง', deputy: 'รองเลขาธิการฯ' };
-    const OPINION_TYPE_LABEL = { ACCEPT: 'เห็นชอบ', MORE: 'ให้แก้ไข/เพิ่มเติม', RETURN: 'ตีกลับ' };
     const role = ECMIS.currentRole();
     const sb = ECMIS.getSupabaseClient();
     const params = new URLSearchParams(location.search);
     let kase = ECMIS.getCase(params.get('case') || '');
-
-    if (!kase || !ECMIS.isAffairsComplexityQueue(kase)) {
-      document.getElementById('notFoundBox').classList.remove('d-none');
-    } else {
-      document.getElementById('detailWrap').classList.remove('d-none');
-      renderDetail();
-    }
+    const SIGNER_NAME = 'นายวิชัย ยุติธรรม';
+    const SIGNER_TITLE = 'ประธานกรรมการ ป.ป.ท.';
+    const REQUIRED_STATUS = 'PENDING_CASE_ADMIN_SCREEN_72';
+    let docTab = 'memo';
 
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-
-    function renderDetail() {
-      const k = kase;
-      document.getElementById('pageTitle').textContent = 'ฟอร์มคัดกรองสำนวน ' + k.id;
-      document.getElementById('headBadges').innerHTML = ECMIS.typeBadge(k) + ' ' + ECMIS.statusBadge(k.status) + ' ' + ECMIS.slaBadge(k);
-
-      const accused = (k.accused || []).map(a => `${esc(a.name || '')}${a.pos ? ' — ' + esc(a.pos) : ''}`).join('<br>') || '—';
-      document.getElementById('headKv').innerHTML = `
-        <dt>เลขสำนวน</dt><dd>${esc(k.id)}</dd>
-        <dt>ประเภทเรื่อง</dt><dd>${ECMIS.isCase72(k) ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</dd>
-        <dt>ผู้ถูกกล่าวหา</dt><dd>${accused}</dd>
-        <dt>เจ้าของสำนวน</dt><dd>${esc(k.owner || '—')}${k.ownerOrg ? ' · ' + esc(k.ownerOrg) : ''}</dd>
-        <dt>ข้อกล่าวหา</dt><dd>${esc(k.allegation || k.subject || '—')}</dd>
-        <dt>เลขรับ / อ้างอิง</dt><dd>${esc(k.docRef || '—')}</dd>
-        <dt>วันที่รับเรื่อง</dt><dd>${k.receivedDate ? ECMIS.thaiDate(k.receivedDate) : '—'}</dd>`;
-
-      document.getElementById('headActions').innerHTML =
-        `<span class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>ประเมินว่าสำนวนนี้ยุ่งยากหรือไม่ ก่อนส่งเข้าคณะอนุกลั่นกรองฯ หรือเสนอประธานฯ ลงนามมอบหมาย — กดดำเนินการที่แถบด้านล่าง</span>`;
-
-      renderActionButtons(k);
-      if (!ECMIS.canAct(k, role.id)) document.querySelectorAll('#screenFormCard input, #screenFormCard textarea').forEach(el => { el.disabled = true; });
-
-      const opinions = Array.isArray(k.chainOpinions) ? k.chainOpinions : [];
-      const chainHtml = opinions.map(o => {
-        const label = OPINION_LABEL[o.roleId] || o.roleId || '—';
-        const typeLabel = OPINION_TYPE_LABEL[o.type] || o.type || '—';
-        const badgeCls = o.type === 'RETURN' ? 'bg-danger-subtle text-danger-emphasis' : (o.type === 'MORE' ? 'bg-warning-subtle text-warning-emphasis' : 'bg-success-subtle text-success-emphasis');
-        return `<div class="opinion-row">
-          <span class="chip flex-shrink-0" style="align-self:flex-start">${esc(label)}</span>
-          <div>
-            <span class="badge ${badgeCls} border mb-1">${esc(typeLabel)}</span>
-            ${o.date ? '<span class="text-muted ms-2" style="font-size:.75rem">' + ECMIS.thaiDate(o.date) + '</span>' : ''}
-            <div>${esc(o.note || '—')}</div>
-          </div>
-        </div>`;
-      }).join('');
-
-      /* ความเห็นเลขาธิการฯ (kase.secgenOpinion) — เขียนกำกับตอนเซ็นส่งเข้าคิวนี้ที่ approval-review.html
-         (SIGN_NORMAL_72) ไม่ใช่ chainOpinions รายการทั่วไป จึงต่อท้ายแยกต่างหากเสมอเมื่อมีค่า —
-         ต้องเห็นก่อนตัดสินใจตามเกณฑ์ข้อ 2 (ความเห็นไม่ตรงกันในสายบังคับบัญชา) เพราะเป็นความเห็นล่าสุด
-         ก่อนถึงขั้นนี้ ดู docs/memory/plans/2026-09-23-affairs-case-detail-page.md */
-      const secgenHtml = k.secgenOpinion ? `<div class="opinion-row">
-        <span class="chip flex-shrink-0" style="align-self:flex-start">เลขาธิการฯ</span>
-        <div>
-          <span class="badge bg-success-subtle text-success-emphasis border mb-1">เห็นชอบ — เสนอตามขั้นตอนปกติ</span>
-          <div>${esc(k.secgenOpinion)}</div>
-        </div>
-      </div>` : '';
-
-      document.getElementById('opinionBox').innerHTML = (chainHtml + secgenHtml) ||
-        '<div class="text-muted small">ยังไม่มีความเห็นตามสายอนุมัติของสำนวนนี้ในระบบ</div>';
-
-      renderAffairsDoc(k);
-      document.getElementById('lawBox').innerHTML = ECMIS.renderLawBox(['M24_P3', 'M17_10', 'M18_LAST', 'PR_SCREEN']);
-    }
-
-    /* ปุ่ม "ลงรับ / คัดกรองสำนวน" (ประธานฯ — 2026-09-30 เดิมเป็นของ affairs) ย้ายมาเป็น sticky action bar ด้านล่างจอผ่าน ECMIS.actionBar() เหมือน
-       หน้าอื่นๆ ในระบบ (approval-review.html ฯลฯ) แทนที่จะฝังอยู่ในการ์ด "หัวสำนวน" ด้านบน —
-       ดู docs/memory/plans/2026-09-23-affairs-case-detail-a4-preview.md */
-    function renderActionButtons(k) {
-      document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(k, role.id,
-        [{ act: 'screen', label: 'ลงนามคัดกรอง', icon: 'fa-signature', cls: 'btn-navy' }]);
-      document.querySelectorAll('.action-bar [data-act]').forEach(b =>
-        b.addEventListener('click', () => { if (b.dataset.act === 'screen') submitScreening(k.id); }));
-    }
-
-    /* A4 preview อ่านอย่างเดียว — adapt จาก renderDoc() ของ approval-review.html (บรรทัด 1663-1699)
-       ตัดส่วนที่ผูกกับ UI state ของ secgen ออก (checkbox ซับซ้อน/เร่งด่วนที่เลือกอยู่ตอนนั้น ไม่มี
-       ความหมายในหน้านี้) ใช้ k.secgenOpinion ที่บันทึกไว้แล้วแทน ไม่มี doc-sign (ไม่ใช่หน้าลงนาม)
-       ไม่เรียก updatePaginationUI()/applyZoom() เพราะไม่มี toolbar/pagination ในหน้านี้
-       ดู docs/memory/plans/2026-09-23-affairs-case-detail-a4-preview.md */
-    function renderAffairsDoc(k) {
-      /* ใช้เอกสารเดียวกับที่เลขาธิการฯ เห็น/ลงนาม (ECMIS.renderSecgenReportDoc) — ไม่ทำ stub แยกอีก */
-      document.getElementById('docPaperPage').innerHTML = ECMIS.renderSecgenReportDoc(k, { signed: true });
-    }
-
-    /* ── ฟอร์มคัดกรองสำนวน 7.2 ของประธานฯ (ขั้นที่ ①: ลงนามคัดกรอง) — การ์ดบนหน้า + ปุ่ม 'ลงนามคัดกรอง' ด้านล่าง ──────────────────
-       2026-09-30: ประธานฯ เป็นผู้คัดกรอง และ "ต้องลงนามดิจิทัลทั้งสองทาง" ตามเล่ม 5 (RES011–012)
-       ซับซ้อน    → ลงนามสั่งส่งคณะอนุกลั่นกรองฯ → SCREEN_COMPLEX_72 เข้า IN_SCREENING_72 (subCommittee=null ให้ case_admin กำหนดคณะ ๑–๘)
-       ไม่ซับซ้อน  → ลงนามมอบหมาย (อิงรายงาน 644) ให้กลุ่มงานกิจการฯ ทำความเห็นเสนอ → SCREEN_ASSIGN_72 เข้า
-                     PENDING_AFFAIRS_OPINION_72 (affairs-opinion.html) → 122 (chairman-agenda.html ลงนามสั่งบรรจุวาระ)
-       ฐานกฎหมาย: ม.๒๔ วรรคสาม / ม.๑๗(๑๐) / ม.๑๘ วรรคท้าย + แนวปฏิบัติเล่ม 5 — ดู docs/memory/plans/2026-09-30-72-law-referenced-flow.md */
-    const SIGNER_NAME = 'นายวิชัย ยุติธรรม';
-    const SIGNER_TITLE = 'ประธานกรรมการ ป.ป.ท.';
-
-    /* เขียนฟิลด์เสริมลง trr_resolution_data (merge กับของเดิม) เพื่อให้ผลคัดกรองอยู่ข้ามเครื่อง/หลังรีเฟรช */
+    /* เขียนฟิลด์เสริมลง trr_resolution_data (merge กับของเดิม) เพื่อให้ข้อมูลอยู่ข้ามเครื่อง/หลังรีเฟรช */
     async function persistResolutionData(k, patch) {
       if (!sb || !k.trr_id) return true;
-      const merged = Object.assign({}, k.resolutionData || {}, patch);
+      /* อ่านค่าล่าสุดจาก DB ก่อนรวมเสมอ — ห้ามใช้ k.resolutionData ที่อาจเป็นสำเนาเก่าในเครื่อง (เคยทำให้ screen72 ของขั้นก่อนหน้าถูกเขียนทับหาย) */
+      let current = {};
+      try {
+        const { data } = await sb.from('tbl_res_request').select('trr_resolution_data').eq('trr_id', k.trr_id).maybeSingle();
+        current = (data && data.trr_resolution_data) || {};
+      } catch (e) { current = k.resolutionData || {}; }
+      const merged = Object.assign({}, current, patch);
       const { error } = await sb.from('tbl_res_request').update({ trr_resolution_data: merged }).eq('trr_id', k.trr_id);
-      if (error) { console.error('บันทึกผลคัดกรองลงฐานข้อมูลไม่สำเร็จ:', error); ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่'); return false; }
+      if (error) { console.error('บันทึกลงฐานข้อมูลไม่สำเร็จ:', error); ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่'); return false; }
       k.resolutionData = merged;
       return true;
     }
 
-    function submitScreening(caseId) {
-      const k = ECMIS.getCase(caseId);
-      if (!k || !ECMIS.isCase72(k)) return; // gate นี้ใช้เฉพาะสาย 7.2 เท่านั้น
-      const yes = document.getElementById('caComplexYes').checked;
-      const no = document.getElementById('caComplexNo').checked;
-      if (!yes && !no) {
-        ECMIS.toastWarn('กรุณาเลือกผลการคัดกรอง (ยุ่งยาก / ไม่ยุ่งยาก) ก่อนลงนาม');
-        document.getElementById('screenFormCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    /* ---------- สรุปสำนวน / เส้นทางความเห็น (รูปแบบเดียวกับ chairman-agenda.html) ---------- */
+    function refreshCaseView() {
+      const k = kase;
+      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${esc(k.id)}</span>` + ECMIS.statusBadge(k.status) + ' ' + ECMIS.slaBadge(k);
+      document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(k.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
+
+      const FULL_CHAIN = ECMIS.UPSTREAM_CHAIN.concat(['secgen']);
+      const opByRole = Object.fromEntries((k.chainOpinions || []).map(o => [o.roleId, o]));
+      document.getElementById('chain').innerHTML = FULL_CHAIN.map(rid => {
+        const r = ECMIS.getRole(rid);
+        const op = opByRole[rid];
+        let note = 'เห็นชอบแล้วตามลำดับชั้น';
+        if (op) note = `เห็นชอบแล้ว · <span class="text-success fw-medium"><i class="fa-solid fa-check me-1"></i>ลงนามเมื่อ ${ECMIS.thaiDate(op.date)}</span>`;
+        else if (rid === 'secgen') note = `เห็นชอบและลงนามรายงานแล้ว${k.secgenSignedAt ? ' · ' + esc(k.secgenSignedAt) : ''}`;
+        let opHtml = '';
+        if (op) {
+          opHtml = `<div class="tl-m mt-1"><span class="st st-done" style="font-size:.68rem">${(ECMIS.OPINION_TYPES[op.type] && ECMIS.OPINION_TYPES[op.type].label) || 'เห็นชอบ'}</span>
+            <span class="text-muted ms-1" style="font-size:.75rem">${esc(op.note)}</span></div>`;
+        } else if (rid === 'secgen' && k.secgenOpinion) {
+          opHtml = `<div class="tl-m mt-1"><span class="st st-done" style="font-size:.68rem">เห็นชอบ</span>
+            <span class="text-muted ms-1" style="font-size:.75rem">${esc(k.secgenOpinion)}</span></div>`;
+        }
+        return `<li class="ok"><span class="tl-dot"></span><div class="tl-t">${r.title}</div><div class="tl-m">${r.name} · ${note}</div>${opHtml}</li>`;
+      }).join('') + `<li class="now"><span class="tl-dot"></span><div class="tl-t">ประธานกรรมการ ป.ป.ท. <span class="chip ms-1">คุณ</span></div>
+        <div class="tl-m"><strong>อยู่ระหว่างประธานฯ ลงรับและคัดกรองสำนวน (ลงนามคัดกรอง)</strong></div></li>`;
+
+      document.getElementById('summary').innerHTML = [
+        ['เลขสำนวน', k.id],
+        ['ฐานการรับเรื่อง', k.legalBase || 'ม.18/4'],
+        ['เจ้าของสำนวน', k.owner],
+        ['หน่วยงาน', k.ownerOrg],
+        ['วันที่รับเรื่อง', ECMIS.thaiDate(k.receivedDate)],
+        ['เลขาธิการฯ ลงนามเมื่อ', k.secgenSignedAt || '—']
+      ].map(([a, b]) => `<div class="col-md-6"><span class="k">${a}:</span> <span class="v">${esc(b)}</span></div>`).join('');
+      document.getElementById('sAllegation').textContent = k.allegation || k.subject || '—';
+      document.getElementById('sAccused').innerHTML = (k.accused || []).map(a =>
+        `<div><strong>${a.no}. ${esc(a.name)}</strong> — ${esc(a.pos)}${a.agency ? ' (' + esc(a.agency) + ')' : ''}</div>`).join('') || '—';
+      document.getElementById('lawBox').innerHTML = ECMIS.renderLawBox(['M24_P3', 'M17_10', 'M18_LAST', 'PR_SCREEN']);
+    }
+
+    /* ---------- เอกสาร A4 (แท็บ ๑ = ร่างเอกสารของขั้นนี้แบบสด / แท็บ ๒ = รายงาน 644 ที่เลขาฯ ลงนาม) ---------- */
+    const DOC_HEAD = `<div class="text-center mb-2"><img src="../assets/doc_logo.jpg" alt="ตราครุฑ" style="width:62px; height:auto;"></div>
+      <div class="doc-secret">ลับ</div>
+      <div class="doc-title" style="font-size:20pt;font-weight:700;text-align:center;line-height:1.3;margin-top:4px;">บันทึกข้อความ</div>`;
+    const DOC_P = 'margin-top:12px;font-size:16pt;line-height:1.4;text-indent:2.5em;';
+
+    function formState() {
+      const complex = !!(document.getElementById('g1yes') && document.getElementById('g1yes').checked);
+      return {
+        complex,
+        reason: (document.getElementById('complexReason')?.value || '').trim(),
+        opinion: (document.getElementById('caOpinion')?.value || '').trim()
+      };
+    }
+    function renderMemo() {
+      const f = formState();
+      const today = ECMIS.thaiDate(new Date().toISOString());
+      const intro = `ตามที่เลขาธิการคณะกรรมการ ป.ป.ท. ได้พิจารณาและลงนามรายงานการไต่สวนข้อเท็จจริง (รายงาน ปปท. ๖-๔๔) เรื่องเสร็จที่ <strong>${M(kase.id)}</strong>
+        เรื่อง ${M(kase.subject)} ซึ่งมี ${M(kase.ownerOrg || '')} เป็นผู้รับผิดชอบสำนวน นั้น`;
+      const sign = `<div style="margin-top:28px; width:60%; margin-left:auto; text-align:center; font-size:16pt; line-height:1.4;">
+          <div>(ลงชื่อ)...................................................................</div>
+          <div style="margin-top:4px;">(${SIGNER_NAME})</div><div style="font-weight:600;">${SIGNER_TITLE}</div></div>`;
+      if (f.complex) {
+        return `${DOC_HEAD}
+          <div style="margin-top:12px;font-size:16pt;line-height:1.5;">
+            <div><strong>ส่วนราชการ</strong>&nbsp; สำนักงาน ป.ป.ท. &nbsp; ประธานกรรมการ ป.ป.ท.</div>
+            <div style="display:flex;gap:2.5em;flex-wrap:wrap;"><div><strong>ที่</strong>&nbsp; ปปท ๐๐๐๔/${M('')}</div><div><strong>วันที่</strong>&nbsp; ${M(today)}</div></div>
+            <div><strong>เรื่อง</strong>&nbsp; สั่งส่งสำนวนเข้าคณะอนุกรรมการกลั่นกรองเรื่องไต่สวนข้อเท็จจริง</div>
+          </div>
+          <div style="margin-top:12px;font-size:16pt;">เรียน&nbsp; กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป</div>
+          <div class="doc-indent" style="${DOC_P}">${intro}</div>
+          <div class="doc-indent" style="${DOC_P}">ประธานกรรมการ ป.ป.ท. ได้คัดกรองสำนวนแล้ว เห็นว่าเป็นเรื่องสำคัญหรือมีความซับซ้อน
+            ${M(f.reason, '……………………………………')} ${f.opinion ? ' ทั้งนี้ ' + M(f.opinion) : ''}</div>
+          <div class="doc-indent" style="${DOC_P}">จึงมอบหมายให้กองบริหารคดีส่งสำนวนดังกล่าวเข้าสู่การพิจารณาของคณะอนุกรรมการกลั่นกรองเรื่องไต่สวนข้อเท็จจริง คณะที่ ๑ – ๘
+            ตามหลักเกณฑ์การกระจายสำนวน เพื่อกลั่นกรองและเสนอความเห็นต่อคณะกรรมการ ป.ป.ท. ต่อไป (มาตรา ๒๔ วรรคสาม)</div>
+          ${sign}`;
+      }
+      return `${DOC_HEAD}
+          <div style="margin-top:12px;font-size:16pt;line-height:1.5;">
+            <div><strong>ส่วนราชการ</strong>&nbsp; สำนักงาน ป.ป.ท. &nbsp; ประธานกรรมการ ป.ป.ท.</div>
+            <div style="display:flex;gap:2.5em;flex-wrap:wrap;"><div><strong>ที่</strong>&nbsp; ปปท ๐๐๐๔/${M('')}</div><div><strong>วันที่</strong>&nbsp; ${M(today)}</div></div>
+            <div><strong>เรื่อง</strong>&nbsp; มอบหมายให้ทำความเห็นเสนอ (สำนวนไม่ยุ่งยากซับซ้อน)</div>
+          </div>
+          <div style="margin-top:12px;font-size:16pt;">เรียน&nbsp; หัวหน้ากลุ่มงานกิจการคณะกรรมการ</div>
+          <div class="doc-indent" style="${DOC_P}">${intro}</div>
+          <div class="doc-indent" style="${DOC_P}">ประธานกรรมการ ป.ป.ท. ได้คัดกรองสำนวนแล้ว เห็นว่าไม่เป็นเรื่องยุ่งยากซับซ้อน ${f.opinion ? ' โดยมีความเห็นว่า ' + M(f.opinion) : ''}</div>
+          <div class="doc-indent" style="${DOC_P}">จึงมอบหมายให้กลุ่มงานกิจการคณะกรรมการทำความเห็นเสนอ (อิงรายงาน ปปท. ๖-๔๔ ที่เลขาธิการฯ ลงนามแล้ว)
+            เพื่อเสนอประธานกรรมการ ป.ป.ท. พิจารณาสั่งบรรจุเรื่องเข้าระเบียบวาระการประชุมคณะกรรมการ ป.ป.ท. ต่อไป</div>
+          ${sign}`;
+    }
+
+    function renderDoc() {
+      const el = document.getElementById('docPaper');
+      if (!el) return;
+      if (docTab === 'report') {
+        el.innerHTML = `<div class="doc-paper a4-paper active-page" id="docPaperPage">${ECMIS.renderSecgenReportDoc(kase, { signed: true })}</div>`;
+      } else {
+        el.innerHTML = `<div class="doc-paper a4-paper active-page" id="docPaperPage">${renderMemo()}</div>`;
+      }
+      if (ECMIS.updateDocPaginationUI) ECMIS.updateDocPaginationUI('docPaper');
+    }
+
+    function canActHere() { return ECMIS.canAct(kase, role.id) && kase.status === REQUIRED_STATUS; }
+
+    /* ---------- แถบลงนาม/ส่ง ด้านล่าง ---------- */
+    function renderActionButtons() {
+      document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(kase, role.id,
+        [{ act: 'go', label: 'ลงนามคัดกรอง', icon: 'fa-signature', cls: 'btn-navy' }]);
+      document.querySelectorAll('.action-bar [data-act]').forEach(b =>
+        b.addEventListener('click', () => { if (b.dataset.act === 'go') submitForm(); }));
+    }
+
+    /* ขั้นที่ ①: ลงนามคัดกรอง — ซับซ้อน → 108 (IN_SCREENING_72) / ไม่ซับซ้อน → 124 (PENDING_AFFAIRS_OPINION_72)
+       ฐานกฎหมาย: ม.๒๔ วรรคสาม / ม.๑๗(๑๐) / ม.๑๘ วรรคท้าย + แนวปฏิบัติเล่ม 5 (RES011–012) */
+    function submitForm() {
+      const k = kase;
+      const f = formState();
+      if (f.complex && !f.reason) {
+        const r = document.getElementById('complexReason');
+        r.classList.add('is-invalid-ecmis'); r.focus();
+        ECMIS.toastWarn('กรุณาระบุเหตุผลที่เห็นว่าเป็นเรื่องยุ่งยากซับซ้อนก่อนลงนาม');
         return;
       }
-      const complex = yes;
-      const opinion = (document.getElementById('caOpinion').value || '').trim();
       (async () => {
-        const docType = complex
+        const docType = f.complex
           ? 'บันทึกสั่งส่งคณะอนุกรรมการกลั่นกรองฯ (ประธานฯ คัดกรอง — ยุ่งยาก)'
           : 'บันทึกมอบหมายกลุ่มงานกิจการฯ ทำความเห็นเสนอ (อิงรายงาน 644 — ไม่ยุ่งยาก)';
         const signed = await ECMIS.signDialog(docType, `${SIGNER_NAME} — ${SIGNER_TITLE}`);
         if (!signed.isConfirmed) return;
 
         const fromStatus = k.status;
-        const nextStatus = complex ? 'IN_SCREENING_72' : 'PENDING_AFFAIRS_OPINION_72';
+        const nextStatus = f.complex ? 'IN_SCREENING_72' : 'PENDING_AFFAIRS_OPINION_72';
         const signedAt = new Date().toISOString();
-        const screen72 = { result: complex ? 'COMPLEX' : 'NOT_COMPLEX', opinion, signedAt, docType };
+        const screen72 = { result: f.complex ? 'COMPLEX' : 'NOT_COMPLEX', reason: f.reason, opinion: f.opinion, signedAt, docType };
 
         ECMIS.Model.SignatureStore.create({
           caseId: k.id, docType, signerRole: 'chairman', signerName: `${SIGNER_NAME} — ${SIGNER_TITLE}`,
           method: (signed.value && signed.value.mode) || 'cert', signedAt
         });
         ECMIS.pushCaseHistory(k, {
-          event: complex ? 'SCREEN_COMPLEX_72' : 'SCREEN_ASSIGN_72', from: fromStatus, to: nextStatus, actor: 'chairman',
-          note: (complex
-            ? 'ประธานฯ ลงนามสั่งส่งคณะอนุกลั่นกรองฯ (ยุ่งยาก)'
-            : 'ประธานฯ ลงนามมอบหมายกลุ่มงานกิจการฯ ทำความเห็นเสนอ (ไม่ยุ่งยาก)') + (opinion ? ` (${opinion})` : '')
+          event: f.complex ? 'SCREEN_COMPLEX_72' : 'SCREEN_ASSIGN_72', from: fromStatus, to: nextStatus, actor: 'chairman',
+          note: (f.complex ? 'ประธานฯ ลงนามสั่งส่งคณะอนุกลั่นกรองฯ (ยุ่งยาก): ' + f.reason
+                           : 'ประธานฯ ลงนามมอบหมายกลุ่มงานกิจการฯ ทำความเห็นเสนอ (ไม่ยุ่งยาก)') + (f.opinion ? ` (${f.opinion})` : '')
         });
         if (!await persistResolutionData(k, { screen72 })) return;
         const rest = { screen72, history: k.history, subCommittee: null };
@@ -292,11 +308,49 @@
             type: 'SIGNED', actorRole: 'chairman', data: { docType, signerName: SIGNER_NAME, signerTitle: SIGNER_TITLE }
           });
         }
-        ECMIS.toastOk(complex
+        ECMIS.toastOk(f.complex
           ? `ลงนามสั่งส่งสำนวน ${k.id} เข้าคณะอนุกลั่นกรองฯ เรียบร้อย`
           : `ลงนามมอบหมายสำนวน ${k.id} แล้ว — ส่งกลุ่มงานกิจการฯ ทำความเห็นเสนอ`);
         location.href = 'inbox.html';
       })();
+    }
+
+    /* ---------- เริ่มต้น ---------- */
+    if (!kase || !ECMIS.isCase72(kase)) {
+      document.getElementById('notFoundBox').classList.remove('d-none');
+    } else {
+      document.getElementById('wrap').classList.remove('d-none');
+      refreshCaseView();
+      const onToggle = () => {
+        const yes = document.getElementById('g1yes').checked;
+        document.getElementById('complexReasonBox').classList.toggle('d-none', !yes);
+        renderDoc();
+      };
+      document.getElementById('g1no').addEventListener('change', onToggle);
+      document.getElementById('g1yes').addEventListener('change', onToggle);
+      ['complexReason', 'caOpinion'].forEach(id => document.getElementById(id).addEventListener('input', () => {
+        document.getElementById(id).classList.remove('is-invalid-ecmis');
+        if (docTab === 'memo') renderDoc();
+      }));
+      renderDoc();
+      renderActionButtons();
+      if (!canActHere()) document.querySelectorAll('#formCard input, #formCard textarea').forEach(el => { el.disabled = true; });
+
+      ECMIS.renderDocToolbar({
+        target: '.ws-doc-toolbar',
+        stageId: 'docPaper',
+        workspace: '#docWorkspace',
+        paneKey: 'ecmis-affairs-screen',
+        tabs: [
+          { id: 'memo', label: 'บันทึกคัดกรอง (รอลงนาม)', icon: 'fa-solid fa-file-signature', active: true },
+          { id: 'report', label: 'รายงาน ๖-๔๔ (เลขาฯ ลงนามแล้ว)', icon: 'fa-solid fa-file-contract' }
+        ],
+        onTabChange: (id) => { docTab = id; renderDoc(); },
+        mayEdit: canActHere(),
+        exportDocx: { filename: () => `${docTab === 'report' ? 'รายงานแบบ_ปปท_6-44' : 'บันทึกคัดกรองสำนวน'}_${kase.id.replace(/\//g, '-')}.docx` }
+      });
+      ECMIS.initCardCollapse('#docLeftCol', 'ecmis-affairs-screen-cards');
+      renderDoc();
     }
   </script>
 </body>

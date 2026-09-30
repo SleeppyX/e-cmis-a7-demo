@@ -363,7 +363,25 @@
       })();
     }
 
+    /* โหลดสถานะล่าสุดจาก DB ก่อนเสมอ — cache ในเครื่อง (ecmis_live_cases) อาจไม่มีเคส/ค้างสถานะเก่า
+       ทำให้หน้าขึ้น "ไม่พบสำนวนนี้ในระบบ" ทั้งที่เคสอยู่ในขั้นนี้จริง (เช่นหลังรีเซ็ตเคส) */
+    async function refreshCaseFromDb() {
+      const id = params.get('case') || '';
+      if (!sb || !id) return;
+      try {
+        const { data } = await sb.from('tbl_res_request')
+          .select('*, tbl_cmp_case!inner(*, tbl_cmp_case_accused(*))')
+          .eq('tbl_cmp_case.tcc_no', id).eq('is_deleted', false).maybeSingle();
+        const live = data ? ECMIS.supabaseRowToCase(data) : null;
+        if (!live) return;
+        if (kase) Object.assign(kase, live);
+        else { kase = live; ECMIS.CASES.push(live); }
+      } catch (e) { console.warn('โหลดสำนวนจากฐานข้อมูลไม่สำเร็จ ใช้ข้อมูลในเครื่อง:', e); }
+    }
+
     /* ---------- เริ่มต้น ---------- */
+    (async function init() {
+    await refreshCaseFromDb();
     if (!kase || !ECMIS.isCase72(kase)) {
       document.getElementById('notFoundBox').classList.remove('d-none');
     } else {
@@ -416,6 +434,7 @@
       ECMIS.initCardCollapse('#docLeftCol', 'ecmis-affairs-screen-cards');
       renderDoc();
     }
+    })();
   </script>
 </body>
 

@@ -86,7 +86,7 @@ async function insertOne(c) {
       tcc_legal_base: c.legalBase, tcc_complainant: c.complainant,
       tcc_owner: c.owner, tcc_owner_org: c.ownerOrg,
       tcc_received_date: c.receivedDate, tcc_prescription_date: c.prescription,
-      tcc_doc_ref: c.docRef, tcc_doc_type: '644', tcc_urgent: c.urgent, tcc_complex: false
+      tcc_doc_ref: c.docRef, tcc_doc_type: '213' /* เคส 7.1 ไต่สวนเบื้องต้น = รายงาน 213 (เดิมตั้ง 644 ผิด) */, tcc_urgent: c.urgent, tcc_complex: false
     })
   });
   if (!insCase.ok || !insCase.data || !insCase.data[0]) {

@@ -76,7 +76,9 @@ async function insertOne(c) {
       tcc_legal_base: c.legalBase, tcc_complainant: c.complainant,
       tcc_owner: c.owner, tcc_owner_org: c.ownerOrg,
       tcc_received_date: c.receivedDate, tcc_prescription_date: c.prescription,
-      tcc_doc_ref: c.docRef, tcc_doc_type: '644', tcc_urgent: false, tcc_complex: false
+      tcc_doc_ref: c.docRef,
+      // 7.1 (status 005) = รายงาน 213 (ปปท. ๒-๑๓); 7.2 (status 104) = รายงาน 644 — เดิมตั้ง 644 ให้ทุกเคสทำให้หน้าเลขาฯ ของเคส 7.1 ขึ้นเอกสารผิด
+      tcc_doc_type: c.status === '104' ? '644' : '213', tcc_urgent: false, tcc_complex: false
     })
   });
   if (!insCase.ok || !insCase.data || !insCase.data[0]) {

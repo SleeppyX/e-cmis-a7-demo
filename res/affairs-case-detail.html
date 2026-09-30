@@ -374,7 +374,9 @@
           .eq('tbl_cmp_case.tcc_no', id).eq('is_deleted', false).maybeSingle();
         const live = data ? ECMIS.supabaseRowToCase(data) : null;
         if (!live) return;
-        if (kase) Object.assign(kase, live);
+        /* แทนที่ทั้งก้อน ไม่ใช่ merge — Object.assign ทิ้งฟิลด์ค้างจากสำเนาเก่าในเครื่อง (เช่น screen72, signedByChair)
+           ทำให้หน้าแสดงผลคัดกรอง/สถานะของรอบก่อนหลังรีเซ็ตเคสใน DB */
+        if (kase) { Object.keys(kase).forEach(k => { delete kase[k]; }); Object.assign(kase, live); }
         else { kase = live; ECMIS.CASES.push(live); }
       } catch (e) { console.warn('โหลดสำนวนจากฐานข้อมูลไม่สำเร็จ ใช้ข้อมูลในเครื่อง:', e); }
     }

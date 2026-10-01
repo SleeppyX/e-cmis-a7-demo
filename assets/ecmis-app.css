@@ -1863,6 +1863,8 @@ a, button, .btn, .card, .kpi-card, .form-control, .form-select, .badge, .st,
 }
 .att-btn:hover{ background:var(--bg-surface-hover); border-color:var(--accent-emphasis); color:var(--accent-emphasis); }
 .att-btn-danger:hover{ border-color:var(--action-danger); color:var(--action-danger); }
+.att-row-pinned{ border-style:dashed; background:var(--bg-surface-hover); }
+.att-pin{ display:inline-block; padding:0 8px; border-radius:10px; background:#fef3c7; color:#92400e; font-weight:600; }
 .att-empty{ font-size:.82rem; color:var(--text-disabled); text-align:center; padding:6px 0; }
 body.dark-mode .att-upload-btn{ border-color:#5ec8f2; color:#5ec8f2; }
 body.dark-mode .att-upload-btn:hover{ background:#5ec8f2; color:#0b1220; }

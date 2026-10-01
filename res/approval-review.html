@@ -58,19 +58,6 @@
           </div>
         </div>
 
-        <div class="ws-card mb-3" id="attachmentCard">
-          <div class="card-header"><i class="fa-solid fa-paperclip"></i> ไฟล์แนบสำนวน</div>
-          <div class="card-body">
-            <div id="attachmentList" class="small text-muted">กำลังโหลด...</div>
-            <div id="urgentAttachRequired" class="alert alert-warning py-2 px-3 mt-2 mb-2 d-none" style="font-size:.82rem">
-              <i class="fa-solid fa-triangle-exclamation me-1"></i>สำนวนนี้เป็นกรณีเร่งด่วน — ต้องแนบไฟล์ใบด่วนก่อนจึงจะบันทึก/ลงนามได้
-            </div>
-            <div class="d-flex gap-2 mt-2">
-              <input type="file" id="urgentFileInput" class="form-control form-control-sm">
-              <button type="button" id="urgentFileBtn" class="btn btn-outline-primary btn-sm text-nowrap"><i class="fa-solid fa-upload me-1"></i>แนบไฟล์</button>
-            </div>
-          </div>
-        </div>
 
         <div class="ws-card mb-3 d-none" id="m28Card">
           <div class="card-header"><i class="fa-solid fa-gavel"></i> คำสั่งเบื้องต้นของเลขาธิการฯ ตามมาตรา 28</div>
@@ -367,64 +354,14 @@
       return path;
     }
 
+    /* จำนวนไฟล์แนบจริง (+ แถวใบด่วนจำลอง "แนบมาจากต้นทาง") มาจากการ์ด "เอกสารแนบเพิ่มเติม" กลาง (ECMIS.initAttachmentCard)
+       ผ่าน event ecmis:attachments — การ์ด "ไฟล์แนบสำนวน" เดิมของหน้านี้ถูกรวมเข้าการ์ดกลางแล้ว (2026-10-01) */
     let attachmentCount = 0;
     let mockAttachmentShown = false;
-    async function renderAttachments(tccId) {
-      const el = document.getElementById('attachmentList');
-      if (!tccId) { el.textContent = 'ไม่พบเลขที่อ้างอิงสำนวนสำหรับไฟล์แนบ'; return; }
-      const { data, error } = await sb.from('tbl_res_attachment')
-        .select('*').eq('tcc_id', tccId).eq('is_deleted', false)
-        .order('created_datetime', { ascending: false });
-      if (error) { el.textContent = 'โหลดรายการไฟล์แนบไม่สำเร็จ'; console.error('โหลดไฟล์แนบไม่สำเร็จ:', error); return; }
-      attachmentCount = data ? data.length : 0;
-      mockAttachmentShown = false;
-      if (!data || !data.length) {
-        /* สำนวนที่ตั้งต้นเป็นด่วนมาแล้ว (kase.urgent) ในทางปฏิบัติมีใบด่วนแนบมาจากต้นทางอยู่แล้ว —
-           ระบบเดโมไม่มีไฟล์จริง จึงแสดงรายการไฟล์หลอกให้เห็นภาพเฉยๆ (ไม่ผูก Storage จริง ไม่กดโหลด
-           ได้) ตาม /grill-me 2026-09-25 — ยกเว้นไม่บล็อกการลงนามด้วยเหตุนี้ (ดู mockAttachmentShown
-           ในเงื่อนไข kase.urgent && attachmentCount===0 ตอนบันทึก/ลงนาม) */
-        if (kase.urgent && role.id === 'secgen') {
-          mockAttachmentShown = true;
-          el.innerHTML = `<div class="d-flex align-items-center gap-2 py-1">
-            <i class="fa-solid fa-file-lines"></i>
-            <span>ใบด่วน_${ECMIS.escapeHtml(kase.id.replace('/', '-'))}.pdf</span>
-            <span class="text-muted" style="font-size:.75rem">312 KB · แนบมาจากต้นทาง</span>
-          </div>`;
-          return;
-        }
-        el.textContent = 'ยังไม่มีไฟล์แนบสำหรับสำนวนนี้'; return;
-      }
-      const rows = await Promise.all(data.map(async a => {
-        const { data: signed } = await sb.storage.from('case-documents').createSignedUrl(a.trat_storage_path, 3600);
-        const url = signed && signed.signedUrl ? signed.signedUrl : '#';
-        const sizeKb = a.trat_size_bytes ? (a.trat_size_bytes / 1024).toFixed(0) + ' KB' : '';
-        return `<div class="d-flex align-items-center gap-2 py-1">
-          <i class="fa-solid fa-file-lines"></i>
-          <a href="${url}" target="_blank" rel="noopener">${ECMIS.escapeHtml(a.trat_filename)}</a>
-          <span class="text-muted" style="font-size:.75rem">${sizeKb}</span>
-        </div>`;
-      }));
-      el.innerHTML = rows.join('');
-    }
-
-    function wireAttachmentUploader() {
-      const input = document.getElementById('urgentFileInput');
-      const btn = document.getElementById('urgentFileBtn');
-      if (!input || !btn) return;
-      btn.addEventListener('click', async () => {
-        const file = input.files[0];
-        if (!file) { ECMIS.toastWarn('กรุณาเลือกไฟล์ใบด่วนก่อน'); return; }
-        try {
-          await uploadAttachment(kase.tcc_id, file, role.id);
-          await renderAttachments(kase.tcc_id);
-          input.value = '';
-          ECMIS.toastOk('แนบไฟล์ใบด่วนเรียบร้อย');
-        } catch (err) {
-          console.error('แนบไฟล์ไม่สำเร็จ:', err);
-          ECMIS.toastWarn('แนบไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
-        }
-      });
-    }
+    document.addEventListener('ecmis:attachments', ev => {
+      attachmentCount = ev.detail.count;
+      mockAttachmentShown = !!ev.detail.mock;
+    });
 
     /* ด่านรับรอง/ยืนยันความเร่งด่วนของสาย 7.1 (T7 ผอ.กบค. + เลขาธิการฯ ยืนยันซ้ำ) — คนละงานกับ
        การพิจารณารายงาน 213/G1/G3 ตามปกติของหน้านี้ จึงแทนที่ docWorkspace ทั้งหมดด้วย UI เบา ๆ
@@ -684,13 +621,7 @@
       signed = alreadySigned;
       g1 = ECMIS.g1Triggers(kase);
 
-      /* เลขาธิการฯ ไม่ต้องเห็นการ์ด "ไฟล์แนบสำนวน" ในกรณีปกติ (ไม่ใช่งานของขั้นนี้) — ยกเว้นสำนวนที่
-         ตั้งต้นเป็นด่วนมาแล้ว (kase.urgent) ที่ยังต้องบังคับแนบใบด่วนก่อนลงนามอยู่ (ดู /grill-me
-         2026-09-25) role อื่นที่ใช้หน้านี้ร่วมกันยังเห็นการ์ดนี้ตามเดิมทุกกรณี */
-      document.getElementById('attachmentCard')?.classList.toggle('d-none', role.id === 'secgen' && !kase.urgent);
 
-      renderAttachments(kase.tcc_id);
-      wireAttachmentUploader();
       if (isRuling) { initRulingScreen(); } else { initReport213Screen(); }
       updatePaginationUI();
       applyZoom();
@@ -1311,7 +1242,7 @@
                 await persistCase(kase, { status: ECMIS.isCase72(kase) ? 'RETURNED_72' : 'RETURNED' });
                 if (res.value.f) {
                   await uploadAttachment(kase.tcc_id, res.value.f, role.id);
-                  renderAttachments(kase.tcc_id);
+                  if (ECMIS.refreshAttachmentCard) ECMIS.refreshAttachmentCard();
                 }
               } catch (err) {
                 console.error('ตีกลับไม่สำเร็จ:', err);

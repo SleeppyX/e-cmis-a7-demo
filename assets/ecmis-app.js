@@ -8015,8 +8015,18 @@ if (typeof localStorage !== 'undefined') {
         .eq('tcc_id', o.tccId).eq('is_deleted', false).order('created_datetime', { ascending: false });
       if (error) { listEl.innerHTML = '<div class="att-empty">โหลดรายการเอกสารแนบไม่สำเร็จ</div>'; console.error(error); return; }
       const files = data || [];
-      card.querySelector('#attCount').textContent = files.length ? files.length : '';
-      listEl.innerHTML = files.length ? files.map(a => {
+      /* เคสด่วนมาแต่ต้นที่ยังไม่มีไฟล์จริง: เลขาธิการฯ เห็นแถวใบด่วนจำลอง "แนบมาจากต้นทาง" (เดโม — ย้ายมาจากการ์ดเดิมของ approval-review) */
+      const mock = !!o.pinnedUrgent && !files.length;
+      card.querySelector('#attCount').textContent = files.length ? files.length : (mock ? 1 : '');
+      document.dispatchEvent(new CustomEvent('ecmis:attachments', { detail: { count: files.length, mock } }));
+      const mockRow = mock ? `<div class="att-row att-row-pinned">
+          ${attachBadge('pdf')}
+          <div class="att-meta">
+            <div class="att-name">ใบด่วน_${escapeHtml(String(o.caseId || '').replace('/', '-'))}.pdf <span class="att-size">312 KB</span></div>
+            <div class="att-sub"><span class="att-pin">ใบด่วน · แนบมาจากต้นทาง</span></div>
+          </div>
+        </div>` : '';
+      listEl.innerHTML = mock ? mockRow : files.length ? files.map(a => {
         const ext = attachExt(a.trat_filename);
         const stage = attachStageOf(a.trat_storage_path);
         const stageLabel = stage && STATUS[CODE_STATUS[stage]] ? STATUS[CODE_STATUS[stage]].label : '';
@@ -8123,10 +8133,13 @@ if (typeof localStorage !== 'undefined') {
     ['dragleave', 'dragend', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('is-over'); }));
     drop.addEventListener('drop', e => handleFiles(e.dataTransfer && e.dataTransfer.files));
 
+    attachRefresh = render;
     await refreshStatus();
     await render();
     return card;
   }
+  let attachRefresh = null;
+  function refreshAttachmentCard() { return attachRefresh ? attachRefresh() : null; }
 
   /* ใส่การ์ดให้ทุกหน้า preview เอกสารระดับสำนวนอัตโนมัติ: หน้ามี #docWorkspace + ?case=... */
   function autoMountAttachmentCard() {
@@ -8141,8 +8154,6 @@ if (typeof localStorage !== 'undefined') {
       const first = ws && ws.querySelector('.ws-card');
       if (!first) { if (tries > 40) clearInterval(timer); return; }
       clearInterval(timer);
-      const legacy = document.getElementById('attachmentCard');
-      if (legacy && !legacy.classList.contains('d-none')) return; /* หน้าที่มีการ์ดไฟล์แนบเดิมแสดงอยู่ (ใบด่วน) ไม่ใส่ซ้ำ */
       if (document.getElementById('attachExtraCard')) return;
       try {
         const kase = getCase(caseId);
@@ -8153,7 +8164,8 @@ if (typeof localStorage !== 'undefined') {
           tccId = data && data.tcc_id;
         }
         if (!tccId) return; /* สำนวนจำลองที่ไม่มีใน DB — ไม่มีที่เก็บไฟล์ */
-        await initAttachmentCard({ sb, tccId, trrId, mountAfter: first, statusCode: kase && STATUS_CODE[kase.status] });
+        const pinnedUrgent = !!(kase && kase.urgent) && currentRoleId() === 'secgen' && ['approval-review.html', 'review.html'].includes(page);
+        await initAttachmentCard({ sb, tccId, trrId, mountAfter: first, statusCode: kase && STATUS_CODE[kase.status], pinnedUrgent, caseId });
       } catch (e) { console.warn('แสดงการ์ดเอกสารแนบไม่สำเร็จ:', e); }
     }, 250);
   }
@@ -8162,7 +8174,7 @@ if (typeof localStorage !== 'undefined') {
   }
 
   global.ECMIS = {
-  initAttachmentCard,
+  initAttachmentCard, refreshAttachmentCard,
   ROLES, STATUS, STATUS_CODE, CODE_STATUS, STATUS_STEP, FLOW_STEPS, APPROVAL_CHAIN,
   buildChainOpinions, supabaseRowToCase, toBuddhistFakeIso, addDaysToDateStr, addYearsToDateStr,
   upcomingDeadlines, pageForCase,

@@ -1827,6 +1827,8 @@ a, button, .btn, .card, .kpi-card, .form-control, .form-select, .badge, .st,
 .att-q-row.is-done .att-q-pct i{ color:#3e8635; }
 .att-q-row.is-fail .att-q-fill{ background:#c9190b; }
 .att-q-row.is-fail .att-q-pct{ color:#c9190b; }
+.att-q-row{ max-height:140px; transition:opacity .3s ease, max-height .35s ease, padding .35s ease; }
+.att-q-row.is-leaving{ opacity:0; max-height:0; padding-top:0; padding-bottom:0; overflow:hidden; border-bottom-color:transparent; }
 .att-q-msg:empty{ display:none; }
 .att-q-msg{ font-size:.76rem; color:#c9190b; margin-top:4px; }
 .att-q-close{

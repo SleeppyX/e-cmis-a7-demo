@@ -8106,17 +8106,25 @@ if (typeof localStorage !== 'undefined') {
     }
     const canUpload = () => !!statusCode && canAct({ status: CODE_STATUS[statusCode] || statusCode }, role.id);
 
+    /* นับรวมไฟล์สำเร็จที่ถูกซ่อนไปแล้วในรอบเดียวกันด้วย — ส่วนคิวจะหายทั้งหมดเมื่อไม่เหลือแถวบนจอ (สำเร็จหายเองหลัง ~1.5 วิ,
+       ไม่สำเร็จค้างไว้จนกด ×) แล้วล้างรอบ (session) เริ่มนับใหม่ครั้งถัดไป */
     function renderSummary() {
       const live = session.filter(s => s.row.isConnected);
       queue.classList.toggle('d-none', !live.length);
-      if (!live.length) return;
-      const done = live.filter(s => s.state === 'done').length;
-      const busy = live.some(s => s.state === 'up');
-      const failed = live.filter(s => s.state === 'fail').length;
+      if (!live.length) { session.length = 0; return; }
+      const done = session.filter(s => s.state === 'done').length;
+      const busy = session.some(s => s.state === 'up');
+      const failed = session.filter(s => s.state === 'fail' && s.row.isConnected).length;
       card.querySelector('#attSumIcon').innerHTML = busy
         ? '<i class="fa-solid fa-circle-notch fa-spin"></i>'
         : (failed ? '<i class="fa-solid fa-circle-exclamation att-ic-fail"></i>' : '<i class="fa-solid fa-circle-check att-ic-ok"></i>');
-      card.querySelector('#attSumText').textContent = `อัปโหลดแล้ว ${done} จาก ${live.length} ไฟล์` + (failed ? ` (ไม่สำเร็จ ${failed})` : '');
+      card.querySelector('#attSumText').textContent = `อัปโหลดแล้ว ${done} จาก ${session.length} ไฟล์` + (failed ? ` (ไม่สำเร็จ ${failed})` : '');
+    }
+    function fadeOutRow(row) {
+      setTimeout(() => {
+        row.classList.add('is-leaving');
+        setTimeout(() => { row.remove(); renderSummary(); }, 350);
+      }, 1500);
     }
     summary.addEventListener('click', () => {
       const open = summary.getAttribute('aria-expanded') !== 'false';
@@ -8220,6 +8228,7 @@ if (typeof localStorage !== 'undefined') {
           pct.innerHTML = '100% <i class="fa-solid fa-circle-check"></i>';
           okCount++;
           renderSummary();
+          fadeOutRow(s.row);
         } catch (err) {
           if (String(err && err.message) === 'aborted') return fail('ยกเลิกการอัปโหลดแล้ว');
           console.error('อัปโหลดเอกสารแนบไม่สำเร็จ:', err);

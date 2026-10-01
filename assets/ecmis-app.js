@@ -8015,7 +8015,7 @@ if (typeof localStorage !== 'undefined') {
         (น้ำเงิน = กำลังอัป, เขียว = เสร็จ, แดง = ไม่สำเร็จ) และ × ยกเลิก/ซ่อนแถว
      ใต้ลงมาเป็นรายการ "เอกสารแนบของสำนวน" ที่อัปแล้ว: PDF กดดูในแผงเอกสารขวาเป็นแท็บ / ทุกชนิดดาวน์โหลดได้
      อัปโหลดผ่าน XHR ตรงไป Storage REST เพราะ supabase-js ไม่มี progress event และยกเลิก (abort) ได้ */
-  const ATTACH_MODERN_PAGES = ['affairs-case-detail.html'];
+  const ATTACH_MODERN_PAGES = ['affairs-case-detail.html', 'chairman-agenda.html'];
 
   function attachBadge(ext) {
     if (ext === 'pdf') return '<span class="att-badge att-pdf">PDF</span>';

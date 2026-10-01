@@ -8151,7 +8151,9 @@ if (typeof localStorage !== 'undefined') {
     const timer = setInterval(async () => {
       tries++;
       const ws = document.getElementById('docWorkspace');
-      const first = ws && ws.querySelector('.ws-card');
+      /* วางต่อจากการ์ด "สรุปสำนวน…" ถ้ามี (บางหน้าการ์ดแรกเป็นเส้นทางเสนอความเห็น) ไม่มีก็ต่อจากการ์ดแรก */
+      const cards = ws ? Array.from(ws.querySelectorAll('.ws-card')) : [];
+      const first = cards.find(c => { const h = c.querySelector('.card-header'); return h && /สรุปสำนวน/.test(h.textContent); }) || cards[0];
       if (!first) { if (tries > 40) clearInterval(timer); return; }
       clearInterval(timer);
       if (document.getElementById('attachExtraCard')) return;

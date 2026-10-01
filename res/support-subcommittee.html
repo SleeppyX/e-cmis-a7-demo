@@ -61,37 +61,6 @@
           </div>
         </div>
 
-        <!-- Card 3: Attachments with Upload Feature -->
-        <div class="ws-card mb-3">
-          <div class="card-header d-flex align-items-center justify-content-between">
-            <span><i class="fa-solid fa-paperclip"></i> ไฟล์แนบสำนวน</span>
-            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill no-print" id="btnToggleUpload" style="font-size:0.75rem" title="อัปโหลดไฟล์แนบเพิ่มเติม">
-              <i class="fa-solid fa-cloud-arrow-up me-1"></i>อัปโหลดไฟล์
-            </button>
-          </div>
-          <div class="card-body">
-            <!-- Dropzone / Upload Box -->
-            <div id="uploadBox" class="mb-3 p-3 border border-dashed rounded bg-light d-none no-print">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="small fw-semibold text-primary"><i class="fa-solid fa-file-arrow-up me-1"></i>แนบไฟล์ประกอบการกลั่นกรอง</span>
-                <button type="button" class="btn-close btn-sm" id="btnCloseUpload" aria-label="Close" style="font-size:0.65rem"></button>
-              </div>
-              <div class="input-group input-group-sm mb-2">
-                <input type="file" class="form-control" id="fileInputAttach" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.png,.jpg,.jpeg">
-                <button class="btn btn-navy" type="button" id="btnUploadSubmit">
-                  <i class="fa-solid fa-upload me-1"></i>อัปโหลด
-                </button>
-              </div>
-              <small class="text-muted d-block" style="font-size:0.72rem">
-                รองรับไฟล์ PDF, Word, Excel, ZIP, รูปภาพ (ขนาดไม่เกิน 50MB ต่อไฟล์)
-              </small>
-            </div>
-
-            <!-- Attachment List -->
-            <div id="attachmentList" class="small text-muted">กำลังโหลด...</div>
-          </div>
-        </div>
-
         <!-- Card 4: Screening Review & Opinion (Matching subcommittee-screening.html style) -->
         <div class="ws-card mb-3">
           <div class="card-header"><i class="fa-solid fa-people-group"></i> กลั่นกรองสำนวนซับซ้อนโดยคณะอนุกรรมการสนับสนุนเลขาธิการฯ</div>
@@ -487,8 +456,6 @@
       document.getElementById('sOpinion').textContent = kase.ownerOpinion || 'เห็นควรชี้มูลความผิดทางวินัยอย่างร้ายแรงและดำเนินคดีอาญา';
       document.getElementById('moreInfoAssignee').value = `${kase.owner || 'ผู้รับผิดชอบสำนวน'} (${kase.ownerOrg || '-'})`;
 
-      // Render attachment list with Upload & Delete capability
-      renderAttachments();
 
 
 
@@ -573,147 +540,14 @@
       }
 
 
-      // Upload box listeners
-      const btnToggle = document.getElementById('btnToggleUpload');
-      const uploadBox = document.getElementById('uploadBox');
-      const btnClose = document.getElementById('btnCloseUpload');
-      const btnSubmit = document.getElementById('btnUploadSubmit');
-
-      if (btnToggle && uploadBox) {
-        btnToggle.addEventListener('click', () => {
-          uploadBox.classList.toggle('d-none');
-        });
-      }
-      if (btnClose && uploadBox) {
-        btnClose.addEventListener('click', () => {
-          uploadBox.classList.add('d-none');
-        });
-      }
-      if (btnSubmit) {
-        btnSubmit.addEventListener('click', handleFileUpload);
-      }
-
-      if (pageReadOnly) {
-        if (btnToggle) btnToggle.classList.add('d-none');
-        if (uploadBox) uploadBox.classList.add('d-none');
-      }
-
       onDecisionChange();
       renderDoc();
       renderActionButtons();
     }
 
 
-    function getFileIcon(filename) {
-      const ext = filename.split('.').pop().toLowerCase();
-      if (ext === 'pdf') return 'fa-file-pdf text-danger';
-      if (['doc', 'docx'].includes(ext)) return 'fa-file-word text-primary';
-      if (['xls', 'xlsx', 'csv'].includes(ext)) return 'fa-file-excel text-success';
-      if (['zip', 'rar', '7z'].includes(ext)) return 'fa-file-zipper text-warning';
-      if (['png', 'jpg', 'jpeg'].includes(ext)) return 'fa-file-image text-info';
-      return 'fa-file-lines text-secondary';
-    }
-
-    function renderAttachments() {
-      const el = document.getElementById('attachmentList');
-      if (!el) return;
-
-      if (!kase.attachments) {
-        kase.attachments = [];
-      }
-
-      if (!kase.attachments.length) {
-        el.innerHTML = '<div class="text-muted py-3 text-center" style="font-size:0.8rem"><i class="fa-solid fa-folder-open fa-lg d-block mb-1 text-secondary" style="font-size:1.4rem"></i>ยังไม่มีไฟล์แนบในสำนวนนี้</div>';
-        return;
-      }
-
-      const rows = kase.attachments.map((a, idx) => {
-        const icon = getFileIcon(a.name);
-        const delBtn = !pageReadOnly
-          ? `<button type="button" class="btn btn-link text-danger p-0 ms-auto text-decoration-none btn-del-file" data-idx="${idx}" title="ลบไฟล์"><i class="fa-solid fa-trash-can" style="font-size:0.75rem"></i></button>`
-          : '';
-
-        return `
-          <li class="d-flex align-items-center justify-content-between py-1 border-bottom border-light">
-            <div class="d-flex align-items-center gap-2 text-truncate me-2">
-              <i class="fa-solid ${icon}" style="font-size:1.1rem; flex-shrink:0"></i>
-              <div class="text-truncate">
-                <a href="javascript:void(0)" onclick="previewOrDownloadFile('${ECMIS.escapeHtml(a.name)}')" class="text-primary text-decoration-none fw-medium text-truncate d-block" title="${ECMIS.escapeHtml(a.name)}">
-                  ${ECMIS.escapeHtml(a.name)}
-                </a>
-                <small class="text-muted" style="font-size:0.72rem">${a.size} · ${a.date} ${a.uploader ? `(${a.uploader})` : ''}</small>
-              </div>
-            </div>
-            ${delBtn}
-          </li>
-        `;
-      }).join('');
-
-      el.innerHTML = `<ul class="list-unstyled mb-0">${rows}</ul>`;
-
-      el.querySelectorAll('.btn-del-file').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const idx = parseInt(btn.dataset.idx, 10);
-          deleteAttachment(idx);
-        });
-      });
-    }
-
-    function previewOrDownloadFile(fileName) {
-      ECMIS.toastOk(`เปิดดูไฟล์แนบ: ${fileName}`);
-    }
-
-    function deleteAttachment(index) {
-      Swal.fire({
-        title: 'ยืนยันลบไฟล์แนบ?',
-        text: `คุณต้องการลบไฟล์ "${kase.attachments[index].name}" ออกจากสำนวนใช่หรือไม่?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'ลบไฟล์',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#DC2626'
-      }).then(res => {
-        if (res.isConfirmed) {
-          kase.attachments.splice(index, 1);
-          ECMIS.saveCases();
-          renderAttachments();
-          ECMIS.toastOk('ลบไฟล์แนบเรียบร้อยแล้ว');
-        }
-      });
-    }
-
-    function handleFileUpload() {
-      const input = document.getElementById('fileInputAttach');
-      if (!input.files || !input.files.length) {
-        ECMIS.toastWarn('กรุณาเลือกไฟล์ที่ต้องการอัปโหลด');
-        return;
-      }
-
-      const files = Array.from(input.files);
-      const subLabel = 'คณะอนุกรรมการสนับสนุนเลขาธิการฯ';
-
-      files.forEach(f => {
-        const sizeStr = f.size > 1024 * 1024
-          ? (f.size / (1024 * 1024)).toFixed(1) + ' MB'
-          : (f.size / 1024).toFixed(0) + ' KB';
-
-        kase.attachments.push({
-          name: f.name,
-          size: sizeStr,
-          date: 'วันนี้',
-          uploader: `คณะอนุกรรมการฯ (${'คณะอนุกรรมการสนับสนุนเลขาธิการฯ'})`,
-          isDefault: false
-        });
-      });
-
-      ECMIS.saveCases();
-      renderAttachments();
-      input.value = '';
-      document.getElementById('uploadBox').classList.add('d-none');
-      ECMIS.toastOk(`อัปโหลดไฟล์แนบ ${files.length} รายการเรียบร้อยแล้ว`);
-    }
-
+    /* การ์ด "ไฟล์แนบสำนวน" เดิม (เก็บในหน่วยความจำ kase.attachments) ถูกแทนด้วยการ์ด "เอกสารแนบเพิ่มเติม" กลาง
+       (ECMIS.initAttachmentCard — เก็บจริงใน Storage/tbl_res_attachment) ตามที่ผู้ใช้ขอ 2026-10-01 */
     function onDecisionChange() {
       const dec = document.querySelector('input[name="supportDecision"]:checked')?.value || 'AGREE';
       document.getElementById('dissentReasonBox').classList.toggle('d-none', dec !== 'DIFFER');

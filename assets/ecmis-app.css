@@ -1870,3 +1870,8 @@ body.dark-mode .att-summary{ color:#5ec8f2; }
 body.dark-mode .att-q-bar{ background:#1e293b; }
 body.dark-mode .att-row, body.dark-mode .att-btn, body.dark-mode .att-drop{ background:transparent; }
 @media (max-width:576px){ .att-drop{ flex-direction:column; align-items:flex-start; } }
+
+/* ซ่อนการ์ด "ฐานอำนาจ / กฎหมายที่เกี่ยวข้อง" (#lawBox) ทุกหน้า — ผู้ใช้ขอ 2026-10-01
+   (chairman-agenda, affairs-case-detail, affairs-opinion, case-admin-detail) โค้ด/ข้อมูล LAW_PACC ยังอยู่ครบ
+   ต้องการแสดงกลับ: ลบกฎนี้ออก */
+.ws-card:has(#lawBox), .card-ecmis:has(#lawBox){ display:none !important; }

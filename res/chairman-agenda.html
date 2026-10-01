@@ -286,7 +286,7 @@
 
         function refreshCaseView() {
             document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
-            document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase.status);
+            document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase);
 
             // Render Upstream Chain Timeline
             const FULL_CHAIN = ECMIS.UPSTREAM_CHAIN.concat(['secgen', 'chairman']);

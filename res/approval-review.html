@@ -378,7 +378,7 @@
       document.title = urgentGateTitle + ' | E-CMIS';
       document.querySelector('.flow-ref').innerHTML = 'ด่านรับรองความเร่งด่วน (T7) — ก่อนส่งเข้าคิวประธานฯ';
       document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
-      document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS, ECMIS.STATUS_STEP);
+      document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS, ECMIS.STATUS_STEP);
 
       const deadlineChips = (() => {
         const rows = [
@@ -641,10 +641,10 @@
       const is73 = ECMIS.isCase73(kase);
       const is72 = !is73 && ECMIS.isCase72(kase);
       document.getElementById('stepper').innerHTML = is73
-        ? ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_73, ECMIS.STATUS_STEP_73)
+        ? ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS_73, ECMIS.STATUS_STEP_73)
         : (is72
-          ? ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
-          : ECMIS.stepperHtml(kase.status));
+          ? ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
+          : ECMIS.stepperHtml(kase));
 
       const CHAIN_STATUS = {
         owner: 'DRAFT', section_head: 'PENDING_SECTION', director: 'PENDING_DIRECTOR',
@@ -1567,7 +1567,7 @@
         `<span class="chip me-1">${docType.short}</span>` +
         ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
       document.getElementById('stepper').innerHTML =
-        ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
+        ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
 
       const CHAIN_72 = ['section_head', 'director', 'deputy'];
       const CHAIN_STATUS_72 = {

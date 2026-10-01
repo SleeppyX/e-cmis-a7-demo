@@ -347,8 +347,8 @@
     function renderPage() {
       document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
       document.getElementById('stepper').innerHTML = is72Track
-        ? ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
-        : ECMIS.stepperHtml(kase.status);
+        ? ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
+        : ECMIS.stepperHtml(kase);
 
       // Render chain of opinions with modern E-CMIS timeline UI
       const chainEl = document.getElementById('chain');

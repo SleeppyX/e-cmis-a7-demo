@@ -206,7 +206,7 @@
     function refreshCaseView() {
       const k = kase;
       document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${esc(k.id)}</span>` + ECMIS.statusBadge(k.status) + ' ' + ECMIS.slaBadge(k);
-      document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(k.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
+      document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(k, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
 
       const FULL_CHAIN = ECMIS.UPSTREAM_CHAIN.concat(['secgen']);
       const opByRole = Object.fromEntries((k.chainOpinions || []).map(o => [o.roleId, o]));

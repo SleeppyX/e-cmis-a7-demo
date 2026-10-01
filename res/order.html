@@ -514,7 +514,7 @@
     }
 
     document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status);
-    document.getElementById('stepper').innerHTML = ECMIS.stepperHtml('RESOLVED');
+    document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase);
 
     function accusedTextFromBoard(source) {
       const list = (source.accusedSnapshot && source.accusedSnapshot.length) ? source.accusedSnapshot : (source.accused || []);

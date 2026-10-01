@@ -1877,3 +1877,18 @@ body.dark-mode .att-row, body.dark-mode .att-btn, body.dark-mode .att-drop{ back
    (chairman-agenda, affairs-case-detail, affairs-opinion, case-admin-detail) โค้ด/ข้อมูล LAW_PACC ยังอยู่ครบ
    ต้องการแสดงกลับ: ลบกฎนี้ออก */
 .ws-card:has(#lawBox), .card-ecmis:has(#lawBox){ display:none !important; }
+
+/* แถบขั้นตอนตามเส้นทางจริงของเคส (ECMIS.stepperHtml(kase) — 2026-10-01) */
+.flow-stepper-case .fstep{ min-width:108px; }
+.flow-stepper-case .frole{ font-size:.66rem; line-height:1.2; color:var(--text-disabled); margin-top:2px; }
+.flow-stepper-case .fwhen:empty{ display:none; }
+.flow-stepper-case .fwhen{ font-size:.64rem; color:var(--feedback-success-icon); margin-top:1px; }
+.flow-stepper-case .fnow{
+  display:inline-block; margin-top:3px; padding:0 7px; border-radius:9px; font-size:.62rem; font-weight:700;
+  background:rgba(208,168,48,.18); color:#8a6d12;
+}
+.flow-stepper-case .fstep.warn .dot{ background:#f59e0b; border-color:#f59e0b; color:#fff; box-shadow:0 0 0 4px rgba(245,158,11,.22); }
+.flow-stepper-case .fstep.warn .lbl{ color:#b45309; }
+.flow-stepper-case .fstep.warn .fnow{ background:#fef3c7; color:#b45309; }
+.flow-stepper-case .fstep.info .fnow{ background:#e0f2fe; color:#0369a1; }
+body.dark-mode .flow-stepper-case .fnow{ background:rgba(208,168,48,.25); color:#f5d77a; }

@@ -4382,7 +4382,189 @@ async function refreshDeadlineNotificationsFromSupabase(role) {
   }
 }
 
+/* ---------- แถบขั้นตอนตามเส้นทางจริงของเคส (2026-10-01, docs/memory/plans/2026-10-01-case-flow-stepper.md) ----------
+   caseFlowSteps(kase) สร้างขั้นจากสาย (7.1/7.2/7.3) + ทางที่เคสเดินจริง (ด่วน/ไม่ด่วน, ยุ่งยาก/ไม่ยุ่งยาก)
+   แต่ละขั้น: { key, label (การดำเนินการ), role (ผู้ดำเนินการ), st: [สถานะที่อยู่ในขั้นนี้], match(s)?, warn(s)? }
+   stepperHtml(kase) → HTML; วันที่ทำเสร็จเติมทีหลังแบบ async จาก tbl_res_request_event (ออกจากสถานะของขั้นนั้นครั้งล่าสุด) */
+function caseFlowSteps(kase){
+  const s = kase.status;
+  const is73 = isCase73(kase);
+  const is72 = !is73 && isCase72(kase);
+  const X = is72 ? '_72' : '';
+  const step = (key, label, role, st, extra) => Object.assign({ key, label, role, st }, extra || {});
+  const hasSupport = !!(kase.supportOpinion || kase.supportOpinion72 || kase.supportDecision);
+  const complexSup = hasSupport || ['PENDING_SUPPORT_ASSIGN' + X, 'IN_SUPPORT_SUB' + X].includes(s);
+  const urgentSt = ['PENDING_URGENT' + X, 'PENDING_SECGEN_URGENT_CONFIRM' + X, 'PENDING_CHAIRMAN_URGENT_72'];
+  const urgent = !!(kase.urgent || kase.urgentCertified) || urgentSt.includes(s);
+  const warnReturn = st => st === 'RETURNED' + X ? 'ตีกลับ — รอแก้ไข' : null;
+  const chainSt = is72
+    ? ['PENDING_SECTION_72', 'PENDING_DIRECTOR_72', 'PENDING_DEPUTY_72', 'RETURNED_72']
+    : ['DRAFT', 'PENDING_SECTION', 'PENDING_DIRECTOR', 'PENDING_DEPUTY', 'RETURNED'];
+  const steps = [
+    step('chain', 'เสนอตามลำดับชั้น', 'เจ้าของสำนวน / ผู้บังคับบัญชา', chainSt, {
+      warn: st => warnReturn(st) || (is72 && kase.resolution72 && chainSt.includes(st) ? 'ให้ไต่สวนเพิ่มเติม' : null)
+    }),
+    step('secgen', is72 ? 'พิจารณา / ลงนาม' : 'พิจารณา / ลงนาม', 'เลขาธิการฯ', ['PENDING_SECGEN' + X], {
+      match: st => st === 'PENDING_SECGEN' + X && !(complexSup && hasSupport)
+    })
+  ];
+  if (complexSup) {
+    steps.push(
+      step('assignSup', 'มอบหมายคณะอนุสนับสนุนฯ', 'ผอ.กบค.', ['PENDING_SUPPORT_ASSIGN' + X]),
+      step('supportSub', 'กลั่นกรองสำนวนซับซ้อน', 'คณะอนุสนับสนุนฯ', ['IN_SUPPORT_SUB' + X]),
+      step('secgen2', 'พิจารณาอีกครั้ง / ลงนาม', 'เลขาธิการฯ', ['PENDING_SECGEN' + X], {
+        match: st => st === 'PENDING_SECGEN' + X && hasSupport
+      })
+    );
+  }
+  if (urgent) {
+    steps.push(
+      step('urgentCertify', 'รับรองเหตุผลเร่งด่วน', 'ผอ.กบค.', ['PENDING_URGENT' + X]),
+      step('urgentConfirm', 'ยืนยันวาระด่วน', 'เลขาธิการฯ', ['PENDING_SECGEN_URGENT_CONFIRM' + X])
+    );
+  }
+
+  if (is73) {
+    steps.push(
+      step('chairman', 'สั่งบรรจุวาระ', 'ประธานฯ', ['PENDING_CHAIRMAN']),
+      step('meeting', 'บรรจุวาระ / บอร์ดลงมติ', 'ฝ่ายเลขานุการฯ / คณะกรรมการ', ['AGENDA_SET', 'IN_MEETING', 'DEFERRED', 'RESOLVED_PENDING'], {
+        warn: st => st === 'DEFERRED' ? 'เลื่อน/ถอนวาระ' : null
+      }),
+      step('close', 'แจ้งมติ / ปิดเรื่อง', 'ฝ่ายเลขานุการฯ', ['RESOLVED', 'DISPATCHING', 'CLOSED'])
+    );
+    return steps;
+  }
+
+  if (!is72) {
+    steps.push(step('chairman', 'สั่งการ', 'ประธานฯ', ['PENDING_CHAIRMAN']));
+    if (!urgent) {
+      steps.push(
+        step('caseAdmin', 'ส่งเข้าคณะอนุกลั่นกรองฯ', 'กบค.', ['IN_SCREENING'], { match: st => st === 'IN_SCREENING' && !kase.subCommittee }),
+        step('subcommittee', 'กลั่นกรองสำนวน', 'คณะอนุกลั่นกรองฯ', ['IN_SCREENING', 'SCREENING_MORE_INFO'], {
+          match: st => st === 'SCREENING_MORE_INFO' || (st === 'IN_SCREENING' && !!kase.subCommittee),
+          warn: st => st === 'SCREENING_MORE_INFO' ? 'ขอข้อมูลเพิ่มเติม' : null
+        })
+      );
+    }
+    steps.push(
+      step('agenda', 'บรรจุวาระ', 'ฝ่ายเลขานุการฯ', ['AGENDA_SET', 'DEFERRED'], { warn: st => st === 'DEFERRED' ? 'เลื่อน/ถอนวาระ' : null }),
+      step('meeting', 'ประชุม / ลงมติ', 'คณะกรรมการ ป.ป.ท.', ['IN_MEETING', 'RESOLVED_PENDING']),
+      step('order', 'ออกคำสั่ง ม.24 / แจ้งมติ', 'ฝ่ายเลขานุการฯ / ประธานฯ', ['RESOLVED', 'PENDING_SIGN_ORDER_SECGEN', 'PENDING_SIGN_ORDER_CHAIRMAN', 'DISPATCHING']),
+      step('close', 'ปิดเรื่อง', 'เจ้าของสำนวน', ['UNDER_INVESTIGATION', 'CLOSED'])
+    );
+    return steps;
+  }
+
+  /* 7.2 */
+  const screenSt = ['IN_SCREENING_72', 'SCREENING_MORE_INFO_72', 'PENDING_SIGN_AGENDA_72', 'PENDING_CHAIRMAN_72'];
+  if (urgent && !screenSt.includes(s)) {
+    steps.push(step('chairUrgent', 'สั่งบรรจุวาระด่วน', 'ประธานฯ', ['PENDING_CHAIRMAN_URGENT_72']));
+  } else {
+    steps.push(step('screen', 'ลงรับ / คัดกรองสำนวน', 'ประธานฯ', ['PENDING_CASE_ADMIN_SCREEN_72']));
+    const scr = kase.screen72 || {};
+    const decided = screenSt.includes(s) || !!kase.subCommittee || !!kase.subOutcome || scr.complex === true ? 'complex'
+      : (['PENDING_AFFAIRS_OPINION_72', 'PENDING_CHAIRMAN_ASSIGN_72'].includes(s) || scr.complex === false || !!kase.affairsOpinion72 ? 'simple' : null);
+    if (decided === 'simple') {
+      steps.push(
+        step('affairsOpinion', 'ทำความเห็นเสนอ', 'กลุ่มงานกิจการฯ', ['PENDING_AFFAIRS_OPINION_72']),
+        step('signAgenda', 'ลงนามสั่งบรรจุวาระ', 'ประธานฯ', ['PENDING_CHAIRMAN_ASSIGN_72'])
+      );
+    } else if (decided === 'complex') {
+      steps.push(
+        step('caseAdmin', 'ส่งเข้าคณะอนุกลั่นกรองฯ', 'กบค.', ['IN_SCREENING_72', 'PENDING_CHAIRMAN_72'], {
+          match: st => st === 'PENDING_CHAIRMAN_72' || (st === 'IN_SCREENING_72' && !kase.subCommittee)
+        }),
+        step('subcommittee', 'กลั่นกรองสำนวน', 'คณะอนุกลั่นกรองฯ', ['IN_SCREENING_72', 'SCREENING_MORE_INFO_72'], {
+          match: st => st === 'SCREENING_MORE_INFO_72' || (st === 'IN_SCREENING_72' && !!kase.subCommittee),
+          warn: st => st === 'SCREENING_MORE_INFO_72' ? 'ขอข้อมูลเพิ่มเติม' : null
+        }),
+        step('signAgenda', 'ลงนามสั่งบรรจุวาระ', 'ประธานฯ', ['PENDING_SIGN_AGENDA_72'])
+      );
+    } else {
+      steps.push(
+        step('afterScreen', 'ดำเนินการตามผลคัดกรอง', 'กลุ่มงานกิจการฯ / คณะอนุกลั่นกรองฯ', []),
+        step('signAgenda', 'ลงนามสั่งบรรจุวาระ', 'ประธานฯ', [])
+      );
+    }
+  }
+  steps.push(
+    step('invite', 'บรรจุวาระ / เชิญประชุม', 'ฝ่ายเลขานุการฯ', ['PENDING_INVITE_72']),
+    step('meeting', 'ประชุม / ลงมติ', 'คณะกรรมการ ป.ป.ท.', ['IN_MEETING_72']),
+    step('draftRuling', 'ร่างรายงานวินิจฉัยชี้มูล', 'กลุ่มงานกิจการฯ', ['RESOLVED_PENDING_72']),
+    step('signRuling', 'ลงนามรายงานวินิจฉัยชี้มูล', 'ประธานฯ', ['PENDING_SIGN_RULING_72']),
+    step('dispatch', 'แจ้งผล / ส่งดำเนินการ', 'เจ้าของสำนวน / กลุ่มงานกิจการฯ', ['PENDING_AREA_NOTICE_72', 'DISPATCHING_NACC_72', 'PENDING_DISPATCH_GUILTY_72'], {
+      warn: st => st === 'PENDING_AREA_NOTICE_72' ? 'แจ้งผลพื้นที่ (ไม่ชี้มูล)' : st === 'DISPATCHING_NACC_72' ? 'ส่ง ป.ป.ช.' : st === 'PENDING_DISPATCH_GUILTY_72' ? 'ส่งดำเนินคดี' : null,
+      warnTone: 'info'
+    }),
+    step('close', 'ปิดเรื่อง', '—', ['CLOSED_72'])
+  );
+  return steps;
+}
+
+const FLOW_EVENT_CACHE = {};
+function annotateStepperDates(){
+  if (typeof document === 'undefined') return;
+  /* แถบยาวเลื่อนแนวนอนได้ — เลื่อนให้ขั้นปัจจุบันอยู่กลางเสมอ */
+  document.querySelectorAll('.flow-stepper-case:not([data-scrolled])').forEach(el => {
+    const a = el.querySelector('.fstep.active');
+    if (!a || !el.clientWidth) return;
+    el.setAttribute('data-scrolled', '1');
+    el.scrollLeft = Math.max(0, a.offsetLeft - el.offsetLeft - el.clientWidth / 2 + a.clientWidth / 2);
+  });
+  document.querySelectorAll('.flow-stepper[data-trr]:not([data-dated])').forEach(async el => {
+    el.setAttribute('data-dated', '1');
+    const trr = el.getAttribute('data-trr');
+    const sb = getSupabaseClient();
+    if (!sb || !trr) return;
+    try {
+      if (!FLOW_EVENT_CACHE[trr]) {
+        FLOW_EVENT_CACHE[trr] = sb.from('tbl_res_request_event').select('trre_from_status,trre_to_status,created_datetime')
+          .eq('trr_id', trr).order('created_datetime', { ascending: true }).then(r => r.data || []);
+      }
+      const evs = await FLOW_EVENT_CACHE[trr];
+      el.querySelectorAll('.fstep.done[data-codes]').forEach(stEl => {
+        const codes = stEl.getAttribute('data-codes').split(',').filter(Boolean);
+        if (!codes.length) return;
+        let last = null;
+        evs.forEach(e => { if (codes.includes(e.trre_from_status) && !codes.includes(e.trre_to_status)) last = e.created_datetime; });
+        if (!last) return;
+        const d = new Date(/Z|[+-]\d\d:?\d\d$/.test(last) ? last : last + 'Z');
+        if (isNaN(d)) return;
+        const w = stEl.querySelector('.fwhen');
+        if (w) w.textContent = d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+      });
+    } catch (e) { /* ไม่มีวันที่ก็แสดงขั้นได้ตามปกติ */ }
+  });
+}
+
+function caseStepperHtml(kase){
+  const steps = caseFlowSteps(kase);
+  const s = kase.status;
+  const hit = st => (st.match ? st.match(s) : st.st.includes(s));
+  let idx = steps.findIndex(hit);
+  if (idx < 0 && /^CLOSED/.test(String(s))) idx = steps.length - 1;
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const html = `<div class="flow-stepper flow-stepper-case"${kase.trr_id ? ` data-trr="${esc(kase.trr_id)}"` : ''}>` + steps.map((st, i) => {
+    const warn = i === idx && st.warn ? st.warn(s) : null;
+    const closedNow = i === idx && /^CLOSED/.test(String(s));
+    const cls = (i < idx || closedNow) ? 'done' : (i === idx ? 'active' + (warn ? (st.warnTone === 'info' ? ' info' : ' warn') : '') : '');
+    const mark = (i < idx || closedNow) ? '<i class="fa-solid fa-check"></i>' : (warn && st.warnTone !== 'info' ? '<i class="fa-solid fa-rotate-left"></i>' : (i + 1));
+    const codes = st.st.map(k => STATUS_CODE[k]).filter(Boolean).join(',');
+    const now = i === idx && !closedNow ? `<div class="fnow">${warn ? esc(warn) : 'กำลังดำเนินการ'}</div>` : '';
+    return `<div class="fstep ${cls}" data-codes="${codes}">
+      <div class="dot">${mark}</div>
+      <div class="lbl">${esc(st.label)}</div>
+      <div class="frole">${esc(st.role)}</div>
+      <div class="fwhen"></div>${now}
+    </div>`;
+  }).join('') + `</div>`;
+  if (typeof setTimeout !== 'undefined') setTimeout(annotateStepperDates, 0);
+  return html;
+}
+
+/* รับได้ทั้ง object เคส (แถบตามเส้นทางจริง — ใช้ทุกหน้าตั้งแต่ 2026-10-01) และ status string (ชุดขั้นตายตัวแบบเดิม) */
 function stepperHtml(statusKey, stepsArr, stepMap){
+  if (statusKey && typeof statusKey === 'object') return caseStepperHtml(statusKey);
   stepsArr = stepsArr || FLOW_STEPS;
   stepMap = stepMap || STATUS_STEP;
   const cur = stepMap[statusKey] || 'report';
@@ -8176,6 +8358,7 @@ if (typeof localStorage !== 'undefined') {
   }
 
   global.ECMIS = {
+  caseFlowSteps,
   initAttachmentCard, refreshAttachmentCard,
   ROLES, STATUS, STATUS_CODE, CODE_STATUS, STATUS_STEP, FLOW_STEPS, APPROVAL_CHAIN,
   buildChainOpinions, supabaseRowToCase, toBuddhistFakeIso, addDaysToDateStr, addYearsToDateStr,

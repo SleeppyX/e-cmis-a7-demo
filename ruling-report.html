@@ -1395,7 +1395,7 @@
     }
 
     document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
-    document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase.status, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
+    document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
 
     const mayView = ECMIS.canViewCase(kase, role.id);
     const mayEdit = ECMIS.canEditMaster(role.id) || ECMIS.can('doc.generate', role.id) || ECMIS.can('record.minutes', role.id);

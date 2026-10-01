@@ -1,0 +1,26 @@
+# อัปโหลดเอกสารเพิ่มเติม (Word / Excel / PDF) ทุกหน้า preview เอกสารระดับสำนวน
+
+**สถานะ:** Completed (ยกเว้นปุ่มลบ — รอ DBA เพิ่ม policy)
+
+## ตัดสินใจ (AskUserQuestion 2026-10-01)
+- ผู้ที่ดำเนินการได้ในขั้นนั้น (ECMIS.canAct) อัปโหลดได้ คนอื่นเห็นเฉพาะรายการ
+- ลบได้เฉพาะไฟล์ที่บทบาทตัวเองอัปโหลดและยังอยู่ในขั้นเดียวกัน (soft-delete)
+- การ์ดใหม่ในคอลัมน์ซ้าย ต่อจากการ์ดสรุปสำนวน
+- หน้าระดับ "การประชุม" (meeting-docs, agenda-meeting-docs, board-detail, meeting-report) ยังไม่ทำ
+- ขนาด ≤ 10 MB/ไฟล์, นามสกุล .doc .docx .xls .xlsx .pdf
+
+## ที่ทำ
+- `assets/ecmis-app.js`: `ECMIS.initAttachmentCard()` + auto-mount (หน้าที่มี #docWorkspace และ ?case=…) ใช้ Storage bucket `case-documents` + `tbl_res_attachment` เดิม
+  path = `<tcc_id>/<รหัสสถานะ>/<ts>_<สุ่ม>.<ext>` (ASCII; ชื่อไทยเก็บใน trat_filename; รหัสสถานะ = ขั้นที่อัป)
+- หน้าที่มีการ์ดไฟล์แนบเดิม (`#attachmentCard` ของ approval-review/review เคสด่วน) ไม่ใส่ซ้ำ
+- สำนวนจำลองที่ไม่มีใน DB ไม่แสดงการ์ด
+
+## ข้อจำกัดที่พบ
+`tbl_res_attachment` ไม่มี RLS policy สำหรับ UPDATE → soft-delete (is_deleted=true) ด้วย anon key ได้ 200/[] ไม่เปลี่ยนแถว
+จึงตั้ง `ATTACH_DELETE_ENABLED = false` (ซ่อนปุ่มลบ) ให้ DBA รัน SQL ด้านล่าง แล้วเปลี่ยนค่าเป็น `true`:
+
+```sql
+create policy "attachment_soft_delete" on public.tbl_res_attachment
+  for update to anon using (true) with check (true);
+```
+(เดโมใช้ anon key ทั้งระบบ — ถ้าต้องการจำกัดกว่านี้ให้ปรับเงื่อนไข)

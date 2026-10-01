@@ -7943,7 +7943,7 @@ if (typeof localStorage !== 'undefined') {
         const ext = attachExt(a.trat_filename);
         const stage = attachStageOf(a.trat_storage_path);
         const stageLabel = stage && STATUS[CODE_STATUS[stage]] ? STATUS[CODE_STATUS[stage]].label : '';
-        const upRole = (getRole(a.trat_uploaded_by_role) || {}).label || a.trat_uploaded_by_role || '';
+        const upRole = (getRole(a.trat_uploaded_by_role) || {}).title || a.trat_uploaded_by_role || '';
         const sizeKb = a.trat_size_bytes ? Math.max(1, Math.round(a.trat_size_bytes / 1024)) + ' KB' : '';
         const mine = ATTACH_DELETE_ENABLED && a.trat_uploaded_by_role === role.id && !!stage && stage === statusCode;
         return `<div class="d-flex align-items-start gap-2 py-1 border-bottom">
@@ -8009,6 +8009,233 @@ if (typeof localStorage !== 'undefined') {
     return card;
   }
 
+  /* ---------- แบบทันสมัย (ทดลองหน้าเดียวก่อน — ATTACH_MODERN_PAGES) ----------
+     drop zone ลากวาง/คลิกเลือก → อัปโหลดทันทีพร้อมแถบความคืบหน้า (XHR ตรงไป Storage REST เพราะ supabase-js ไม่มี progress event)
+     รายการไฟล์เป็นแถวการ์ด: ป้ายชนิดสี (W/X/P), ขนาด, ผู้อัป, ขั้น, เวลา
+     PDF กด "ดู" เปิดในแผงเอกสารขวาเป็นแท็บ (iframe) / Word-Excel ดาวน์โหลดด้วยชื่อไฟล์จริง */
+  const ATTACH_MODERN_PAGES = ['affairs-case-detail.html'];
+
+  function attachBadge(ext) {
+    if (ext === 'pdf') return '<span class="att-badge att-pdf">PDF</span>';
+    if (ext === 'xls' || ext === 'xlsx') return '<span class="att-badge att-xls">X</span>';
+    if (ext === 'doc' || ext === 'docx') return '<span class="att-badge att-doc">W</span>';
+    return '<span class="att-badge">?</span>';
+  }
+  function attachSize(n) {
+    if (!n) return '';
+    return n >= 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  }
+  function attachWhen(iso) {
+    if (!iso) return '';
+    const d = new Date(/Z|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z');
+    if (isNaN(d)) return '';
+    return d.toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function uploadWithProgress(path, file, onProgress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${DEFAULT_SUPABASE_URL}/storage/v1/object/case-documents/${path}`);
+      xhr.setRequestHeader('Authorization', `Bearer ${DEFAULT_SUPABASE_KEY}`);
+      xhr.setRequestHeader('apikey', DEFAULT_SUPABASE_KEY);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.setRequestHeader('x-upsert', 'false');
+      xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total * 100)); };
+      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error(`HTTP ${xhr.status}: ${xhr.responseText}`));
+      xhr.onerror = () => reject(new Error('network error'));
+      xhr.send(file);
+    });
+  }
+
+  /* แท็บ "ไฟล์แนบ" ในแผงเอกสารขวา — ซ่อนกระดาษ/แถบเลื่อนหน้าไว้ระหว่างดู แล้วคืนเมื่อกดแท็บอื่น */
+  function openAttachInDocPane(url, filename) {
+    const tabs = document.getElementById('docTabs');
+    const stage = document.getElementById('docPaperStage');
+    if (!tabs || !stage) { window.open(url, '_blank', 'noopener'); return; }
+    const pager = document.getElementById('docPaginationBar');
+    let viewer = document.getElementById('attachViewer');
+    if (!viewer) {
+      viewer = document.createElement('div');
+      viewer.id = 'attachViewer';
+      viewer.className = 'att-viewer d-none';
+      stage.after(viewer);
+      tabs.addEventListener('click', ev => {
+        const t = ev.target.closest('.ws-doc-tab');
+        if (!t || t.id === 'tabAttachView') return;
+        viewer.classList.add('d-none');
+        stage.classList.remove('d-none');
+        if (pager) pager.classList.remove('d-none');
+      }, true);
+    }
+    let tab = document.getElementById('tabAttachView');
+    if (!tab) {
+      tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'ws-doc-tab';
+      tab.id = 'tabAttachView';
+      tabs.appendChild(tab);
+      tab.addEventListener('click', ev => {
+        if (ev.target.closest('.att-tab-close')) {
+          tab.remove(); viewer.classList.add('d-none');
+          stage.classList.remove('d-none'); if (pager) pager.classList.remove('d-none');
+          const first = tabs.querySelector('.ws-doc-tab'); if (first) first.click();
+          return;
+        }
+        tabs.querySelectorAll('.ws-doc-tab').forEach(b => b.classList.remove('active'));
+        tab.classList.add('active');
+        viewer.classList.remove('d-none');
+        stage.classList.add('d-none'); if (pager) pager.classList.add('d-none');
+      });
+    }
+    tab.innerHTML = `<i class="fa-solid fa-paperclip me-1"></i><span class="att-tab-name">${escapeHtml(filename)}</span><span class="att-tab-close" title="ปิด">&times;</span>`;
+    viewer.innerHTML = `<iframe src="${url}" title="${escapeHtml(filename)}"></iframe>`;
+    tab.click();
+  }
+
+  async function initAttachmentCardModern(opts) {
+    const o = opts || {};
+    const sb = o.sb || getSupabaseClient();
+    const role = o.role || currentRole();
+    if (!sb || !role || !o.mountAfter || !o.tccId) return null;
+    const old = document.getElementById('attachExtraCard');
+    if (old) old.remove();
+
+    const card = document.createElement('div');
+    card.className = 'ws-card mb-3 att-card';
+    card.id = 'attachExtraCard';
+    card.innerHTML = `<div class="card-header"><i class="fa-solid fa-paperclip"></i> เอกสารแนบเพิ่มเติม <span class="att-count" id="attCount"></span></div>
+      <div class="card-body">
+        <label class="att-drop d-none" id="attDrop" tabindex="0">
+          <input type="file" id="attInput" accept=".doc,.docx,.xls,.xlsx,.pdf" multiple hidden>
+          <i class="fa-solid fa-cloud-arrow-up att-drop-icon"></i>
+          <div class="att-drop-title">ลากไฟล์มาวางที่นี่</div>
+          <div class="att-drop-sub">หรือ <span class="att-drop-link">เลือกไฟล์</span> จากเครื่อง</div>
+          <div class="att-drop-hint">Word · Excel · PDF &nbsp;|&nbsp; ไม่เกิน 10 MB ต่อไฟล์</div>
+        </label>
+        <div id="attLocked" class="att-locked d-none"><i class="fa-solid fa-lock me-1"></i>เฉพาะผู้ที่ดำเนินการในขั้นนี้เท่านั้นที่แนบเอกสารเพิ่มได้</div>
+        <div id="attPending"></div>
+        <div id="attList" class="att-list"><div class="att-empty">กำลังโหลด...</div></div>
+      </div>`;
+    o.mountAfter.after(card);
+
+    const drop = card.querySelector('#attDrop');
+    const input = card.querySelector('#attInput');
+    const pendingEl = card.querySelector('#attPending');
+    const listEl = card.querySelector('#attList');
+    let statusCode = o.statusCode || null;
+
+    async function refreshStatus() {
+      try {
+        const { data } = await sb.from('tbl_res_request').select('trr_status').eq('tcc_id', o.tccId).eq('is_deleted', false).maybeSingle();
+        if (data && data.trr_status) statusCode = data.trr_status;
+      } catch (e) { /* ใช้ค่าที่ส่งมา */ }
+    }
+    const canUpload = () => !!statusCode && canAct({ status: CODE_STATUS[statusCode] || statusCode }, role.id);
+
+    async function render() {
+      const { data, error } = await sb.from('tbl_res_attachment').select('*')
+        .eq('tcc_id', o.tccId).eq('is_deleted', false).order('created_datetime', { ascending: false });
+      if (error) { listEl.innerHTML = '<div class="att-empty">โหลดรายการเอกสารแนบไม่สำเร็จ</div>'; console.error(error); return; }
+      const files = data || [];
+      card.querySelector('#attCount').textContent = files.length ? files.length : '';
+      listEl.innerHTML = files.length ? files.map(a => {
+        const ext = attachExt(a.trat_filename);
+        const stage = attachStageOf(a.trat_storage_path);
+        const stageLabel = stage && STATUS[CODE_STATUS[stage]] ? STATUS[CODE_STATUS[stage]].label : '';
+        const upRole = (getRole(a.trat_uploaded_by_role) || {}).title || a.trat_uploaded_by_role || '';
+        const mine = ATTACH_DELETE_ENABLED && a.trat_uploaded_by_role === role.id && !!stage && stage === statusCode;
+        return `<div class="att-row">
+          ${attachBadge(ext)}
+          <div class="att-meta">
+            <div class="att-name" title="${escapeHtml(a.trat_filename)}">${escapeHtml(a.trat_filename)}</div>
+            <div class="att-sub">${attachSize(a.trat_size_bytes)}${upRole ? ' · ' + escapeHtml(upRole) : ''}${a.created_datetime ? ' · ' + attachWhen(a.created_datetime) : ''}</div>
+            ${stageLabel ? `<div class="att-stage">ขั้น: ${escapeHtml(stageLabel)}</div>` : ''}
+          </div>
+          <div class="att-actions">
+            ${ext === 'pdf' ? `<button type="button" class="att-btn" data-view="${a.trat_id}" title="เปิดดูในแผงเอกสาร"><i class="fa-solid fa-eye"></i></button>` : ''}
+            <button type="button" class="att-btn" data-dl="${a.trat_id}" title="ดาวน์โหลด"><i class="fa-solid fa-download"></i></button>
+            ${mine ? `<button type="button" class="att-btn att-btn-danger" data-del="${a.trat_id}" title="ลบไฟล์ที่ตัวเองอัปโหลด"><i class="fa-solid fa-trash"></i></button>` : ''}
+          </div>
+        </div>`;
+      }).join('') : '<div class="att-empty"><i class="fa-regular fa-folder-open me-1"></i>ยังไม่มีเอกสารแนบเพิ่มเติม</div>';
+      listEl._files = files;
+      const ok = canUpload();
+      drop.classList.toggle('d-none', !ok);
+      card.querySelector('#attLocked').classList.toggle('d-none', ok);
+    }
+
+    function fileById(id) { return (listEl._files || []).find(f => String(f.trat_id) === String(id)); }
+
+    listEl.addEventListener('click', async ev => {
+      const b = ev.target.closest('[data-view],[data-dl],[data-del]');
+      if (!b) return;
+      if (b.dataset.view || b.dataset.dl) {
+        const a = fileById(b.dataset.view || b.dataset.dl);
+        if (!a) return;
+        const { data: signed, error } = await sb.storage.from('case-documents')
+          .createSignedUrl(a.trat_storage_path, 3600, b.dataset.dl ? { download: a.trat_filename } : undefined);
+        if (error || !signed) { toastWarn('เปิดไฟล์ไม่สำเร็จ'); return; }
+        if (b.dataset.view) openAttachInDocPane(signed.signedUrl, a.trat_filename);
+        else { const l = document.createElement('a'); l.href = signed.signedUrl; l.rel = 'noopener'; document.body.appendChild(l); l.click(); l.remove(); }
+        return;
+      }
+      const r = await confirmAction({ title: 'ลบเอกสารแนบ', html: '<p>ต้องการลบไฟล์นี้ใช่หรือไม่?</p>', confirmText: 'ลบไฟล์', danger: true });
+      if (!r.isConfirmed) return;
+      const { data, error } = await sb.from('tbl_res_attachment').update({ is_deleted: true }).eq('trat_id', b.dataset.del).select();
+      if (error || !data || !data.length) { toastWarn('ลบไฟล์ไม่สำเร็จ'); return; }
+      toastOk('ลบเอกสารแนบแล้ว'); render();
+    });
+
+    async function handleFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+      await refreshStatus();
+      if (!canUpload()) { toastWarn('สำนวนเปลี่ยนขั้นแล้ว — ไม่สามารถแนบเอกสารในขั้นนี้ได้'); render(); return; }
+      let okCount = 0;
+      for (const f of files) {
+        const ext = attachExt(f.name);
+        const row = document.createElement('div');
+        row.className = 'att-row att-row-pending';
+        row.innerHTML = `${attachBadge(ext)}<div class="att-meta"><div class="att-name">${escapeHtml(f.name)}</div>
+          <div class="att-sub">${attachSize(f.size)} · <span class="att-state">กำลังอัปโหลด...</span></div>
+          <div class="att-progress"><div class="att-progress-bar" style="width:0%"></div></div></div>`;
+        pendingEl.appendChild(row);
+        const bar = row.querySelector('.att-progress-bar');
+        const state = row.querySelector('.att-state');
+        const fail = msg => { row.classList.add('att-row-error'); state.textContent = msg; bar.style.width = '100%'; setTimeout(() => row.remove(), 6000); };
+        if (!ATTACH_EXTS.includes(ext)) { fail('ไม่รองรับ — ใช้ได้เฉพาะ Word / Excel / PDF'); continue; }
+        if (!f.size) { fail('ไฟล์ว่างเปล่า'); continue; }
+        if (f.size > ATTACH_MAX_BYTES) { fail('ใหญ่เกิน 10 MB'); continue; }
+        try {
+          const path = `${o.tccId}/${statusCode}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+          await uploadWithProgress(path, f, p => { bar.style.width = p + '%'; state.textContent = `กำลังอัปโหลด ${p}%`; });
+          const { error: insErr } = await sb.from('tbl_res_attachment').insert({
+            tcc_id: o.tccId, trr_id: o.trrId || null, trat_filename: f.name, trat_storage_path: path,
+            trat_mime_type: f.type || null, trat_size_bytes: f.size, trat_uploaded_by_role: role.id
+          });
+          if (insErr) throw insErr;
+          okCount++;
+          row.remove();
+        } catch (err) {
+          console.error('อัปโหลดเอกสารแนบไม่สำเร็จ:', err);
+          fail('อัปโหลดไม่สำเร็จ');
+        }
+      }
+      input.value = '';
+      if (okCount) { toastOk(`แนบเอกสาร ${okCount} ไฟล์แล้ว`); render(); }
+    }
+
+    input.addEventListener('change', () => handleFiles(input.files));
+    ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('is-over'); }));
+    ['dragleave', 'dragend', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('is-over'); }));
+    drop.addEventListener('drop', e => handleFiles(e.dataTransfer && e.dataTransfer.files));
+    drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+
+    await refreshStatus();
+    await render();
+    return card;
+  }
+
   /* ใส่การ์ดให้ทุกหน้า preview เอกสารระดับสำนวนอัตโนมัติ: หน้ามี #docWorkspace + ?case=... */
   function autoMountAttachmentCard() {
     const page = (location.pathname.split('/').pop() || '').split('?')[0];
@@ -8034,7 +8261,8 @@ if (typeof localStorage !== 'undefined') {
           tccId = data && data.tcc_id;
         }
         if (!tccId) return; /* สำนวนจำลองที่ไม่มีใน DB — ไม่มีที่เก็บไฟล์ */
-        await initAttachmentCard({ sb, tccId, trrId, mountAfter: first, statusCode: kase && STATUS_CODE[kase.status] });
+        const init = ATTACH_MODERN_PAGES.includes(page) ? initAttachmentCardModern : initAttachmentCard;
+        await init({ sb, tccId, trrId, mountAfter: first, statusCode: kase && STATUS_CODE[kase.status] });
       } catch (e) { console.warn('แสดงการ์ดเอกสารแนบไม่สำเร็จ:', e); }
     }, 250);
   }
@@ -8043,7 +8271,7 @@ if (typeof localStorage !== 'undefined') {
   }
 
   global.ECMIS = {
-  initAttachmentCard,
+  initAttachmentCard, initAttachmentCardModern,
   ROLES, STATUS, STATUS_CODE, CODE_STATUS, STATUS_STEP, FLOW_STEPS, APPROVAL_CHAIN,
   buildChainOpinions, supabaseRowToCase, toBuddhistFakeIso, addDaysToDateStr, addYearsToDateStr,
   upcomingDeadlines, pageForCase,

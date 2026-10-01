@@ -1778,3 +1778,64 @@ a, button, .btn, .card, .kpi-card, .form-control, .form-select, .badge, .st,
 .law-row .law-practice { background: #FEF3C7; color: #92400E; }
 .law-row .law-page { color: #64748B; font-size: .76rem; }
 .law-row .law-kind { display: inline-block; margin-left: .25rem; padding: 0 .4rem; border-radius: 4px; background: #FEF3C7; color: #92400E; font-size: .72rem; font-weight: 600; }
+
+/* ===== เอกสารแนบเพิ่มเติม — แบบทันสมัย (ECMIS.initAttachmentCardModern) ===== */
+.att-card .card-header .att-count:not(:empty){
+  display:inline-block; min-width:20px; padding:0 6px; margin-left:6px; border-radius:10px;
+  background:var(--accent-emphasis); color:#fff; font-size:.72rem; line-height:18px; text-align:center;
+}
+.att-drop{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  padding:18px 12px; margin-bottom:10px; cursor:pointer; text-align:center;
+  border:2px dashed var(--border-divider); border-radius:12px;
+  background:var(--bg-surface-hover); transition:border-color .15s, background-color .15s, transform .15s;
+}
+.att-drop:hover, .att-drop:focus-visible{ border-color:var(--accent-emphasis); outline:none; }
+.att-drop.is-over{ border-color:var(--accent-brand); background:rgba(22,182,230,.10); transform:scale(1.01); }
+.att-drop-icon{ font-size:1.9rem; color:var(--accent-emphasis); margin-bottom:4px; }
+.att-drop-title{ font-weight:600; color:var(--text-primary); }
+.att-drop-sub{ font-size:.85rem; color:var(--text-body); }
+.att-drop-link{ color:var(--text-link); text-decoration:underline; font-weight:600; }
+.att-drop-hint{ font-size:.74rem; color:var(--text-disabled); margin-top:4px; }
+.att-locked{
+  font-size:.8rem; color:var(--text-body); background:var(--bg-surface-subtle);
+  border-radius:8px; padding:6px 10px; margin-bottom:10px;
+}
+.att-list{ display:flex; flex-direction:column; gap:6px; }
+.att-row{
+  display:flex; align-items:center; gap:10px; padding:8px 10px;
+  border:1px solid var(--border-divider); border-radius:10px; background:var(--bg-surface);
+  transition:box-shadow .15s, border-color .15s;
+}
+.att-row:hover{ border-color:var(--accent-emphasis); box-shadow:0 2px 8px rgba(15,42,98,.08); }
+.att-row-pending{ margin-bottom:6px; border-style:dashed; }
+.att-row-error{ border-color:var(--action-danger); }
+.att-row-error .att-state{ color:var(--action-danger); font-weight:600; }
+.att-row-error .att-progress-bar{ background:var(--action-danger); }
+.att-badge{
+  flex:0 0 36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  font-weight:800; font-size:.8rem; color:#fff; background:#64748b; letter-spacing:.02em;
+}
+.att-badge.att-doc{ background:#2563eb; }
+.att-badge.att-xls{ background:#16a34a; }
+.att-badge.att-pdf{ background:#dc2626; font-size:.68rem; }
+.att-meta{ flex:1 1 auto; min-width:0; }
+.att-name{ font-weight:600; color:var(--text-strong); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:.88rem; }
+.att-sub{ font-size:.74rem; color:var(--text-body); }
+.att-stage{ font-size:.7rem; color:var(--text-disabled); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.att-actions{ display:flex; gap:4px; flex:0 0 auto; }
+.att-btn{
+  width:30px; height:30px; border-radius:8px; border:1px solid var(--border-divider);
+  background:var(--bg-surface); color:var(--text-primary); display:flex; align-items:center; justify-content:center;
+}
+.att-btn:hover{ background:var(--bg-surface-hover); border-color:var(--accent-emphasis); color:var(--accent-emphasis); }
+.att-btn-danger:hover{ border-color:var(--action-danger); color:var(--action-danger); }
+.att-progress{ height:5px; border-radius:3px; background:var(--bg-surface-subtle); overflow:hidden; margin-top:4px; }
+.att-progress-bar{ height:100%; background:var(--accent-brand); transition:width .2s; }
+.att-empty{ font-size:.82rem; color:var(--text-disabled); text-align:center; padding:6px 0; }
+.att-viewer iframe{ width:100%; height:calc(100vh - var(--topbar-h, 64px) - 120px); border:0; background:#525659; display:block; }
+#tabAttachView .att-tab-name{ display:inline-block; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
+#tabAttachView .att-tab-close{ margin-left:6px; padding:0 4px; border-radius:4px; font-weight:700; }
+#tabAttachView .att-tab-close:hover{ background:rgba(220,38,38,.15); color:#dc2626; }
+body.dark-mode .att-drop{ background:rgba(255,255,255,.03); }
+body.dark-mode .att-row, body.dark-mode .att-btn{ background:transparent; }

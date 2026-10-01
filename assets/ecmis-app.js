@@ -7884,139 +7884,17 @@ if (typeof localStorage !== 'undefined') {
   const ATTACH_SKIP_PAGES = ['meeting-docs.html', 'agenda-meeting-docs.html', 'board-detail.html', 'meeting-report.html'];
 
   function attachExt(name) { const m = /\.([A-Za-z0-9]+)$/.exec(name || ''); return m ? m[1].toLowerCase() : ''; }
-  function attachIcon(ext) {
-    if (ext === 'pdf') return '<i class="fa-solid fa-file-pdf" style="color:#dc2626"></i>';
-    if (ext === 'xls' || ext === 'xlsx') return '<i class="fa-solid fa-file-excel" style="color:#16a34a"></i>';
-    if (ext === 'doc' || ext === 'docx') return '<i class="fa-solid fa-file-word" style="color:#2563eb"></i>';
-    return '<i class="fa-solid fa-file-lines"></i>';
-  }
   function attachStageOf(path) {
     const parts = String(path || '').split('/');
     return parts.length >= 3 && /^[0-9]{3}$/.test(parts[1]) ? parts[1] : null;
   }
 
-  async function initAttachmentCard(opts) {
-    const o = opts || {};
-    const sb = o.sb || getSupabaseClient();
-    const role = o.role || currentRole();
-    const mountAfter = o.mountAfter;
-    if (!sb || !role || !mountAfter || !o.tccId) return null;
-    const old = document.getElementById('attachExtraCard');
-    if (old) old.remove();
-
-    const card = document.createElement('div');
-    card.className = 'ws-card mb-3';
-    card.id = 'attachExtraCard';
-    card.innerHTML = `<div class="card-header"><i class="fa-solid fa-paperclip"></i> เอกสารแนบเพิ่มเติม
-        <span class="ms-2 small text-muted">(Word / Excel / PDF ไม่เกิน 10 MB)</span></div>
-      <div class="card-body">
-        <div id="attachExtraList" class="small mb-2">กำลังโหลด...</div>
-        <div id="attachExtraUpload" class="d-none">
-          <div class="input-group input-group-sm">
-            <input type="file" id="attachExtraInput" class="form-control" accept=".doc,.docx,.xls,.xlsx,.pdf" multiple>
-            <button type="button" id="attachExtraBtn" class="btn btn-outline-primary text-nowrap"><i class="fa-solid fa-upload me-1"></i>อัปโหลด</button>
-          </div>
-        </div>
-        <div id="attachExtraNote" class="small text-muted mt-1"></div>
-      </div>`;
-    mountAfter.after(card);
-
-    const listEl = card.querySelector('#attachExtraList');
-    const upWrap = card.querySelector('#attachExtraUpload');
-    const noteEl = card.querySelector('#attachExtraNote');
-    let statusCode = o.statusCode || null;
-
-    async function refreshStatus() {
-      try {
-        const { data } = await sb.from('tbl_res_request').select('trr_status').eq('tcc_id', o.tccId).eq('is_deleted', false).maybeSingle();
-        if (data && data.trr_status) statusCode = data.trr_status;
-      } catch (e) { /* ใช้ค่าที่ส่งมา */ }
-    }
-    const canUpload = () => !!statusCode && canAct({ status: CODE_STATUS[statusCode] || statusCode }, role.id);
-
-    async function render() {
-      const { data, error } = await sb.from('tbl_res_attachment').select('*')
-        .eq('tcc_id', o.tccId).eq('is_deleted', false).order('created_datetime', { ascending: false });
-      if (error) { listEl.textContent = 'โหลดรายการเอกสารแนบไม่สำเร็จ'; console.error(error); return; }
-      const rows = await Promise.all((data || []).map(async a => {
-        const { data: signed } = await sb.storage.from('case-documents').createSignedUrl(a.trat_storage_path, 3600);
-        const url = signed && signed.signedUrl ? signed.signedUrl : '#';
-        const ext = attachExt(a.trat_filename);
-        const stage = attachStageOf(a.trat_storage_path);
-        const stageLabel = stage && STATUS[CODE_STATUS[stage]] ? STATUS[CODE_STATUS[stage]].label : '';
-        const upRole = (getRole(a.trat_uploaded_by_role) || {}).title || a.trat_uploaded_by_role || '';
-        const sizeKb = a.trat_size_bytes ? Math.max(1, Math.round(a.trat_size_bytes / 1024)) + ' KB' : '';
-        const mine = ATTACH_DELETE_ENABLED && a.trat_uploaded_by_role === role.id && !!stage && stage === statusCode;
-        return `<div class="d-flex align-items-start gap-2 py-1 border-bottom">
-          <span class="pt-1">${attachIcon(ext)}</span>
-          <div class="flex-grow-1" style="min-width:0">
-            <a href="${url}" target="_blank" rel="noopener" style="word-break:break-all">${escapeHtml(a.trat_filename)}</a>
-            <div class="text-muted" style="font-size:.74rem">${sizeKb}${upRole ? ' · ' + escapeHtml(upRole) : ''}${stageLabel ? ' · ขั้น: ' + escapeHtml(stageLabel) : ''}</div>
-          </div>
-          ${mine ? `<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" data-del="${a.trat_id}" title="ลบไฟล์ที่ตัวเองอัปโหลด"><i class="fa-solid fa-trash"></i></button>` : ''}
-        </div>`;
-      }));
-      listEl.innerHTML = rows.length ? rows.join('') : '<span class="text-muted">ยังไม่มีเอกสารแนบเพิ่มเติม</span>';
-      upWrap.classList.toggle('d-none', !canUpload());
-      noteEl.textContent = canUpload() ? '' : 'เฉพาะผู้ที่ดำเนินการในขั้นนี้เท่านั้นที่อัปโหลดเอกสารเพิ่มได้';
-    }
-
-    card.addEventListener('click', async ev => {
-      const del = ev.target.closest('[data-del]');
-      if (!del) return;
-      const r = await confirmAction({ title: 'ลบเอกสารแนบ', html: '<p>ต้องการลบไฟล์นี้ใช่หรือไม่?</p>', confirmText: 'ลบไฟล์', danger: true });
-      if (!r.isConfirmed) return;
-      const { data, error } = await sb.from('tbl_res_attachment').update({ is_deleted: true }).eq('trat_id', del.dataset.del).select();
-      if (error || !data || !data.length) { toastWarn(error ? 'ลบไฟล์ไม่สำเร็จ' : ATTACH_DELETE_BLOCKED_MSG); console.error(error); return; }
-      toastOk('ลบเอกสารแนบแล้ว');
-      render();
-    });
-
-    card.querySelector('#attachExtraBtn').addEventListener('click', async () => {
-      const input = card.querySelector('#attachExtraInput');
-      const files = Array.from(input.files || []);
-      if (!files.length) { toastWarn('กรุณาเลือกไฟล์ก่อน'); return; }
-      const bad = files.find(f => !ATTACH_EXTS.includes(attachExt(f.name)) || f.size > ATTACH_MAX_BYTES || f.size === 0);
-      if (bad) {
-        toastWarn(!ATTACH_EXTS.includes(attachExt(bad.name))
-          ? `"${bad.name}" ไม่ใช่ไฟล์ Word / Excel / PDF`
-          : `"${bad.name}" ว่างเปล่าหรือใหญ่เกิน 10 MB`);
-        return;
-      }
-      await refreshStatus();
-      if (!canUpload()) { toastWarn('สำนวนเปลี่ยนขั้นแล้ว — ไม่สามารถอัปโหลดในขั้นนี้ได้'); render(); return; }
-      try {
-        for (const f of files) {
-          const path = `${o.tccId}/${statusCode}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${attachExt(f.name)}`;
-          const { error: upErr } = await sb.storage.from('case-documents').upload(path, f, { contentType: f.type || undefined });
-          if (upErr) throw upErr;
-          const { error: insErr } = await sb.from('tbl_res_attachment').insert({
-            tcc_id: o.tccId, trr_id: o.trrId || null, trat_filename: f.name, trat_storage_path: path,
-            trat_mime_type: f.type || null, trat_size_bytes: f.size, trat_uploaded_by_role: role.id
-          });
-          if (insErr) throw insErr;
-        }
-        input.value = '';
-        toastOk(`อัปโหลดเอกสารแนบ ${files.length} ไฟล์แล้ว`);
-        render();
-      } catch (err) {
-        console.error('อัปโหลดเอกสารแนบไม่สำเร็จ:', err);
-        toastWarn('อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง');
-      }
-    });
-
-    await refreshStatus();
-    await render();
-    return card;
-  }
-
-  /* ---------- แบบทันสมัย (ทดลองหน้าเดียวก่อน — ATTACH_MODERN_PAGES) ----------
+  /* ---------- หน้าตาการ์ด (ใช้ทุกหน้า ตั้งแต่ 2026-10-01 — ผู้ใช้ยืนยันหลังทดลองที่ affairs-case-detail/chairman-agenda) ----------
      ตามภาพอ้างอิงของผู้ใช้ (2026-10-01): ① กล่องลากวางแนวนอน ② บรรทัดชนิดไฟล์ที่รับ ③ ปุ่ม "อัปโหลด" ทางขวา
      ④ แถบสรุป "อัปโหลดแล้ว x จาก y ไฟล์" พับ/ขยายได้ ⑤ แถวไฟล์ที่กำลังอัป: ชื่อ+ขนาด, % + ✓, แถบความคืบหน้าเต็มความกว้าง
         (น้ำเงิน = กำลังอัป, เขียว = เสร็จ, แดง = ไม่สำเร็จ) และ × ยกเลิก/ซ่อนแถว
      ใต้ลงมาเป็นรายการ "เอกสารแนบของสำนวน" ที่อัปแล้ว — มีแค่ปุ่มลบ (ไฟล์ที่บทบาทตัวเองอัปในขั้นเดียวกัน) ไม่มีดู/ดาวน์โหลดในการ์ด (ผู้ใช้เลือก 2026-10-01)
      อัปโหลดผ่าน XHR ตรงไป Storage REST เพราะ supabase-js ไม่มี progress event และยกเลิก (abort) ได้ */
-  const ATTACH_MODERN_PAGES = ['affairs-case-detail.html', 'chairman-agenda.html'];
 
   function attachBadge(ext) {
     if (ext === 'pdf') return '<span class="att-badge att-pdf">PDF</span>';
@@ -8052,7 +7930,7 @@ if (typeof localStorage !== 'undefined') {
     return { xhr, promise };
   }
 
-  async function initAttachmentCardModern(opts) {
+  async function initAttachmentCard(opts) {
     const o = opts || {};
     const sb = o.sb || getSupabaseClient();
     const role = o.role || currentRole();
@@ -8275,8 +8153,7 @@ if (typeof localStorage !== 'undefined') {
           tccId = data && data.tcc_id;
         }
         if (!tccId) return; /* สำนวนจำลองที่ไม่มีใน DB — ไม่มีที่เก็บไฟล์ */
-        const init = ATTACH_MODERN_PAGES.includes(page) ? initAttachmentCardModern : initAttachmentCard;
-        await init({ sb, tccId, trrId, mountAfter: first, statusCode: kase && STATUS_CODE[kase.status] });
+        await initAttachmentCard({ sb, tccId, trrId, mountAfter: first, statusCode: kase && STATUS_CODE[kase.status] });
       } catch (e) { console.warn('แสดงการ์ดเอกสารแนบไม่สำเร็จ:', e); }
     }, 250);
   }
@@ -8285,7 +8162,7 @@ if (typeof localStorage !== 'undefined') {
   }
 
   global.ECMIS = {
-  initAttachmentCard, initAttachmentCardModern,
+  initAttachmentCard,
   ROLES, STATUS, STATUS_CODE, CODE_STATUS, STATUS_STEP, FLOW_STEPS, APPROVAL_CHAIN,
   buildChainOpinions, supabaseRowToCase, toBuddhistFakeIso, addDaysToDateStr, addYearsToDateStr,
   upcomingDeadlines, pageForCase,

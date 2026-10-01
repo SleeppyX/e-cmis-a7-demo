@@ -1779,7 +1779,7 @@ a, button, .btn, .card, .kpi-card, .form-control, .form-select, .badge, .st,
 .law-row .law-page { color: #64748B; font-size: .76rem; }
 .law-row .law-kind { display: inline-block; margin-left: .25rem; padding: 0 .4rem; border-radius: 4px; background: #FEF3C7; color: #92400E; font-size: .72rem; font-weight: 600; }
 
-/* ===== เอกสารแนบเพิ่มเติม — แบบทันสมัย (ECMIS.initAttachmentCardModern) ตามภาพอ้างอิงผู้ใช้ 2026-10-01 ===== */
+/* ===== เอกสารแนบเพิ่มเติม (ECMIS.initAttachmentCard) ตามภาพอ้างอิงผู้ใช้ 2026-10-01 ===== */
 .att-count:not(:empty){
   display:inline-block; min-width:20px; padding:0 6px; margin-left:6px; border-radius:10px;
   background:var(--accent-emphasis); color:#fff; font-size:.72rem; line-height:18px; text-align:center; font-weight:600;

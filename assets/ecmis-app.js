@@ -7877,9 +7877,10 @@ if (typeof localStorage !== 'undefined') {
      หน้าระดับ "การประชุม" (meeting-docs ฯลฯ) ยังไม่ผูก — ตาราง/คอลัมน์ผูกสำนวนเท่านั้น */
   const ATTACH_EXTS = ['doc', 'docx', 'xls', 'xlsx', 'pdf'];
   const ATTACH_MAX_BYTES = 10 * 1024 * 1024;
-  /* ปุ่มลบไฟล์แนบ: ตาราง tbl_res_attachment ยังไม่มี RLS policy สำหรับ UPDATE (anon key PATCH ได้ 200/[] ไม่เปลี่ยนแถว)
-     ให้ DBA เพิ่ม policy ตาม docs/memory/plans/2026-10-01-attachments-upload.md แล้วค่อยเปลี่ยนเป็น true */
-  const ATTACH_DELETE_ENABLED = false;
+  /* ปุ่มลบไฟล์แนบ (soft-delete): ต้องมี RLS policy UPDATE บน tbl_res_attachment — ถ้ายังไม่มี anon key PATCH ได้ 200/[]
+     ไม่เปลี่ยนแถว ปุ่มจะแจ้งว่าฐานข้อมูลยังไม่เปิดสิทธิ์ลบ (SQL ใน docs/memory/plans/2026-10-01-attachments-upload.md) */
+  const ATTACH_DELETE_ENABLED = true;
+  const ATTACH_DELETE_BLOCKED_MSG = 'ลบไม่สำเร็จ — ฐานข้อมูลยังไม่เปิดสิทธิ์ลบไฟล์แนบ (รอผู้ดูแลระบบเพิ่มสิทธิ์)';
   const ATTACH_SKIP_PAGES = ['meeting-docs.html', 'agenda-meeting-docs.html', 'board-detail.html', 'meeting-report.html'];
 
   function attachExt(name) { const m = /\.([A-Za-z0-9]+)$/.exec(name || ''); return m ? m[1].toLowerCase() : ''; }
@@ -7966,7 +7967,7 @@ if (typeof localStorage !== 'undefined') {
       const r = await confirmAction({ title: 'ลบเอกสารแนบ', html: '<p>ต้องการลบไฟล์นี้ใช่หรือไม่?</p>', confirmText: 'ลบไฟล์', danger: true });
       if (!r.isConfirmed) return;
       const { data, error } = await sb.from('tbl_res_attachment').update({ is_deleted: true }).eq('trat_id', del.dataset.del).select();
-      if (error || !data || !data.length) { toastWarn('ลบไฟล์ไม่สำเร็จ'); console.error(error); return; }
+      if (error || !data || !data.length) { toastWarn(error ? 'ลบไฟล์ไม่สำเร็จ' : ATTACH_DELETE_BLOCKED_MSG); console.error(error); return; }
       toastOk('ลบเอกสารแนบแล้ว');
       render();
     });
@@ -8013,7 +8014,7 @@ if (typeof localStorage !== 'undefined') {
      ตามภาพอ้างอิงของผู้ใช้ (2026-10-01): ① กล่องลากวางแนวนอน ② บรรทัดชนิดไฟล์ที่รับ ③ ปุ่ม "อัปโหลด" ทางขวา
      ④ แถบสรุป "อัปโหลดแล้ว x จาก y ไฟล์" พับ/ขยายได้ ⑤ แถวไฟล์ที่กำลังอัป: ชื่อ+ขนาด, % + ✓, แถบความคืบหน้าเต็มความกว้าง
         (น้ำเงิน = กำลังอัป, เขียว = เสร็จ, แดง = ไม่สำเร็จ) และ × ยกเลิก/ซ่อนแถว
-     ใต้ลงมาเป็นรายการ "เอกสารแนบของสำนวน" ที่อัปแล้ว: PDF กดดูในแผงเอกสารขวาเป็นแท็บ / ทุกชนิดดาวน์โหลดได้
+     ใต้ลงมาเป็นรายการ "เอกสารแนบของสำนวน" ที่อัปแล้ว — มีแค่ปุ่มลบ (ไฟล์ที่บทบาทตัวเองอัปในขั้นเดียวกัน) ไม่มีดู/ดาวน์โหลดในการ์ด (ผู้ใช้เลือก 2026-10-01)
      อัปโหลดผ่าน XHR ตรงไป Storage REST เพราะ supabase-js ไม่มี progress event และยกเลิก (abort) ได้ */
   const ATTACH_MODERN_PAGES = ['affairs-case-detail.html', 'chairman-agenda.html'];
 
@@ -8049,51 +8050,6 @@ if (typeof localStorage !== 'undefined') {
       xhr.send(file);
     });
     return { xhr, promise };
-  }
-
-  /* แท็บ "ไฟล์แนบ" ในแผงเอกสารขวา — ซ่อนกระดาษ/แถบเลื่อนหน้าไว้ระหว่างดู แล้วคืนเมื่อกดแท็บอื่น */
-  function openAttachInDocPane(url, filename) {
-    const tabs = document.getElementById('docTabs');
-    const stage = document.getElementById('docPaperStage');
-    if (!tabs || !stage) { window.open(url, '_blank', 'noopener'); return; }
-    const pager = document.getElementById('docPaginationBar');
-    let viewer = document.getElementById('attachViewer');
-    if (!viewer) {
-      viewer = document.createElement('div');
-      viewer.id = 'attachViewer';
-      viewer.className = 'att-viewer d-none';
-      stage.after(viewer);
-      tabs.addEventListener('click', ev => {
-        const t = ev.target.closest('.ws-doc-tab');
-        if (!t || t.id === 'tabAttachView') return;
-        viewer.classList.add('d-none');
-        stage.classList.remove('d-none');
-        if (pager) pager.classList.remove('d-none');
-      }, true);
-    }
-    let tab = document.getElementById('tabAttachView');
-    if (!tab) {
-      tab = document.createElement('button');
-      tab.type = 'button';
-      tab.className = 'ws-doc-tab';
-      tab.id = 'tabAttachView';
-      tabs.appendChild(tab);
-      tab.addEventListener('click', ev => {
-        if (ev.target.closest('.att-tab-close')) {
-          tab.remove(); viewer.classList.add('d-none');
-          stage.classList.remove('d-none'); if (pager) pager.classList.remove('d-none');
-          const first = tabs.querySelector('.ws-doc-tab'); if (first) first.click();
-          return;
-        }
-        tabs.querySelectorAll('.ws-doc-tab').forEach(b => b.classList.remove('active'));
-        tab.classList.add('active');
-        viewer.classList.remove('d-none');
-        stage.classList.add('d-none'); if (pager) pager.classList.add('d-none');
-      });
-    }
-    tab.innerHTML = `<i class="fa-solid fa-paperclip me-1"></i><span class="att-tab-name">${escapeHtml(filename)}</span><span class="att-tab-close" title="ปิด">&times;</span>`;
-    viewer.innerHTML = `<iframe src="${url}" title="${escapeHtml(filename)}"></iframe>`;
-    tab.click();
   }
 
   async function initAttachmentCardModern(opts) {
@@ -8186,38 +8142,21 @@ if (typeof localStorage !== 'undefined') {
             <div class="att-name" title="${escapeHtml(a.trat_filename)}">${escapeHtml(a.trat_filename)} <span class="att-size">${attachSize(a.trat_size_bytes)}</span></div>
             <div class="att-sub">${upRole ? escapeHtml(upRole) : ''}${a.created_datetime ? ' · ' + attachWhen(a.created_datetime) : ''}${stageLabel ? ' · ขั้น: ' + escapeHtml(stageLabel) : ''}</div>
           </div>
-          <div class="att-actions">
-            ${ext === 'pdf' ? `<button type="button" class="att-btn" data-view="${a.trat_id}" title="เปิดดูในแผงเอกสาร"><i class="fa-solid fa-eye"></i></button>` : ''}
-            <button type="button" class="att-btn" data-dl="${a.trat_id}" title="ดาวน์โหลด"><i class="fa-solid fa-download"></i></button>
-            ${mine ? `<button type="button" class="att-btn att-btn-danger" data-del="${a.trat_id}" title="ลบไฟล์ที่ตัวเองอัปโหลด"><i class="fa-solid fa-trash"></i></button>` : ''}
-          </div>
+          ${mine ? `<div class="att-actions"><button type="button" class="att-btn att-btn-danger" data-del="${a.trat_id}" title="ลบไฟล์ที่ตัวเองอัปโหลด"><i class="fa-solid fa-trash"></i></button></div>` : ''}
         </div>`;
       }).join('') : '<div class="att-empty"><i class="fa-regular fa-folder-open me-1"></i>ยังไม่มีเอกสารแนบ</div>';
-      listEl._files = files;
       const ok = canUpload();
       drop.classList.toggle('d-none', !ok);
       card.querySelector('#attLocked').classList.toggle('d-none', ok);
     }
 
-    function fileById(id) { return (listEl._files || []).find(f => String(f.trat_id) === String(id)); }
-
     listEl.addEventListener('click', async ev => {
-      const b = ev.target.closest('[data-view],[data-dl],[data-del]');
+      const b = ev.target.closest('[data-del]');
       if (!b) return;
-      if (b.dataset.view || b.dataset.dl) {
-        const a = fileById(b.dataset.view || b.dataset.dl);
-        if (!a) return;
-        const { data: signed, error } = await sb.storage.from('case-documents')
-          .createSignedUrl(a.trat_storage_path, 3600, b.dataset.dl ? { download: a.trat_filename } : undefined);
-        if (error || !signed) { toastWarn('เปิดไฟล์ไม่สำเร็จ'); return; }
-        if (b.dataset.view) openAttachInDocPane(signed.signedUrl, a.trat_filename);
-        else { const l = document.createElement('a'); l.href = signed.signedUrl; l.rel = 'noopener'; document.body.appendChild(l); l.click(); l.remove(); }
-        return;
-      }
       const r = await confirmAction({ title: 'ลบเอกสารแนบ', html: '<p>ต้องการลบไฟล์นี้ใช่หรือไม่?</p>', confirmText: 'ลบไฟล์', danger: true });
       if (!r.isConfirmed) return;
       const { data, error } = await sb.from('tbl_res_attachment').update({ is_deleted: true }).eq('trat_id', b.dataset.del).select();
-      if (error || !data || !data.length) { toastWarn('ลบไฟล์ไม่สำเร็จ'); return; }
+      if (error || !data || !data.length) { toastWarn(error ? 'ลบไฟล์ไม่สำเร็จ' : ATTACH_DELETE_BLOCKED_MSG); return; }
       toastOk('ลบเอกสารแนบแล้ว'); render();
     });
 

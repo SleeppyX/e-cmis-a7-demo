@@ -1862,10 +1862,6 @@ a, button, .btn, .card, .kpi-card, .form-control, .form-select, .badge, .st,
 .att-btn:hover{ background:var(--bg-surface-hover); border-color:var(--accent-emphasis); color:var(--accent-emphasis); }
 .att-btn-danger:hover{ border-color:var(--action-danger); color:var(--action-danger); }
 .att-empty{ font-size:.82rem; color:var(--text-disabled); text-align:center; padding:6px 0; }
-.att-viewer iframe{ width:100%; height:calc(100vh - var(--topbar-h, 64px) - 120px); border:0; background:#525659; display:block; }
-#tabAttachView .att-tab-name{ display:inline-block; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
-#tabAttachView .att-tab-close{ margin-left:6px; padding:0 4px; border-radius:4px; font-weight:700; }
-#tabAttachView .att-tab-close:hover{ background:rgba(220,38,38,.15); color:#dc2626; }
 body.dark-mode .att-upload-btn{ border-color:#5ec8f2; color:#5ec8f2; }
 body.dark-mode .att-upload-btn:hover{ background:#5ec8f2; color:#0b1220; }
 body.dark-mode .att-summary{ color:#5ec8f2; }

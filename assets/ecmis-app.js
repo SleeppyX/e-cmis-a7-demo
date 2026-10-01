@@ -8010,9 +8010,11 @@ if (typeof localStorage !== 'undefined') {
   }
 
   /* ---------- แบบทันสมัย (ทดลองหน้าเดียวก่อน — ATTACH_MODERN_PAGES) ----------
-     drop zone ลากวาง/คลิกเลือก → อัปโหลดทันทีพร้อมแถบความคืบหน้า (XHR ตรงไป Storage REST เพราะ supabase-js ไม่มี progress event)
-     รายการไฟล์เป็นแถวการ์ด: ป้ายชนิดสี (W/X/P), ขนาด, ผู้อัป, ขั้น, เวลา
-     PDF กด "ดู" เปิดในแผงเอกสารขวาเป็นแท็บ (iframe) / Word-Excel ดาวน์โหลดด้วยชื่อไฟล์จริง */
+     ตามภาพอ้างอิงของผู้ใช้ (2026-10-01): ① กล่องลากวางแนวนอน ② บรรทัดชนิดไฟล์ที่รับ ③ ปุ่ม "อัปโหลด" ทางขวา
+     ④ แถบสรุป "อัปโหลดแล้ว x จาก y ไฟล์" พับ/ขยายได้ ⑤ แถวไฟล์ที่กำลังอัป: ชื่อ+ขนาด, % + ✓, แถบความคืบหน้าเต็มความกว้าง
+        (น้ำเงิน = กำลังอัป, เขียว = เสร็จ, แดง = ไม่สำเร็จ) และ × ยกเลิก/ซ่อนแถว
+     ใต้ลงมาเป็นรายการ "เอกสารแนบของสำนวน" ที่อัปแล้ว: PDF กดดูในแผงเอกสารขวาเป็นแท็บ / ทุกชนิดดาวน์โหลดได้
+     อัปโหลดผ่าน XHR ตรงไป Storage REST เพราะ supabase-js ไม่มี progress event และยกเลิก (abort) ได้ */
   const ATTACH_MODERN_PAGES = ['affairs-case-detail.html'];
 
   function attachBadge(ext) {
@@ -8033,8 +8035,8 @@ if (typeof localStorage !== 'undefined') {
   }
 
   function uploadWithProgress(path, file, onProgress) {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
+    const xhr = new XMLHttpRequest();
+    const promise = new Promise((resolve, reject) => {
       xhr.open('POST', `${DEFAULT_SUPABASE_URL}/storage/v1/object/case-documents/${path}`);
       xhr.setRequestHeader('Authorization', `Bearer ${DEFAULT_SUPABASE_KEY}`);
       xhr.setRequestHeader('apikey', DEFAULT_SUPABASE_KEY);
@@ -8043,8 +8045,10 @@ if (typeof localStorage !== 'undefined') {
       xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total * 100)); };
       xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error(`HTTP ${xhr.status}: ${xhr.responseText}`));
       xhr.onerror = () => reject(new Error('network error'));
+      xhr.onabort = () => reject(new Error('aborted'));
       xhr.send(file);
     });
+    return { xhr, promise };
   }
 
   /* แท็บ "ไฟล์แนบ" ในแผงเอกสารขวา — ซ่อนกระดาษ/แถบเลื่อนหน้าไว้ระหว่างดู แล้วคืนเมื่อกดแท็บอื่น */
@@ -8103,26 +8107,40 @@ if (typeof localStorage !== 'undefined') {
     const card = document.createElement('div');
     card.className = 'ws-card mb-3 att-card';
     card.id = 'attachExtraCard';
-    card.innerHTML = `<div class="card-header"><i class="fa-solid fa-paperclip"></i> เอกสารแนบเพิ่มเติม <span class="att-count" id="attCount"></span></div>
+    card.innerHTML = `<div class="card-header"><i class="fa-solid fa-paperclip"></i> เอกสารแนบเพิ่มเติม</div>
       <div class="card-body">
-        <label class="att-drop d-none" id="attDrop" tabindex="0">
+        <div class="att-drop d-none" id="attDrop">
           <input type="file" id="attInput" accept=".doc,.docx,.xls,.xlsx,.pdf" multiple hidden>
-          <i class="fa-solid fa-cloud-arrow-up att-drop-icon"></i>
-          <div class="att-drop-title">ลากไฟล์มาวางที่นี่</div>
-          <div class="att-drop-sub">หรือ <span class="att-drop-link">เลือกไฟล์</span> จากเครื่อง</div>
-          <div class="att-drop-hint">Word · Excel · PDF &nbsp;|&nbsp; ไม่เกิน 10 MB ต่อไฟล์</div>
-        </label>
+          <div class="att-drop-text">
+            <div class="att-drop-title"><i class="fa-solid fa-file-arrow-up me-2"></i>ลากไฟล์มาวางที่นี่ หรือกดอัปโหลด</div>
+            <div class="att-drop-hint">รองรับไฟล์: DOC, DOCX, XLS, XLSX, PDF (ไม่เกิน 10 MB ต่อไฟล์)</div>
+          </div>
+          <button type="button" class="att-upload-btn" id="attPick">อัปโหลด</button>
+        </div>
         <div id="attLocked" class="att-locked d-none"><i class="fa-solid fa-lock me-1"></i>เฉพาะผู้ที่ดำเนินการในขั้นนี้เท่านั้นที่แนบเอกสารเพิ่มได้</div>
-        <div id="attPending"></div>
+
+        <div class="att-queue d-none" id="attQueue">
+          <button type="button" class="att-summary" id="attSummary" aria-expanded="true">
+            <i class="fa-solid fa-chevron-down att-chev"></i>
+            <span class="att-sum-icon" id="attSumIcon"></span>
+            <span id="attSumText"></span>
+          </button>
+          <div class="att-queue-rows" id="attQueueRows"></div>
+        </div>
+
+        <div class="att-section-title">เอกสารแนบของสำนวน <span class="att-count" id="attCount"></span></div>
         <div id="attList" class="att-list"><div class="att-empty">กำลังโหลด...</div></div>
       </div>`;
     o.mountAfter.after(card);
 
     const drop = card.querySelector('#attDrop');
     const input = card.querySelector('#attInput');
-    const pendingEl = card.querySelector('#attPending');
+    const queue = card.querySelector('#attQueue');
+    const queueRows = card.querySelector('#attQueueRows');
+    const summary = card.querySelector('#attSummary');
     const listEl = card.querySelector('#attList');
     let statusCode = o.statusCode || null;
+    const session = []; /* { row, state:'up'|'done'|'fail', xhr } */
 
     async function refreshStatus() {
       try {
@@ -8131,6 +8149,24 @@ if (typeof localStorage !== 'undefined') {
       } catch (e) { /* ใช้ค่าที่ส่งมา */ }
     }
     const canUpload = () => !!statusCode && canAct({ status: CODE_STATUS[statusCode] || statusCode }, role.id);
+
+    function renderSummary() {
+      const live = session.filter(s => s.row.isConnected);
+      queue.classList.toggle('d-none', !live.length);
+      if (!live.length) return;
+      const done = live.filter(s => s.state === 'done').length;
+      const busy = live.some(s => s.state === 'up');
+      const failed = live.filter(s => s.state === 'fail').length;
+      card.querySelector('#attSumIcon').innerHTML = busy
+        ? '<i class="fa-solid fa-circle-notch fa-spin"></i>'
+        : (failed ? '<i class="fa-solid fa-circle-exclamation att-ic-fail"></i>' : '<i class="fa-solid fa-circle-check att-ic-ok"></i>');
+      card.querySelector('#attSumText').textContent = `อัปโหลดแล้ว ${done} จาก ${live.length} ไฟล์` + (failed ? ` (ไม่สำเร็จ ${failed})` : '');
+    }
+    summary.addEventListener('click', () => {
+      const open = summary.getAttribute('aria-expanded') !== 'false';
+      summary.setAttribute('aria-expanded', open ? 'false' : 'true');
+      queueRows.classList.toggle('d-none', open);
+    });
 
     async function render() {
       const { data, error } = await sb.from('tbl_res_attachment').select('*')
@@ -8147,9 +8183,8 @@ if (typeof localStorage !== 'undefined') {
         return `<div class="att-row">
           ${attachBadge(ext)}
           <div class="att-meta">
-            <div class="att-name" title="${escapeHtml(a.trat_filename)}">${escapeHtml(a.trat_filename)}</div>
-            <div class="att-sub">${attachSize(a.trat_size_bytes)}${upRole ? ' · ' + escapeHtml(upRole) : ''}${a.created_datetime ? ' · ' + attachWhen(a.created_datetime) : ''}</div>
-            ${stageLabel ? `<div class="att-stage">ขั้น: ${escapeHtml(stageLabel)}</div>` : ''}
+            <div class="att-name" title="${escapeHtml(a.trat_filename)}">${escapeHtml(a.trat_filename)} <span class="att-size">${attachSize(a.trat_size_bytes)}</span></div>
+            <div class="att-sub">${upRole ? escapeHtml(upRole) : ''}${a.created_datetime ? ' · ' + attachWhen(a.created_datetime) : ''}${stageLabel ? ' · ขั้น: ' + escapeHtml(stageLabel) : ''}</div>
           </div>
           <div class="att-actions">
             ${ext === 'pdf' ? `<button type="button" class="att-btn" data-view="${a.trat_id}" title="เปิดดูในแผงเอกสาร"><i class="fa-solid fa-eye"></i></button>` : ''}
@@ -8157,7 +8192,7 @@ if (typeof localStorage !== 'undefined') {
             ${mine ? `<button type="button" class="att-btn att-btn-danger" data-del="${a.trat_id}" title="ลบไฟล์ที่ตัวเองอัปโหลด"><i class="fa-solid fa-trash"></i></button>` : ''}
           </div>
         </div>`;
-      }).join('') : '<div class="att-empty"><i class="fa-regular fa-folder-open me-1"></i>ยังไม่มีเอกสารแนบเพิ่มเติม</div>';
+      }).join('') : '<div class="att-empty"><i class="fa-regular fa-folder-open me-1"></i>ยังไม่มีเอกสารแนบ</div>';
       listEl._files = files;
       const ok = canUpload();
       drop.classList.toggle('d-none', !ok);
@@ -8186,50 +8221,81 @@ if (typeof localStorage !== 'undefined') {
       toastOk('ลบเอกสารแนบแล้ว'); render();
     });
 
+    /* × ในแถวคิว: กำลังอัป = ยกเลิก (abort) / เสร็จหรือไม่สำเร็จ = ซ่อนแถว */
+    queueRows.addEventListener('click', ev => {
+      const x = ev.target.closest('.att-q-close');
+      if (!x) return;
+      const s = session.find(it => it.row === x.closest('.att-q-row'));
+      if (!s) return;
+      if (s.state === 'up' && s.xhr) { s.xhr.abort(); return; }
+      s.row.remove(); renderSummary();
+    });
+
+    function queueRow(f) {
+      const row = document.createElement('div');
+      row.className = 'att-q-row';
+      row.innerHTML = `<div class="att-q-head">
+          <i class="fa-solid fa-file att-q-file"></i>
+          <span class="att-q-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
+          <span class="att-q-size">${attachSize(f.size)}</span>
+          <span class="att-q-pct">0%</span>
+        </div>
+        <div class="att-q-bar"><div class="att-q-fill" style="width:0%"></div></div>
+        <div class="att-q-msg"></div>
+        <button type="button" class="att-q-close" title="ยกเลิก / ซ่อน"><i class="fa-solid fa-xmark"></i></button>`;
+      queueRows.prepend(row);
+      return row;
+    }
+
     async function handleFiles(fileList) {
       const files = Array.from(fileList || []);
       if (!files.length) return;
       await refreshStatus();
       if (!canUpload()) { toastWarn('สำนวนเปลี่ยนขั้นแล้ว — ไม่สามารถแนบเอกสารในขั้นนี้ได้'); render(); return; }
+      summary.setAttribute('aria-expanded', 'true'); queueRows.classList.remove('d-none');
+      const jobs = files.map(f => ({ f, s: { row: queueRow(f), state: 'up', xhr: null } }));
+      jobs.forEach(j => session.push(j.s));
+      renderSummary();
       let okCount = 0;
-      for (const f of files) {
+      await Promise.all(jobs.map(async ({ f, s }) => {
         const ext = attachExt(f.name);
-        const row = document.createElement('div');
-        row.className = 'att-row att-row-pending';
-        row.innerHTML = `${attachBadge(ext)}<div class="att-meta"><div class="att-name">${escapeHtml(f.name)}</div>
-          <div class="att-sub">${attachSize(f.size)} · <span class="att-state">กำลังอัปโหลด...</span></div>
-          <div class="att-progress"><div class="att-progress-bar" style="width:0%"></div></div></div>`;
-        pendingEl.appendChild(row);
-        const bar = row.querySelector('.att-progress-bar');
-        const state = row.querySelector('.att-state');
-        const fail = msg => { row.classList.add('att-row-error'); state.textContent = msg; bar.style.width = '100%'; setTimeout(() => row.remove(), 6000); };
-        if (!ATTACH_EXTS.includes(ext)) { fail('ไม่รองรับ — ใช้ได้เฉพาะ Word / Excel / PDF'); continue; }
-        if (!f.size) { fail('ไฟล์ว่างเปล่า'); continue; }
-        if (f.size > ATTACH_MAX_BYTES) { fail('ใหญ่เกิน 10 MB'); continue; }
+        const pct = s.row.querySelector('.att-q-pct');
+        const fill = s.row.querySelector('.att-q-fill');
+        const msg = s.row.querySelector('.att-q-msg');
+        const fail = text => { s.state = 'fail'; s.row.classList.add('is-fail'); pct.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i>'; fill.style.width = '100%'; msg.textContent = text; renderSummary(); };
+        if (!ATTACH_EXTS.includes(ext)) return fail('ไม่รองรับ — ใช้ได้เฉพาะ Word / Excel / PDF');
+        if (!f.size) return fail('ไฟล์ว่างเปล่า');
+        if (f.size > ATTACH_MAX_BYTES) return fail('ไฟล์ใหญ่เกิน 10 MB');
         try {
           const path = `${o.tccId}/${statusCode}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-          await uploadWithProgress(path, f, p => { bar.style.width = p + '%'; state.textContent = `กำลังอัปโหลด ${p}%`; });
+          const up = uploadWithProgress(path, f, p => { fill.style.width = p + '%'; pct.textContent = p + '%'; });
+          s.xhr = up.xhr;
+          await up.promise;
           const { error: insErr } = await sb.from('tbl_res_attachment').insert({
             tcc_id: o.tccId, trr_id: o.trrId || null, trat_filename: f.name, trat_storage_path: path,
             trat_mime_type: f.type || null, trat_size_bytes: f.size, trat_uploaded_by_role: role.id
           });
           if (insErr) throw insErr;
+          s.state = 'done'; s.row.classList.add('is-done');
+          fill.style.width = '100%';
+          pct.innerHTML = '100% <i class="fa-solid fa-circle-check"></i>';
           okCount++;
-          row.remove();
+          renderSummary();
         } catch (err) {
+          if (String(err && err.message) === 'aborted') return fail('ยกเลิกการอัปโหลดแล้ว');
           console.error('อัปโหลดเอกสารแนบไม่สำเร็จ:', err);
-          fail('อัปโหลดไม่สำเร็จ');
+          fail('อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง');
         }
-      }
+      }));
       input.value = '';
-      if (okCount) { toastOk(`แนบเอกสาร ${okCount} ไฟล์แล้ว`); render(); }
+      if (okCount) render();
     }
 
+    card.querySelector('#attPick').addEventListener('click', () => input.click());
     input.addEventListener('change', () => handleFiles(input.files));
     ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('is-over'); }));
     ['dragleave', 'dragend', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('is-over'); }));
     drop.addEventListener('drop', e => handleFiles(e.dataTransfer && e.dataTransfer.files));
-    drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
 
     await refreshStatus();
     await render();

@@ -304,6 +304,7 @@
     const returnInboxUrl = 'support-subcommittee-inbox.html';
     let kase = null, docType, isRuling, is72Track;
     let pageReadOnly = false;
+    let notInSupportStage = false;
 
     const TEAMS = [
       { code: 'TEAM1', label: 'คณะที่ 1' },
@@ -337,8 +338,13 @@
       // ตรวจสอบว่าสำนวนได้รับการกลั่นกรองและส่งต่อแล้ว หรือส่งคืนต้นทางแล้ว หรือรอข้อมูลเพิ่มหรือไม่ ถ้าใช่ให้เปิดโหมด Read-only ล็อกข้อมูล
       if (kase.status === 'PENDING_SECGEN' || kase.status === 'PENDING_SECGEN_72' || kase.status === 'SIGNED' || kase.status === 'DONE' || kase.status === 'RETURNED' || kase.status === 'RETURNED_72' || pageReadOnly) {
         pageReadOnly = true;
+      } else if (kase.status === 'PENDING_SUBCOMMITTEE') {
+        kase.status = is72Track ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB'; /* สถานะเก่าของ mock ที่หมายถึงรอกลั่นกรอง */
       } else if (kase.status !== 'IN_SUPPORT_SUB' && kase.status !== 'IN_SUPPORT_SUB_72') {
-        kase.status = is72Track ? 'IN_SUPPORT_SUB_72' : 'IN_SUPPORT_SUB';
+        /* 2026-10-01: เดิมบังคับสถานะในหน่วยความจำเป็น IN_SUPPORT_SUB ทุกเคส ทำให้ป้าย/แถบขั้นตอนแสดงสถานะปลอม
+           และถ้ากดส่งความเห็นจะย้ายสถานะจริงใน DB ผิดทาง — ตอนนี้แสดงสถานะจริงและเปิดแบบอ่านอย่างเดียว */
+        pageReadOnly = true;
+        notInSupportStage = !(kase.supportOpinion || kase.supportOpinion72 || kase.supportDecision);
       }
 
       renderPage();
@@ -526,6 +532,9 @@
         if (kase.statusCat === 'MORE_INFO' || kase.triggerType === 'MORE_INFO') {
           banner.className = 'alert alert-info d-flex align-items-center gap-2 mb-3 py-2 px-3';
           banner.innerHTML = `<i class="fa-solid fa-file-circle-question text-info"></i><span><strong>สำนวนนี้อยู่ระหว่างรอข้อมูลเพิ่มเติมจากเจ้าของสำนวน (โหมดดูรายละเอียด / อ่านอย่างเดียว)</strong> ระบบล็อกข้อมูลไม่ให้แก้ไข</span>`;
+        } else if (notInSupportStage) {
+          banner.className = 'alert alert-secondary d-flex align-items-center gap-2 mb-3 py-2 px-3';
+          banner.innerHTML = `<i class="fa-solid fa-circle-info text-secondary"></i><span><strong>สำนวนนี้ไม่ได้อยู่ในขั้นคณะอนุกรรมการสนับสนุนฯ</strong> — สถานะปัจจุบัน: ${(ECMIS.STATUS[kase.status] || {}).label || kase.status} (ดูได้อย่างเดียว)</span>`;
         } else if (kase.status === 'RETURNED' || kase.status === 'RETURNED_72' || kase.statusCat === 'RETURNED') {
           banner.className = 'alert alert-danger d-flex align-items-center gap-2 mb-3 py-2 px-3';
           banner.innerHTML = `<i class="fa-solid fa-arrow-left-long text-danger"></i><span><strong>สำนวนนี้ส่งคืนสายงานต้นทาง (กจ.5) แล้ว (โหมดดูรายละเอียด / อ่านอย่างเดียว)</strong> ระบบล็อกข้อมูลไม่ให้แก้ไข</span>`;

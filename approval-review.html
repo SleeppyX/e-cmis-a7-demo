@@ -586,15 +586,17 @@
         if (act === 'certifyReject') {
           ECMIS.confirmAction({
             title: 'ไม่เห็นด้วยว่าด่วน',
-            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกปรับกลับเข้าเส้นทางกลั่นกรองปกติ (ไม่บรรจุวาระด่วน)</p>`,
+            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกปรับกลับเข้า${ECMIS.isCase73(kase) ? 'คิวประธานฯ ตามขั้นตอนปกติ (เรื่องทั่วไป/กกม. ไม่มีคณะอนุกลั่นกรองฯ)' : 'เส้นทางกลั่นกรองปกติ'} (ไม่บรรจุวาระด่วน)</p>`,
             confirmText: 'ยืนยันไม่รับรอง'
           }).then(async res => {
             if (!res.isConfirmed) return;
             try {
-              await persistCase(kase, { status: 'IN_SCREENING', urgent: false });
+              /* 7.3 ไม่มีคณะอนุกลั่นกรองฯ — ไม่รับรองด่วนแล้วกลับเข้าคิวประธานฯ แบบไม่ด่วน (URGENT_REJECT_73) */
+              const rejectTo = ECMIS.isCase73(kase) ? 'PENDING_CHAIRMAN' : 'IN_SCREENING';
+              await persistCase(kase, { status: rejectTo, urgent: false });
               ECMIS.pushCaseHistory(kase, {
-                action: 'URGENT_REJECT',
-                status: 'IN_SCREENING'
+                action: ECMIS.isCase73(kase) ? 'URGENT_REJECT_73' : 'URGENT_REJECT',
+                status: rejectTo
               });
               ECMIS.saveCases();
             } catch (err) {
@@ -602,7 +604,7 @@
               ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
               return;
             }
-            ECMIS.toastOk('ปรับเข้าสู่เส้นทางกลั่นกรองปกติแล้ว');
+            ECMIS.toastOk(ECMIS.isCase73(kase) ? 'ปรับเป็นเรื่องไม่ด่วนแล้ว — เข้าคิวประธานฯ ตามขั้นตอนปกติ' : 'ปรับเข้าสู่เส้นทางกลั่นกรองปกติแล้ว');
             setTimeout(() => location.href = ECMIS.homeHref(role.id), 1400);
           });
           return;
@@ -841,7 +843,8 @@
            เช่นกัน (inbox.html ไม่ได้ตั้งค่านี้ไว้ล่วงหน้าให้ทุกเคส) — default ไม่เร่งด่วน
            ส่วนเคสที่ตั้งต้นเป็นด่วนมาแล้ว (มี badge "ด่วน" ใน inbox.html) ไม่ต้องให้เลือกซ้ำ
            แต่บังคับแนบไฟล์ใบด่วนก่อนบันทึก/ลงนามแทน */
-        if (!is73) {
+        /* 2026-10-01: 7.3 ก็มีเรื่องด่วนได้ (ใบด่วนมาแต่ต้น หรือเลขาฯ พิจารณาว่าด่วน) เหมือน 7.1/7.2 — แสดงช่องเลือกเร่งด่วนด้วย */
+        {
           const urgentBox = document.getElementById('urgentBox72');
           const preFlaggedUrgent = !!kase.urgent;
           if (urgentBox) {

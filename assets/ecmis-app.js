@@ -286,7 +286,12 @@ const TRANSITIONS = [
   { from:'PENDING_URGENT', to:'PENDING_SECGEN_URGENT_CONFIRM', event:'URGENT_CERTIFY', actor:'dir_case',
     ref:'รับรองเหตุผลเร่งด่วน', note:'ผอ.กบค. ลงนามรับรองเหตุผลเร่งด่วน — ส่งกลับให้เลขาธิการฯ ยืนยันอีกครั้งก่อนเข้าคิวประธานฯ' },
   { from:'PENDING_URGENT', to:'IN_SCREENING', event:'URGENT_REJECT', actor:'dir_case',
-    ref:'ไม่เห็นด้วยว่าด่วน', note:'ผอ.กบค. ไม่เห็นด้วยว่าเป็นเรื่องด่วน — ปรับเข้าสู่เส้นทางกลั่นกรองปกติ' },
+    ref:'ไม่เห็นด้วยว่าด่วน', guard:k => !isCase73(k),
+    note:'ผอ.กบค. ไม่เห็นด้วยว่าเป็นเรื่องด่วน — ปรับเข้าสู่เส้นทางกลั่นกรองปกติ' },
+  /* 7.3 ไม่มีคณะอนุกลั่นกรองฯ (2026-10-01) — ไม่รับรองด่วนแล้วเข้าคิวประธานฯ แบบไม่ด่วน */
+  { from:'PENDING_URGENT', to:'PENDING_CHAIRMAN', event:'URGENT_REJECT_73', actor:'dir_case',
+    ref:'ไม่เห็นด้วยว่าด่วน (เรื่องทั่วไป/กกม.)', guard:k => isCase73(k),
+    note:'ผอ.กบค. ไม่เห็นด้วยว่าเป็นเรื่องด่วน — 7.3 ไม่มีคณะอนุกลั่นกรองฯ จึงเข้าคิวประธานฯ ตามขั้นตอนปกติ (ไม่บรรจุวาระด่วน)' },
   { from:'PENDING_SECGEN_URGENT_CONFIRM', to:'PENDING_CHAIRMAN', event:'URGENT_CONFIRM', actor:'secgen',
     ref:'ยืนยันเสนอวาระด่วนต่อประธานฯ', note:'เลขาธิการฯ ยืนยันอีกครั้งหลัง ผอ.กบค. รับรองเหตุผลเร่งด่วนแล้ว จึงส่งเข้าคิวประธานฯ' },
 
@@ -3291,7 +3296,7 @@ const STATUS_STEP_73 = {
   DRAFT:'secgen73', RETURNED:'secgen73',
   PENDING_SECTION:'secgen73', PENDING_DIRECTOR:'secgen73', PENDING_DEPUTY:'secgen73',
   PENDING_SECGEN:'secgen73', PENDING_SUPPORT_ASSIGN:'secgen73', IN_SUPPORT_SUB:'secgen73',
-  PENDING_URGENT:'secgen73', IN_SCREENING:'chairman73', // ไม่ควรเกิดกับเคส 7.3 จริง กันไว้เผื่อข้อมูลผิดสาย
+  PENDING_URGENT:'secgen73', PENDING_SECGEN_URGENT_CONFIRM:'secgen73', IN_SCREENING:'chairman73', // ไม่ควรเกิดกับเคส 7.3 จริง กันไว้เผื่อข้อมูลผิดสาย
   PENDING_CHAIRMAN:'chairman73',
   AGENDA_SET:'agenda73', IN_MEETING:'agenda73', DEFERRED:'agenda73',
   RESOLVED_PENDING:'resolution73', RESOLVED:'resolution73',

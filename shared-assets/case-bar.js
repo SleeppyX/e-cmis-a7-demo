@@ -17,8 +17,9 @@
   if (Hub.isPublicPage && Hub.isPublicPage()) return;
 
   /* ---- base path: อ่านจาก src ของ <script> ตัวเอง ไม่เดาจากความลึกของ URL ---- */
-  // Activity 7 does not display the shared case-context bar.
-  if (/\/board-resolution(?:\/|$)/.test(location.pathname)) return;
+  // Activity 7 does not display the shared case-context bar. This repo serves only
+  // Activity 7 at its root, so the ecmis /board-resolution/ path check never matches here.
+  return;
 
   function selfBase(){
     var s = document.currentScript;

@@ -13,6 +13,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="../assets/ecmis-app.css" rel="stylesheet">
+  <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
   <style>
     :root {
       --board-navy: #0F2A62;
@@ -42,12 +43,6 @@
     .kpi-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 16px rgba(15, 42, 98, 0.12);
-    }
-
-    .kpi-card.active {
-      border-width: 2px !important;
-      background: #EFF6FF !important;
-      box-shadow: 0 4px 14px rgba(15, 42, 98, 0.15) !important;
     }
 
     .next-meet-banner {
@@ -104,7 +99,7 @@
   </style>
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
 
@@ -140,46 +135,19 @@
 
     <!-- 3 Summary KPI Cards Row -->
     <div class="row g-3 mb-4" id="kpiCardsRow">
-      <div class="col-md-4">
-        <div class="card kpi-card active p-3" data-filter="ALL" style="border-left: 4px solid var(--board-navy) !important;">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <div class="text-muted small fw-semibold">รอบการประชุมทั้งหมด</div>
-              <div class="h3 fw-bold text-navy mb-0" id="kpiTotalMeetings">4</div>
-            </div>
-            <div class="rounded-circle p-2.5 bg-primary-subtle text-primary">
-              <i class="fa-solid fa-calendar-days fs-4"></i>
-            </div>
-          </div>
-          <div class="small text-muted mt-2 pt-2 border-top">รวมรอบการประชุมปี พ.ศ. 2569</div>
+      <div class="col-12 col-sm-6 col-md-4 col-xl">
+        <div class="card card-ecmis kpi-card a7-kpi h-100 border-2 shadow-sm" role="button" tabindex="0" aria-pressed="true" data-filter="ALL">
+          <div class="card-body"><div class="a7-kpi-num" id="kpiTotalMeetings">0</div><div class="a7-kpi-label">รอบการประชุมทั้งหมด</div></div>
         </div>
       </div>
-      <div class="col-md-4">
-        <div class="card kpi-card p-3" data-filter="PENDING" style="border-left: 4px solid #D97706 !important;">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <div class="text-muted small fw-semibold">กำหนดการแล้ว — รอประชุม</div>
-              <div class="h3 fw-bold text-warning-emphasis mb-0" id="kpiPendingMeetings">2</div>
-            </div>
-            <div class="rounded-circle p-2.5 bg-warning-subtle text-warning-emphasis">
-              <i class="fa-solid fa-clock fs-4"></i>
-            </div>
-          </div>
-          <div class="small text-muted mt-2 pt-2 border-top">เปิดให้อ่านล่วงหน้าแล้ว 1 รอบ</div>
+      <div class="col-12 col-sm-6 col-md-4 col-xl">
+        <div class="card card-ecmis kpi-card a7-kpi h-100" role="button" tabindex="0" aria-pressed="false" data-filter="PENDING">
+          <div class="card-body"><div class="a7-kpi-num" id="kpiPendingMeetings">0</div><div class="a7-kpi-label">กำหนดการแล้ว — รอประชุม</div></div>
         </div>
       </div>
-      <div class="col-md-4">
-        <div class="card kpi-card p-3" data-filter="CLOSED" style="border-left: 4px solid #059669 !important;">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <div class="text-muted small fw-semibold">ประชุมเสร็จสิ้นแล้ว</div>
-              <div class="h3 fw-bold text-success mb-0" id="kpiClosedMeetings">2</div>
-            </div>
-            <div class="rounded-circle p-2.5 bg-success-subtle text-success">
-              <i class="fa-solid fa-circle-check fs-4"></i>
-            </div>
-          </div>
-          <div class="small text-muted mt-2 pt-2 border-top">มีมติวินิจฉัยครบถ้วนแล้ว</div>
+      <div class="col-12 col-sm-6 col-md-4 col-xl">
+        <div class="card card-ecmis kpi-card a7-kpi h-100" role="button" tabindex="0" aria-pressed="false" data-filter="CLOSED">
+          <div class="card-body"><div class="a7-kpi-num" id="kpiClosedMeetings">0</div><div class="a7-kpi-label">ประชุมเสร็จสิ้นแล้ว</div></div>
         </div>
       </div>
     </div>
@@ -263,7 +231,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="../assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="../assets/ecmis-model.js"></script>
   <script>
     // Initialize standard system navigation shell & role authentication
@@ -429,14 +402,12 @@
       $('#searchInput').on('input', renderMeetingsTable);
       $('#statusFilter').on('change', function () {
         currentFilter = $(this).val();
-        $('.kpi-card').removeClass('active');
-        $(`.kpi-card[data-filter="${currentFilter}"]`).addClass('active');
+        ECMIS.setActiveKpi(document.getElementById('kpiCardsRow'), $(`.kpi-card[data-filter="${currentFilter}"]`)[0]);
         renderMeetingsTable();
       });
 
       $('.kpi-card').on('click', function () {
-        $('.kpi-card').removeClass('active');
-        $(this).addClass('active');
+        ECMIS.setActiveKpi(document.getElementById('kpiCardsRow'), this);
         currentFilter = $(this).data('filter');
         $('#statusFilter').val(currentFilter);
         renderMeetingsTable();
@@ -446,12 +417,15 @@
         $('#searchInput').val('');
         $('#statusFilter').val('ALL');
         currentFilter = 'ALL';
-        $('.kpi-card').removeClass('active');
-        $('.kpi-card[data-filter="ALL"]').addClass('active');
+        ECMIS.setActiveKpi(document.getElementById('kpiCardsRow'), $('.kpi-card[data-filter="ALL"]')[0]);
         renderMeetingsTable();
       });
     });
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

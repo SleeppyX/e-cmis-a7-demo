@@ -14,6 +14,7 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
   <style>
     .meet-confirmed{display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .5rem;border-radius:999px;font-size:.68rem;font-weight:600;color:#1e6141;background:#dff0e7}
     .doc-memo-hdr{font-size:16pt;line-height:1.25;margin:3pt 0 0}
@@ -25,7 +26,7 @@
   </style>
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <div class="page-head">
@@ -172,7 +173,7 @@
 
               <!-- Right Group: Zoom Stepper Controls -->
               <div class="toolbar-group ms-auto">
-                <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                <div class="d-flex align-items-center bg-dark rounded px-1" style="height:26px;">
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                   <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -196,8 +197,13 @@
   <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="assets/ecmis-app.js"></script>
-  <script src="assets/agenda-registry-data.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+  <script src="assets/agenda-registry-data.js?v=20261002-merge-main1"></script>
   <script>
     ECMIS.renderShell('meeting-docs.html');
     const M = ECMIS.mergeField;
@@ -843,6 +849,10 @@
       }
     });
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

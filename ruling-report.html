@@ -14,6 +14,7 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
 
   <!-- Mammoth.js for Word document extraction in browser -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
@@ -267,7 +268,7 @@
   </style>
 </head>
 
-<body>
+<body class="ws-std">
   <main class="app-main">
     <div class="page-head">
       <div>
@@ -462,6 +463,12 @@
           </div>
         </div>
 
+        <!-- ขั้นปิดงานหลังลงนามรายงานชี้มูล (Task 177): แจ้งผล ม.32 / ส่ง ป.ป.ช. ม.19 / ส่งสายอาญา -->
+        <div class="ws-card mb-3 d-none" id="postRuling72Card">
+          <div class="card-header"><i class="fa-solid fa-flag-checkered"></i> <span id="postRuling72Title">ดำเนินการหลังลงนามรายงาน</span></div>
+          <div class="card-body" id="postRuling72Body"></div>
+        </div>
+
         <!-- 5. ส่ง ป.วินัย ให้ กจ.8 (ติดตามผลทางวินัย) -->
         <div class="ws-card mb-3 d-none" id="dispatchDisciplineCard">
           <div class="card-header"><i class="fa-solid fa-paper-plane"></i> ส่ง ป.วินัย ให้ กจ.8 (ติดตามผลทางวินัย)</div>
@@ -596,7 +603,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="assets/ecmis-model.js"></script>
   <script src="assets/order-memo-docs.js"></script>
   <script>
@@ -857,7 +869,7 @@
     }
 
     function calculatePrescriptionForAccused(acc) {
-      const incDateStart = (document.getElementById('incidentDate') && document.getElementById('incidentDate').value) || kase.incidentDate72 || '2007-07-01';
+      const incDateStart = (document.getElementById('incidentDate') && document.getElementById('incidentDate').value) || kase.incidentDate72 || (kase.junction ? '' : '2007-07-01');
       const incDateEnd = (document.getElementById('incidentDateEnd') && document.getElementById('incidentDateEnd').value) || kase.incidentDateEnd72 || '';
       const allOffenses = [...offenseBasisList, ...customOffenses];
       const selArts = allOffenses.filter(b => acc.selected.has(b.trob_id));
@@ -1394,11 +1406,14 @@
       applyZoom();
     }
 
-    document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+    document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
     document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
 
     const mayView = ECMIS.canViewCase(kase, role.id);
     const mayEdit = ECMIS.canEditMaster(role.id) || ECMIS.can('doc.generate', role.id) || ECMIS.can('record.minutes', role.id);
+    /* ส่ง ป.วินัย → กจ.8 เป็นงานของกลุ่มงานกิจการคณะกรรมการ (สายวินัย) เท่านั้น — บทบาทอื่นที่แก้เอกสารได้ (ฝ่ายเลขาฯ, กบค.)
+       เห็นสถานะการส่งแต่กดส่งไม่ได้ (Task 172) */
+    const mayDispatchDiscipline = role.id === 'affairs';
     const maySign = ECMIS.can('sign.ruling', role.id) || role.id === 'chairman';
 
     if (!mayView) {
@@ -1449,8 +1464,9 @@
 
       setVal('meetNo', k.meetingNo || '๑๒/๒๕๖๙');
       setVal('agendaNo', k.agendaNo || '๓.๒');
-      setVal('orderNo', k.orderNo || 'ปปท วฉ ๑๙/๒๕๖๙');
-      setVal('incidentDate', k.incidentDate72 || '2007-07-01');
+      // เคสที่ส่งมาจากกระบวนการไต่สวนต้องกรอกจริง ห้ามใช้ค่าตัวอย่าง เพราะวันที่เกิดเหตุใช้คำนวณอายุความ
+      setVal('orderNo', k.orderNo || (k.junction ? '' : 'ปปท วฉ ๑๙/๒๕๖๙'));
+      setVal('incidentDate', k.incidentDate72 || (k.junction ? '' : '2007-07-01'));
       setVal('incidentDateEnd', k.incidentDateEnd72 || '');
 
       const firstAccused = (k.accused && k.accused[0]) ? k.accused[0] : null;
@@ -1633,12 +1649,12 @@
           <div style="text-align:center;margin-bottom:4px"><img src="assets/doc_logo.jpg" alt="ตราครุฑ" style="height:52px"></div>
           <div class="doc-title" style="text-align:center;font-size:17.5px;font-weight:bold;margin:4px 0 2px;">รายงานการไต่สวนเพื่อวินิจฉัยชี้มูล${isSingleAccused ? ` (เฉพาะราย ${targetAccused.name})` : ''}</div>
           <div class="doc-sub" style="text-align:center;font-size:15px;margin-bottom:6px;">คณะกรรมการ ป.ป.ท.</div>
-          <div class="doc-row" style="margin-top:4px"><span class="k" style="font-weight:bold;">เรื่องที่</span> ${M(kase.id)}${isSingleAccused ? `/${activeSplitAccusedIndex + 1}` : ''}</div>
+          <div class="doc-row" style="margin-top:4px"><span class="k" style="font-weight:bold;">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}${isSingleAccused ? `/${activeSplitAccusedIndex + 1}` : ''}</div>
           <div class="doc-row"><span class="k" style="font-weight:bold;">วันที่</span> ${M(meetDateThai)}</div>
 
           <div class="doc-indent" style="margin-top:6px">
             ในคราวการประชุมคณะกรรมการ ป.ป.ท. ครั้งที่ ${M(meetNo)} เมื่อวันที่ ${M(meetDateThai)}
-            เพื่อพิจารณาและวินิจฉัยชี้มูลความผิด เรื่องที่ ${M(kase.id)} ของคณะอนุกรรมการไต่สวน/
+            เพื่อพิจารณาและวินิจฉัยชี้มูลความผิด เรื่องที่ ${M(ECMIS.caseNo(kase))} ของคณะอนุกรรมการไต่สวน/
             คณะพนักงานไต่สวน ตามคำสั่งคณะกรรมการ ป.ป.ท./สำนักงาน ป.ป.ท. ลับ ที่ ${M(orderNo, '.../...')}
             ลงวันที่ ${M(meetDateThai)} กรณีกล่าวหา <strong>${M(targetName)}</strong> ผู้ถูกกล่าวหา
           </div>
@@ -1765,7 +1781,7 @@
           introBlock,
           flowBlocks,
           signBlock,
-          runningHeaderHtml: runningHeader('ปปท. ๗-๐๒', `รายงานการไต่สวนเพื่อวินิจฉัยชี้มูล เรื่องที่ ${M(kase.id)}${isSingleAccused ? ` (${targetAccused.name})` : ''}`)
+          runningHeaderHtml: runningHeader('ปปท. ๗-๐๒', `รายงานการไต่สวนเพื่อวินิจฉัยชี้มูล เรื่องที่ ${M(ECMIS.caseNo(kase))}${isSingleAccused ? ` (${targetAccused.name})` : ''}`)
         });
 
       } else if (docTab === 'discipline') {
@@ -2020,9 +2036,10 @@
          ในหน้าก่อนที่ปุ่ม "ส่ง ป.วินัย → กจ.8" ด้านล่าง (ย้ายมาอยู่ในแถบ action-bar มุมขวาล่างร่วมกับ
          ปุ่มอื่นๆ ตาม /grill-me — ไม่ใช่ปุ่มลอยในการ์ดเหมือนเดิม) จะอ่านค่าจากช่องกรอกเหล่านั้นได้ */
       renderDispatchDisciplineCard();
+      renderPostRuling72Card();
 
       const dispTrack = kase.disciplinaryTrack72 || {};
-      const showDispatchAction = !!kase.guiltyDiscipline72 && mayEdit &&
+      const showDispatchAction = !!kase.guiltyDiscipline72 && mayDispatchDiscipline &&
         kase.status === 'PENDING_DISPATCH_GUILTY_72' && dispTrack.status !== 'DISPATCHED';
 
       const actions = [];
@@ -2055,7 +2072,7 @@
       const btnDraftDone = document.getElementById('btnDraftDone');
       if (btnDraftDone) btnDraftDone.addEventListener('click', async () => {
         if (!await persistFormToSupabase()) return;
-        /* ECMIS.updateCaseStatus() (assets/ecmis-app.js) เขียน kase.status + saveCases() เองอยู่แล้ว
+        /* ECMIS.updateCaseStatus() (assets/ecmis-app.js?v=20261002-agenda-context5 เขียน kase.status + saveCases() เองอยู่แล้ว
            ไม่ว่า sb/kase.trr_id จะมีหรือไม่ — เดิมโค้ดตรงนี้เรียก ECMIS.Model.CaseStore.update() ตรงๆ
            (mock ล้วน ไม่เคยแตะ Supabase) แทนที่ด้วย helper กลางตัวเดียวกันที่ session ต่อ Supabase
            ใช้กับ chairman.html/resolution-inbox.html/inbox.html แล้ว */
@@ -2094,6 +2111,12 @@
             console.error('บันทึกลงนามรายงานลง Supabase ไม่สำเร็จ:', e);
           }
         }
+        /* signedRulingAt ลงฐานข้อมูลด้วย — ใช้นับกรอบ 15 วัน (ม.32 / ม.19) ในขั้นปิดงาน (Task 177) */
+        if (kase.trr_id && sb) {
+          const rdSigned = Object.assign({}, kase.resolutionData || {}, { signedRulingAt: patch.signedRulingAt });
+          const { error: sErr } = await sb.from('tbl_res_request').update({ trr_resolution_data: rdSigned }).eq('trr_id', kase.trr_id);
+          if (sErr) console.error('บันทึกวันที่ลงนามรายงานไม่สำเร็จ:', sErr); else kase.resolutionData = rdSigned;
+        }
         // เขียนฟิลด์เสริม (signedRulingAt, round72 กรณี MORE_INVESTIGATE_72) ลง mock model เหมือนเดิม —
         // status ถูกเซ็ตซ้ำเป็นค่าเดียวกันแล้ว (ไม่มีผลข้างเคียง)
         ECMIS.Model.CaseStore.update(kase.id, patch);
@@ -2104,6 +2127,150 @@
 
       const btnDispatch = document.getElementById('btnDispatchDiscipline');
       if (btnDispatch) btnDispatch.addEventListener('click', () => dispatchDisciplineToKKM8());
+    }
+
+    /* ---------- ขั้นปิดงานหลังลงนามรายงานชี้มูล (B7 / Task 177) ----------
+       เดิม transition NOTICE_RECORDED_72 / NACC_DISPATCHED_72 / CLOSE_GUILTY_72 มีแต่ไม่มีช่องกรอกให้ guard ผ่าน
+       (noticeSentDate72 / signedScanUploaded72 / criminalTrack72) สำนวนจึงค้างที่ 113/114/115 ตลอด
+       ผู้บันทึกคือกลุ่มงานกิจการคณะกรรมการ (mayDispatchDiscipline) — บทบาทอื่นดูอย่างเดียว
+       นับกรอบ 15 วันจากวันที่ลงนามรายงาน (หรือวันที่ประชุมถ้าไม่มี) เป็นการเตือนเท่านั้น ไม่บล็อก */
+    function realIso72(d) {
+      const m = String(d || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return '';
+      const y = +m[1] > 2400 ? +m[1] - 543 : +m[1];
+      return `${y}-${m[2]}-${m[3]}`;
+    }
+    function deadlineHtml72(days, basis) {
+      const base = realIso72(kase.signedRulingAt) || realIso72(kase.resolutionDate72) || realIso72(kase.meetingDate);
+      if (!base) return '';
+      const elapsed = Math.floor((Date.now() - new Date(base + 'T00:00:00').getTime()) / 86400000);
+      const left = days - elapsed;
+      const cls = left < 0 ? 'alert-danger' : (left <= 3 ? 'alert-warning' : 'alert-info');
+      const txt = left < 0 ? `เกินกำหนดแล้ว ${-left} วัน` : `เหลือ ${left} วัน`;
+      return `<div class="alert ${cls} py-1 px-2 small mb-2"><i class="fa-solid fa-clock me-1"></i>กรอบ ${days} วัน นับจาก ${ECMIS.escapeHtml(ECMIS.thaiDate(ECMIS.toBuddhistFakeIso(base)))} — <strong>${txt}</strong>
+        ${basis ? `<div class="text-muted">${ECMIS.escapeHtml(basis)}</div>` : ''}</div>`;
+    }
+    async function savePostRuling72(resPatch, toStatus, eventType) {
+      const fromStatus = kase.status;
+      const merged = Object.assign({}, kase.resolutionData || {}, resPatch);
+      if (toStatus) {
+        const gate = ECMIS.canTransition(fromStatus, toStatus, Object.assign({}, kase, resPatch, { actorRoleId: role.id }));
+        if (!gate.ok) { ECMIS.toastWarn('ปิดสำนวนยังไม่ได้: ' + (gate.guards || [gate.reason]).join(' / ')); return false; }
+      }
+      if (sb && kase.trr_id) {
+        const upd = { trr_resolution_data: merged };
+        if (toStatus) upd.trr_status = ECMIS.STATUS_CODE[toStatus];
+        const { error } = await sb.from('tbl_res_request').update(upd).eq('trr_id', kase.trr_id);
+        if (error) { console.error(error); ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ: ' + error.message); return false; }
+        await ECMIS.logRequestEvent(kase.trr_id, fromStatus, toStatus || fromStatus, { type: eventType, actorRole: role.id, data: resPatch });
+      }
+      kase.resolutionData = merged;
+      Object.assign(kase, resPatch);
+      if (toStatus) kase.status = toStatus;
+      ECMIS.Model.CaseStore.update(kase.id, Object.assign({}, resPatch, toStatus ? { status: toStatus } : {}));
+      return true;
+    }
+    function renderPostRuling72Card() {
+      const card = document.getElementById('postRuling72Card');
+      const body = document.getElementById('postRuling72Body');
+      const title = document.getElementById('postRuling72Title');
+      if (!card || !body) return;
+      const st = kase.status;
+      const esc = ECMIS.escapeHtml;
+      const ro = !mayDispatchDiscipline;
+      const roNote = ro ? '<div class="no-permission mt-2"><i class="fa-solid fa-lock me-1"></i>ผู้บันทึกคือกลุ่มงานกิจการคณะกรรมการ — บทบาทของคุณดูได้อย่างเดียว</div>' : '';
+      const dis = ro ? 'disabled' : '';
+      const today = new Date().toISOString().slice(0, 10);
+      const show = html => { card.classList.remove('d-none'); body.innerHTML = html; };
+
+      if (st === 'PENDING_AREA_NOTICE_72') {
+        const r = ECMIS.resolution72(kase.resolution72) || {};
+        title.textContent = 'แจ้งผลผู้ถูกกล่าวหา / หน่วยงานต้นสังกัด (ม.32)';
+        show(`${deadlineHtml72(r.noticeDays || 15, r.noticeBasis)}
+          <div class="row g-2">
+            <div class="col-md-4"><label class="form-label field-req">วันที่แจ้ง</label><input type="date" class="form-control" id="prNoticeDate" value="${esc(kase.noticeSentDate72 || today)}" ${dis}></div>
+            <div class="col-md-4"><label class="form-label field-req">เลขหนังสือแจ้ง</label><input class="form-control" id="prNoticeLetter" value="${esc(kase.noticeLetterNo72 || '')}" ${dis}></div>
+            <div class="col-md-4"><label class="form-label">ผู้รับแจ้ง / หน่วยงาน</label><input class="form-control" id="prNoticeTo" value="${esc(kase.noticeTo72 || '')}" ${dis}></div>
+          </div>
+          ${ro ? roNote : '<div class="mt-3"><button type="button" class="btn btn-navy btn-sm" id="prNoticeBtn"><i class="fa-solid fa-folder-closed me-1"></i>บันทึกแจ้งผลและปิดสำนวน</button></div>'}`);
+        const btn = document.getElementById('prNoticeBtn');
+        if (btn) btn.addEventListener('click', async () => {
+          const d = document.getElementById('prNoticeDate').value, no = document.getElementById('prNoticeLetter').value.trim();
+          if (!d || !no) { ECMIS.toastWarn('กรุณาระบุวันที่แจ้งและเลขหนังสือแจ้ง'); return; }
+          const ok = await ECMIS.confirmAction({ title: 'ยืนยันบันทึกแจ้งผลและปิดสำนวน', html: `<p>สำนวน <strong>${esc(kase.id)}</strong> แจ้งผลแล้ว หนังสือ ${esc(no)}</p>`, confirmText: 'ปิดสำนวน' });
+          if (!ok.isConfirmed) return;
+          if (await savePostRuling72({ noticeSentDate72: d, noticeLetterNo72: no, noticeTo72: document.getElementById('prNoticeTo').value.trim() }, 'CLOSED_72', 'NOTICE_RECORDED_72')) {
+            ECMIS.toastOk('บันทึกแจ้งผลและปิดสำนวนเรียบร้อย'); setTimeout(() => location.reload(), 900);
+          }
+        });
+        return;
+      }
+
+      if (st === 'DISPATCHING_NACC_72') {
+        const r = ECMIS.resolution72('FORWARD_NACC') || {};
+        title.textContent = 'ส่งเรื่องพร้อมสำนวนให้คณะกรรมการ ป.ป.ช. (ม.19)';
+        show(`${deadlineHtml72(r.noticeDays || 15, r.noticeBasis)}
+          <div class="row g-2">
+            <div class="col-md-4"><label class="form-label field-req">เลขหนังสือนำส่ง</label><input class="form-control" id="prNaccLetter" value="${esc(kase.naccLetterNo72 || '')}" ${dis}></div>
+            <div class="col-md-4"><label class="form-label field-req">วันที่ส่ง</label><input type="date" class="form-control" id="prNaccDate" value="${esc(kase.naccSentDate72 || today)}" ${dis}></div>
+            <div class="col-md-4"><label class="form-label field-req">ชื่อไฟล์สแกนฉบับลงนาม</label><input class="form-control" id="prNaccScan" placeholder="เช่น หนังสือนำส่ง_ปปช.pdf" value="${esc(kase.signedScanName72 || '')}" ${dis}></div>
+          </div>
+          ${ro ? roNote : '<div class="mt-3"><button type="button" class="btn btn-navy btn-sm" id="prNaccBtn"><i class="fa-solid fa-folder-closed me-1"></i>ยืนยันส่งมอบและปิดสำนวน</button></div>'}`);
+        const btn = document.getElementById('prNaccBtn');
+        if (btn) btn.addEventListener('click', async () => {
+          const no = document.getElementById('prNaccLetter').value.trim(), d = document.getElementById('prNaccDate').value, scan = document.getElementById('prNaccScan').value.trim();
+          if (!no || !d || !scan) { ECMIS.toastWarn('กรุณาระบุเลขหนังสือนำส่ง วันที่ส่ง และชื่อไฟล์ฉบับลงนาม'); return; }
+          const ok = await ECMIS.confirmAction({ title: 'ยืนยันส่งมอบสำนวนให้ ป.ป.ช.', html: `<p>สำนวน <strong>${esc(kase.id)}</strong> หนังสือนำส่ง ${esc(no)}</p>`, confirmText: 'ปิดสำนวน' });
+          if (!ok.isConfirmed) return;
+          if (await savePostRuling72({ naccLetterNo72: no, naccSentDate72: d, signedScanName72: scan, signedScanUploaded72: true }, 'CLOSED_72', 'NACC_DISPATCHED_72')) {
+            ECMIS.toastOk('บันทึกส่งมอบและปิดสำนวนเรียบร้อย'); setTimeout(() => location.reload(), 900);
+          }
+        });
+        return;
+      }
+
+      if (st === 'PENDING_DISPATCH_GUILTY_72' && kase.guiltyCriminal72) {
+        const track = kase.criminalTrack72 || {};
+        title.textContent = 'ส่งเรื่องดำเนินคดีอาญา (สายอาญา)';
+        if (track.status === 'DISPATCHED') {
+          show(`<div class="alert alert-success py-2 mb-0"><i class="fa-solid fa-circle-check me-1"></i>ส่งสายอาญาแล้ว — ${esc(track.to || '')} หนังสือ ${esc(track.letterNo || '')} วันที่ ${esc(ECMIS.thaiDate(ECMIS.toBuddhistFakeIso(track.sentDate || '')))}
+            ${kase.guiltyDiscipline72 && !ECMIS.bothTracksDone72(kase) ? '<div class="small mt-1">รอส่งสายวินัย (ป.วินัย → กจ.8) จึงจะปิดสำนวน</div>' : ''}</div>`);
+          return;
+        }
+        show(`<div class="row g-2">
+            <div class="col-md-4"><label class="form-label field-req">ส่งถึง</label><select class="form-select" id="prCrimTo" ${dis}>
+              <option>อัยการสูงสุด</option><option>พนักงานสอบสวน</option></select></div>
+            <div class="col-md-4"><label class="form-label field-req">เลขหนังสือส่ง</label><input class="form-control" id="prCrimLetter" ${dis}></div>
+            <div class="col-md-4"><label class="form-label field-req">วันที่ส่ง</label><input type="date" class="form-control" id="prCrimDate" value="${today}" ${dis}></div>
+          </div>
+          ${kase.guiltyDiscipline72 ? '<div class="form-text">สำนวนนี้มีสายวินัยด้วย — ปิดสำนวนอัตโนมัติเมื่อส่งครบทั้งสองสาย</div>' : '<div class="form-text">ไม่มีสายวินัย — ส่งสายอาญาแล้วปิดสำนวนทันที</div>'}
+          ${ro ? roNote : '<div class="mt-3"><button type="button" class="btn btn-navy btn-sm" id="prCrimBtn"><i class="fa-solid fa-gavel me-1"></i>บันทึกส่งสายอาญา</button></div>'}`);
+        const btn = document.getElementById('prCrimBtn');
+        if (btn) btn.addEventListener('click', async () => {
+          const to = document.getElementById('prCrimTo').value, no = document.getElementById('prCrimLetter').value.trim(), d = document.getElementById('prCrimDate').value;
+          if (!no || !d) { ECMIS.toastWarn('กรุณาระบุเลขหนังสือส่งและวันที่ส่ง'); return; }
+          const ok = await ECMIS.confirmAction({ title: 'ยืนยันส่งเรื่องดำเนินคดีอาญา', html: `<p>สำนวน <strong>${esc(kase.id)}</strong> ส่งถึง ${esc(to)} หนังสือ ${esc(no)}</p>`, confirmText: 'บันทึก' });
+          if (!ok.isConfirmed) return;
+          const patch = { criminalTrack72: { status: 'DISPATCHED', to, letterNo: no, sentDate: d, dispatchedAt: new Date().toISOString() } };
+          const done = ECMIS.bothTracksDone72(Object.assign({}, kase, patch));
+          if (await savePostRuling72(patch, done ? 'CLOSED_72' : null, 'DISPATCH_CRIMINAL_72')) {
+            ECMIS.toastOk(done ? 'ส่งสายอาญาและปิดสำนวนเรียบร้อย' : 'บันทึกส่งสายอาญาแล้ว — รอส่งสายวินัย'); setTimeout(() => location.reload(), 900);
+          }
+        });
+        return;
+      }
+
+      if (st === 'CLOSED_72') {
+        title.textContent = 'ปิดสำนวนแล้ว';
+        const lines = [];
+        if (kase.noticeSentDate72) lines.push(`แจ้งผล ม.32 วันที่ ${esc(ECMIS.thaiDate(ECMIS.toBuddhistFakeIso(kase.noticeSentDate72)))} หนังสือ ${esc(kase.noticeLetterNo72 || '-')}`);
+        if (kase.signedScanUploaded72) lines.push(`ส่ง ป.ป.ช. หนังสือ ${esc(kase.naccLetterNo72 || '-')} (${esc(kase.signedScanName72 || '')})`);
+        if (kase.criminalTrack72 && kase.criminalTrack72.status === 'DISPATCHED') lines.push(`สายอาญา: ส่ง ${esc(kase.criminalTrack72.to || '')} หนังสือ ${esc(kase.criminalTrack72.letterNo || '')}`);
+        if (kase.disciplinaryTrack72 && kase.disciplinaryTrack72.status === 'DISPATCHED') lines.push(`สายวินัย: ส่ง ${esc(kase.disciplinaryTrack72.pWinaiNo || '')} → กจ.8`);
+        show(`<div class="alert alert-success py-2 mb-0"><i class="fa-solid fa-circle-check me-1"></i>ดำเนินการหลังมติครบแล้ว${lines.length ? '<ul class="mb-0 mt-1 small">' + lines.map(l => `<li>${l}</li>`).join('') + '</ul>' : ''}</div>`);
+        return;
+      }
+      card.classList.add('d-none');
     }
 
     /* ส่ง ป.วินัย ให้ กจ.8 — เฉพาะสายวินัย (guiltyDiscipline72) ที่อยู่ที่ PENDING_DISPATCH_GUILTY_72 (115)
@@ -2179,7 +2346,7 @@
 
       const track = kase.disciplinaryTrack72 || {};
       const dispatched = track.status === 'DISPATCHED';
-      const canSend = mayEdit && kase.status === 'PENDING_DISPATCH_GUILTY_72' && !dispatched;
+      const canSend = mayDispatchDiscipline && kase.status === 'PENDING_DISPATCH_GUILTY_72' && !dispatched;
 
       const acc0 = (kase.accused && kase.accused[0]) || {};
       const accusedName = acc0.name || kase.discAccused72 || '';
@@ -2558,6 +2725,10 @@
       }
     })();
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

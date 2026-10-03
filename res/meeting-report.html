@@ -14,9 +14,10 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="../assets/ecmis-app.css" rel="stylesheet">
   <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <div class="page-head">
@@ -51,20 +52,22 @@
             <span class="badge bg-primary rounded-pill ms-1" id="itemCount">0</span>
           </div>
           <div class="card-body p-0">
+            <div class="table-responsive">
             <table class="table tbl-ecmis mb-0">
               <thead>
                 <tr>
                   <th style="width:40px" class="text-center">
                     <input type="checkbox" class="form-check-input" id="selectAllItems" title="เลือกทั้งหมด" checked>
                   </th>
-                  <th style="width:80px">วาระที่</th>
+                  <th style="width:64px">วาระที่</th>
                   <th>เลขสำนวน / เรื่อง</th>
-                  <th style="width:220px">มติที่ประชุม</th>
-                  <th style="width:220px">สถานะการจัดทำมติ</th>
+                  <th style="width:118px">มติที่ประชุม</th>
+                  <th style="width:136px; white-space:normal">สถานะการจัดทำมติ</th>
                 </tr>
               </thead>
               <tbody id="itemsTb"></tbody>
             </table>
+            </div>
             <div class="text-center text-muted p-4 d-none" id="emptyState">
               <i class="fa-solid fa-folder-open fa-2x mb-2 d-block"></i>
               ไม่มีสำนวนที่บอร์ดมีมติแล้วสำหรับการประชุมครั้งนี้
@@ -127,7 +130,7 @@
 
               <!-- Right Group: Zoom Stepper Controls -->
               <div class="toolbar-group ms-auto">
-                <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                <div class="d-flex align-items-center bg-dark rounded px-1" style="height:26px;">
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                   <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -148,7 +151,13 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
-  <script src="../assets/ecmis-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="../assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('meeting-report.html');
@@ -157,14 +166,74 @@
 
     /* ---------- รวบรวมสำนวนที่บอร์ดมีมติแล้ว (RESOLVED) ตามครั้งที่ประชุม ---------- */
     const params = new URLSearchParams(location.search);
-    const resolvedCases = ECMIS.CASES.filter(c => c.status === 'RESOLVED' && c.meetingNo && !ECMIS.isCase72(c));
-    const meetingNos = [...new Set(resolvedCases.map(c => c.meetingNo))].sort();
-    let currentMeetNo = params.get('meet') || meetingNos[0] || '';
-
+    /* B2(ข) / Task 176: เดิมอ่านเฉพาะเคสจำลอง (ECMIS.CASES) สถานะ RESOLVED และตัดสาย 7.2 ออก
+       ตอนนี้อ่านสำนวนจริงจาก tbl_res_request ทุกสาย (7.1/7.2/7.3) ที่บอร์ดมีมติแล้ว — รวมสถานะหลังมติ
+       (ออกคำสั่ง/ส่งเรื่อง/ปิด/ชี้มูล ฯลฯ) เพราะรายงานการประชุมต้องครบทุกวาระของครั้งนั้น
+       ใช้เคสจำลองเฉพาะตอนโหลดฐานข้อมูลไม่สำเร็จ */
+    const RESOLVED_STATUSES = [
+      'RESOLVED', 'DISPATCHING', 'CLOSED', 'PENDING_SIGN_ORDER_CHAIRMAN', 'PENDING_SIGN_ORDER_SECGEN', 'UNDER_INVESTIGATION',
+      'RESOLVED_PENDING_72', 'PENDING_SIGN_RULING_72', 'PENDING_AREA_NOTICE_72', 'DISPATCHING_NACC_72',
+      'PENDING_DISPATCH_GUILTY_72', 'CLOSED_72'
+    ];
+    let resolvedCases = [];
+    let currentMeetNo = '';
     const meetSelect = document.getElementById('meetNoSelect');
-    meetSelect.innerHTML = meetingNos.length
-      ? meetingNos.map(n => `<option value="${n}" ${n === currentMeetNo ? 'selected' : ''}>ครั้งที่ ${n}</option>`).join('')
-      : `<option value="">— ไม่มีสำนวนที่บอร์ดมีมติแล้ว —</option>`;
+    const sb = ECMIS.getSupabaseClient ? ECMIS.getSupabaseClient() : null;
+
+    /* ป้ายมติตามสาย: 7.2 → RESOLUTIONS_72, 7.3 → RESOLUTIONS_73, 7.1 → RESOLUTIONS */
+    function resOfCase(c) {
+      if (ECMIS.isCase72(c)) {
+        const r = ECMIS.resolution72 && ECMIS.resolution72(c.resolution72);
+        return r ? { label: r.label, group: r.group } : null;
+      }
+      const code = c.code || (typeof c.resolution === 'string' ? c.resolution : '');
+      const r = (ECMIS.isCase73(c) && ECMIS.resolution73 && ECMIS.resolution73(code)) || ECMIS.resolutionOf(code);
+      if (!r) return code ? { label: c.label || code, group: c.label || code } : null;
+      return { label: code === 'OTHER' && c.otherResolutionText ? `อื่น ๆ: ${c.otherResolutionText}` : r.label, group: r.group || r.label };
+    }
+
+    function meetSortKey(n) {
+      const m = String(n).match(/(\d+)\s*\/\s*(\d+)/);
+      return m ? (+m[2]) * 10000 + (+m[1]) : 0;
+    }
+
+    async function loadResolvedCases() {
+      if (!sb) throw new Error('ไม่มีการเชื่อมต่อฐานข้อมูล');
+      const codes = RESOLVED_STATUSES.map(k => ECMIS.STATUS_CODE[k]).filter(Boolean);
+      const { data, error } = await sb.from('tbl_res_request')
+        .select('*, tbl_cmp_case!inner(*, tbl_cmp_case_accused(*))')
+        .in('trr_status', codes).eq('is_deleted', false);
+      if (error) throw error;
+      const list = (data || []).map(ECMIS.supabaseRowToCase).filter(Boolean)
+        .filter(c => ECMIS.canViewCase ? ECMIS.canViewCase(c, role.id) : true);
+      /* สำนวนที่ไม่มีเลขครั้งประชุมบนตัวเอง (เช่น 7.2 ที่ลงมติก่อน Task 174) — หาจากลิงก์วาระในปฏิทิน */
+      const missing = list.filter(c => !c.meetingNo && c.trr_id).map(c => c.trr_id);
+      if (missing.length) {
+        try {
+          const { data: links } = await sb.from('tbl_res_calendar_item_case')
+            .select('trr_id, tbl_res_calendar_item(trci_number, is_deleted, tbl_res_calendar(trc_name, trc_date, is_deleted))')
+            .in('trr_id', missing).eq('is_deleted', false);
+          (links || []).forEach(l => {
+            const it = l.tbl_res_calendar_item, cal = it && it.tbl_res_calendar;
+            if (!it || it.is_deleted || !cal || cal.is_deleted) return;
+            const c = list.find(x => x.trr_id === l.trr_id);
+            if (c && !c.meetingNo) {
+              c.meetingNo = cal.trc_name; c.agendaNo = c.agendaNo || it.trci_number;
+              c.meetingDate = c.meetingDate || ECMIS.toBuddhistFakeIso(cal.trc_date);
+            }
+          });
+        } catch (e) { console.warn('หาครั้งประชุมจากปฏิทินไม่สำเร็จ:', e); }
+      }
+      return list.filter(c => c.meetingNo);
+    }
+
+    function renderMeetingSelect() {
+      const meetingNos = [...new Set(resolvedCases.map(c => c.meetingNo))].sort((a, b) => meetSortKey(b) - meetSortKey(a));
+      if (!meetingNos.includes(currentMeetNo)) currentMeetNo = meetingNos[0] || '';
+      meetSelect.innerHTML = meetingNos.length
+        ? meetingNos.map(n => `<option value="${ECMIS.escapeHtml(n)}" ${n === currentMeetNo ? 'selected' : ''}>ครั้งที่ ${ECMIS.escapeHtml(n)}</option>`).join('')
+        : `<option value="">— ไม่มีสำนวนที่บอร์ดมีมติแล้ว —</option>`;
+    }
 
     function itemsForMeeting(meetNo) {
       return resolvedCases
@@ -172,9 +241,14 @@
         .sort((a, b) => (parseFloat(a.agendaNo) || 0) - (parseFloat(b.agendaNo) || 0));
     }
 
-    let items = itemsForMeeting(currentMeetNo);
-    let selectedCaseIds = new Set(items.map(c => c.id));
-    if (items[0]) document.getElementById('meetDate').value = items[0].meetingDate || '';
+    let items = [];
+    let selectedCaseIds = new Set();
+    function selectMeeting(meetNo) {
+      currentMeetNo = meetNo;
+      items = itemsForMeeting(currentMeetNo);
+      selectedCaseIds = new Set(items.map(c => c.id));
+      if (items[0]) document.getElementById('meetDate').value = items[0].meetingDate || '';
+    }
 
     function stageLabel(c) {
       if (!c.resolutionStage) return 'อยู่ระหว่างการจัดทำมติ';
@@ -195,7 +269,7 @@
       }
 
       tb.innerHTML = items.map(c => {
-        const res = ECMIS.resolutionOf(c.resolution);
+        const res = resOfCase(c);
         const stage = c.resolutionStage || 1;
         const isChecked = selectedCaseIds.has(c.id);
         return `
@@ -204,10 +278,11 @@
         <input type="checkbox" class="form-check-input item-check" data-id="${c.id}" ${isChecked ? 'checked' : ''}>
       </td>
       <td>${c.agendaNo || '—'}</td>
-      <td><div class="fw-medium text-truncate" style="max-width:280px" title="${c.subject}">${c.id} — ${c.subject}</div></td>
-      <td><span class="st st-done" style="font-size:.7rem" title="${res ? res.label : ''}">${res ? res.group : '—'}</span></td>
+      <td style="min-width:160px"><div class="fw-medium" title="${c.subject}">${c.id} — ${c.subject}</div></td>
+      <td><span class="st st-done" style="font-size:.7rem" title="${res ? ECMIS.escapeHtml(res.label) : ''}">${res ? ECMIS.escapeHtml(res.group) : '—'}</span>
+        <div class="small text-muted">สาย ${ECMIS.isCase72(c) ? '7.2' : (ECMIS.isCase73(c) ? '7.3' : '7.1')}</div></td>
       <td>
-        <span class="badge rounded-pill ${stage >= 6 ? 'bg-success' : 'bg-warning text-dark'}" style="font-size:.68rem">
+        <span class="badge rounded-pill ${stage >= 6 ? 'bg-success' : 'bg-warning text-dark'}" style="font-size:.68rem; white-space:normal; text-align:left; line-height:1.35">
           ${stage}. ${stageLabel(c)}
         </span>
       </td>
@@ -291,7 +366,7 @@
       const selectedItems = items.filter(c => selectedCaseIds.has(c.id));
 
       const flowBlocks = selectedItems.length ? selectedItems.map(c => {
-        const res = ECMIS.resolutionOf(c.resolution);
+        const res = resOfCase(c);
         const complainant = c.complainant ? `<div class="doc-indent" style="margin-top:2px">ผู้กล่าวหา&emsp;${M(c.complainant)}</div>` : '';
         const accusedList = (c.accused || []).length
           ? `<div class="doc-indent" style="margin-top:2px">ผู้ถูกร้อง&emsp;${(c.accused || []).map(a => `${M(a.name)} ${M(a.pos)}`).join(', ')}</div>`
@@ -302,7 +377,7 @@
           <div class="doc-row"><span class="k">วาระที่ ${M(c.agendaNo)}</span> เรื่องที่ ${M(c.id)} กรณี ${M(c.subject)}</div>
           ${complainant}${accusedList}${allegation}
           <div class="doc-indent" style="margin-top:4px">
-            <strong>มติที่ประชุม</strong>&emsp;ที่ประชุมพิจารณาแล้วมีมติ${M(res ? res.label : c.resolution)}
+            <strong>มติที่ประชุม</strong>&emsp;ที่ประชุมพิจารณาแล้วมีมติ${M(res ? res.label : '')}
           </div>
         </div>`;
       }) : [`<div class="text-muted" style="margin-top:8px">— ไม่มีวาระที่เลือกในรายงานฉบับนี้ —</div>`];
@@ -324,10 +399,7 @@
 
     document.getElementById('meetDate').addEventListener('input', renderDoc);
     meetSelect.addEventListener('change', () => {
-      currentMeetNo = meetSelect.value;
-      items = itemsForMeeting(currentMeetNo);
-      selectedCaseIds = new Set(items.map(c => c.id));
-      if (items[0]) document.getElementById('meetDate').value = items[0].meetingDate || '';
+      selectMeeting(meetSelect.value);
       renderItems(); renderDoc(); renderActions();
     });
 
@@ -387,8 +459,19 @@
           html: `<p>รายงานการประชุมครั้งที่ <strong>${currentMeetNo}</strong> เฉพาะ <strong>${selectedItems.length}</strong> เรื่องที่เลือก
             จะถูกทำเครื่องหมายว่า "จัดทำรายงานประชุมแล้วเสร็จ" (ขั้นตอนที่ 6)</p>`,
           confirmText: 'ยืนยันรายงานเสร็จสมบูรณ์'
-        }).then(res => {
+        }).then(async res => {
           if (!res.isConfirmed) return;
+          /* บันทึกลงฐานข้อมูลจริง (Task 176): trr_resolution_stage = 6 + meetingReportDone ใน trr_resolution_data */
+          if (sb) {
+            for (const c of selectedItems.filter(x => x.trr_id)) {
+              const rd = Object.assign({}, c.resolutionData || {}, { meetingReportDone: true, meetingReportAt: new Date().toISOString() });
+              const { error } = await sb.from('tbl_res_request')
+                .update({ trr_resolution_stage: 6, trr_resolution_data: rd }).eq('trr_id', c.trr_id);
+              if (error) { console.error(error); ECMIS.toastWarn(`บันทึกสำนวน ${ECMIS.caseNo(c)} ไม่สำเร็จ: ${error.message}`); return; }
+              c.resolutionData = rd;
+            }
+          }
+          selectedItems.forEach(c => { c.resolutionStage = 6; c.meetingReportDone = true; });
           selectedItems.forEach(c => ECMIS.Model.CaseStore.update(c.id, { resolutionStage: 6, meetingReportDone: true }));
           ECMIS.toastOk(`บันทึกรายงานการประชุมเสร็จสมบูรณ์เรียบร้อย (${selectedItems.length} เรื่อง)`);
           renderItems(); renderActions();
@@ -549,8 +632,24 @@
       ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: mayEdit });
     } catch (e) { }
 
-    renderItems(); renderDoc(); renderActions();
+    (async function init() {
+      try {
+        resolvedCases = await loadResolvedCases();
+      } catch (err) {
+        console.warn('โหลดสำนวนจากฐานข้อมูลไม่สำเร็จ ใช้รายการสำนวนจำลอง:', err);
+        ECMIS.toastWarn('โหลดข้อมูลจากฐานข้อมูลไม่สำเร็จ — แสดงข้อมูลจำลอง');
+        resolvedCases = ECMIS.CASES.filter(c => RESOLVED_STATUSES.includes(c.status) && c.meetingNo);
+      }
+      currentMeetNo = params.get('meet') || '';
+      renderMeetingSelect();
+      selectMeeting(currentMeetNo);
+      renderItems(); renderDoc(); renderActions();
+    })();
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

@@ -14,9 +14,10 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="../assets/ecmis-app.css" rel="stylesheet">
   <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <div class="page-head">
@@ -207,7 +208,7 @@
 
               <!-- Right Group: Zoom Stepper Controls -->
               <div class="toolbar-group ms-auto">
-                <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                <div class="d-flex align-items-center bg-dark rounded px-1" style="height:26px;">
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                   <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -229,7 +230,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="../assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="../assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('support-subcommittee.html');
@@ -351,7 +357,7 @@
     })();
 
     function renderPage() {
-      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
       document.getElementById('stepper').innerHTML = is72Track
         ? ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
         : ECMIS.stepperHtml(kase);
@@ -596,7 +602,7 @@
           </div>
           <div class="doc-sub">สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
 
-          <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+          <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
           <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
           <div class="doc-row"><span class="k">ผู้รับผิดชอบ</span> ${M(kase.owner || '-')} (${M(kase.ownerOrg || '-')})</div>
 
@@ -698,7 +704,7 @@
         }
         ECMIS.confirmAction({
           title: 'ส่งคำขอข้อมูลเพิ่มเติม',
-          html: `<p>สำนวน <strong>${kase.id}</strong> — แจ้งเจ้าของสำนวนจัดส่งข้อมูลเพิ่มเติมภายใน ${document.getElementById('moreInfoDays').value} วัน</p>`,
+          html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — แจ้งเจ้าของสำนวนจัดส่งข้อมูลเพิ่มเติมภายใน ${document.getElementById('moreInfoDays').value} วัน</p>`,
           confirmText: 'ยืนยันส่งคำขอ'
         }).then(async res => {
           if (!res.isConfirmed) return;
@@ -728,7 +734,7 @@
         }
         ECMIS.confirmAction({
           title: 'ส่งคืนสายงานต้นทาง (กจ.5)',
-          html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกตีกลับไปยังหน่วยงานต้นทาง</p>`,
+          html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกตีกลับไปยังหน่วยงานต้นทาง</p>`,
           confirmText: 'ยืนยันส่งคืน'
         }).then(async res => {
           if (!res.isConfirmed) return;
@@ -791,7 +797,7 @@
         const teamTitle = lockedTeam || (currentGroup === 'group2' ? 'คณะที่ 2' : 'คณะที่ 1');
         ECMIS.confirmAction({
           title: 'เสนอความเห็นคืนเลขาธิการ ป.ป.ท.',
-          html: `<p>สำนวน <strong>${kase.id}</strong> — กลั่นกรองโดย <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ (${teamTitle})</strong><br><small class="text-muted">${nextMsg}</small></p>`,
+          html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — กลั่นกรองโดย <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ (${teamTitle})</strong><br><small class="text-muted">${nextMsg}</small></p>`,
           confirmText: 'ยืนยันเสนอความเห็นคืนเลขาธิการฯ'
         }).then(async res => {
           if (!res.isConfirmed) return;
@@ -810,7 +816,7 @@
             icon: 'success',
             title: 'เสนอความเห็นคืนเลขาธิการ ป.ป.ท. เรียบร้อย',
             html: `<div class="text-start">
-              สำนวน <strong>${kase.id}</strong> ได้รับการกลั่นกรองและส่งกลับเข้าคิวของ <strong>เลขาธิการคณะกรรมการ ป.ป.ท.</strong> แล้ว<br><br>
+              สำนวน <strong>${ECMIS.caseNo(kase)}</strong> ได้รับการกลั่นกรองและส่งกลับเข้าคิวของ <strong>เลขาธิการคณะกรรมการ ป.ป.ท.</strong> แล้ว<br><br>
               <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:.6rem .8rem;border-radius:0 6px 6px 0;font-size:.88rem">
                 <strong>ขั้นตอนถัดไปสำหรับการทดสอบ:</strong><br>
                 1. สลับบทบาทเป็น <strong>"เลขาธิการคณะกรรมการ ป.ป.ท."</strong><br>
@@ -991,6 +997,10 @@
     const mayEdit = ECMIS.canEditMaster(role.id) || ['support_sub', 'sup_chair', 'sup_sec', 'sup_asst', 'secgen', 'affairs'].includes(role.id);
     ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: mayEdit });
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

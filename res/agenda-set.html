@@ -14,9 +14,10 @@
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link href="../assets/ecmis-app.css" rel="stylesheet">
     <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
+    <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
 </head>
 
-<body>
+<body class="ws-std">
 
     <main class="app-main">
         <div class="page-head">
@@ -169,7 +170,7 @@
 
                       <!-- Right Group: Zoom Stepper Controls -->
                       <div class="toolbar-group ms-auto">
-                        <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                        <div class="d-flex align-items-center bg-dark rounded px-1" style="height:26px;">
                           <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                           <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
                           <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -193,9 +194,14 @@
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-    <script src="../assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+    <script src="../cases.js"></script>
+    <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
     <script src="../assets/ecmis-model.js"></script>
-    <script src="../assets/agenda-registry-data.js"></script>
+    <script src="../assets/agenda-registry-data.js?v=20261002-merge-main1"></script>
     <script>
         ECMIS.renderShell('agenda.html');
 
@@ -229,6 +235,12 @@
                 dbPatch.trr_status = code;
             }
             if ('urgent' in patch) dbPatch.trr_urgent = patch.urgent;
+            /* ครั้งประชุมของ 7.2 (B6) — เก็บบนคำร้องด้วยเพื่อให้ resolution-72.html ดึงไปกรอกได้
+               trr_meeting_date เป็นวันที่ ค.ศ. จริง (supabaseRowToCase แปลงกลับเป็น พ.ศ. ตอนอ่าน) */
+            if ('reagendaPending' in patch) dbPatch.trr_resolution_data = Object.assign({}, kase.resolutionData || {}, { reagendaPending: patch.reagendaPending });
+            if ('meetingNo' in patch) dbPatch.trr_meeting_no = patch.meetingNo;
+            if ('agendaNo' in patch) dbPatch.trr_agenda_no = patch.agendaNo;
+            if ('meetingDateIso' in patch) dbPatch.trr_meeting_date = patch.meetingDateIso;
             const { error } = await sb.from('tbl_res_request').update(dbPatch).eq('trr_id', kase.trr_id);
             if (error) throw error;
             Object.assign(kase, patch);
@@ -249,7 +261,7 @@
             docType = ECMIS.DOC_TYPES[kase.docType];
             isRuling = docType.code === 'RULING' || ECMIS.isCase72(kase);
 
-            document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+            document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
             document.getElementById('stepper').innerHTML = isRuling
                 ? ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
                 : ECMIS.stepperHtml(kase);
@@ -358,7 +370,7 @@
         <div style="margin-top:6px">
           <div class="doc-row"><span class="k">วาระที่ ${M(agendaNo)}</span> ${M(kase.subject)}</div>
           <div style="padding-left:2em">
-            <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+            <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
             <div class="doc-row"><span class="k">ผู้รับผิดชอบ</span> ${M(kase.owner)}</div>
             <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
             <div class="doc-row"><span class="k">ผู้ชี้แจง</span>
@@ -451,9 +463,14 @@
                     ECMIS.toastWarn('กรุณาระบุ ครั้งที่ประชุม, วันที่ประชุม และ วาระที่');
                     return;
                 }
+                /* ตั้งครั้งประชุมใหม่: กรอกปี พ.ศ. ได้ ระบบแปลงเป็น ค.ศ. ตอนบันทึก — ตรวจรูปแบบก่อนยืนยัน (Task 171) */
+                if (!existingMode && !AR.toRealIsoDate(meetDate)) {
+                    ECMIS.toastWarn('วันที่ประชุมไม่ถูกต้อง กรุณากรอกแบบ ปปปป-ดด-วว เช่น 2569-12-30');
+                    return;
+                }
                 const r = await ECMIS.confirmAction({
                     title: 'ยืนยันบรรจุระเบียบวาระ',
-                    html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกบรรจุเข้าระเบียบวาระ ครั้งที่ ${meetNo} วาระที่ ${agendaNo}${urgent ? ' <span class="badge bg-danger">ด่วน</span>' : ''}</p>`,
+                    html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกบรรจุเข้าระเบียบวาระ ครั้งที่ ${meetNo} วาระที่ ${agendaNo}${urgent ? ' <span class="badge bg-danger">ด่วน</span>' : ''}</p>`,
                     confirmText: 'ยืนยันบรรจุวาระ'
                 });
                 if (!r.isConfirmed) return;
@@ -477,6 +494,8 @@
                        เปิดประชุมจริงก่อนตามสถานะ AGENDA_SET→IN_MEETING/OPEN_AGENDA) การมีลิงก์จริงใน
                        tbl_res_calendar_item_case ก็เพียงพอให้คิวรอบรรจุวาระกรองเรื่องนี้ออกแล้ว */
                     if (urgent) await persistCase(kase, { urgent });
+                    /* ขอเข้าวาระใหม่หลังมติ (Task 175): บรรจุครั้งประชุมใหม่แล้ว เอาออกจากคิวรอบรรจุ */
+                    if (kase.reagendaPending) await persistCase(kase, { reagendaPending: false });
                 } catch (err) {
                     console.error('บรรจุระเบียบวาระไม่สำเร็จ:', err);
                     ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -490,9 +509,70 @@
         renderDoc(); renderActions();
         }
 
-        function initAgenda72(){
-            document.getElementById('agendaCard').classList.add('d-none');
+        async function initAgenda72(){
             document.getElementById('docCol').classList.add('d-none');
+
+            /* ---------- เลือกครั้งประชุม (B6) ----------
+               เดิม 7.2 ซ่อนการ์ดบรรจุวาระทั้งใบ — เปิดวาระได้โดยไม่ผูกครั้งประชุม สำนวนจึงไม่อยู่ใน
+               ปฏิทิน/ทะเบียนวาระ และหน้าบันทึกมติต้องกรอกเลขครั้งเอง ตอนนี้บังคับเลือกครั้งประชุม
+               (หรือตั้งครั้งใหม่) แบบเดียวกับ 7.1/7.3 ใช้ครั้งประชุมจริงจาก tbl_res_calendar เท่านั้น
+               เรื่องด่วนเห็นทุกครั้งที่ยังไม่ประชุม เรื่องปกติเห็นเฉพาะครั้งที่เหลือเวลามากกว่า 3 วัน */
+            const AR = window.AgendaRegistry;
+            const urgent72 = !!kase.urgent;
+            const urgentToggle = document.getElementById('urgentToggle');
+            urgentToggle.checked = urgent72;
+            urgentToggle.disabled = true;
+            document.getElementById('secrecy').closest('.mb-3').classList.add('d-none');
+            ['meetNo', 'meetDate', 'agendaNo'].forEach(id => { document.getElementById(id).value = ''; });
+            document.getElementById('meetDate').placeholder = 'ปปปป-ดด-วว เช่น 2569-12-30';
+
+            const meetings72 = () => AR.MEETINGS.filter(m => m.trc_status === '0').map(m => ({
+                no: m.trc_name, date: m.trc_date, trc_id: m.trc_id,
+                agendaCount: AR.itemsOf(m.trc_id).length,
+                closesInDays: ECMIS.daysUntilFakeIso(m.trc_date)
+            })).filter(m => urgent72 || m.closesInDays > 3);
+            const isExisting72 = () => document.querySelector('input[name="agendaMode"]:checked').value === 'EXISTING';
+            function pickedMeeting72() {
+                return meetings72().find(x => String(x.trc_id) === document.getElementById('meetingPick').value) || null;
+            }
+            function syncMeeting72() {
+                const m = pickedMeeting72();
+                document.getElementById('meetDateAuto').value = m ? ECMIS.thaiDate(m.date) : '';
+                document.getElementById('agendaNoAuto').value = m ? `5.${m.agendaCount + 1}` : '';
+                document.getElementById('modeExistingBox').classList.toggle('d-none', !isExisting72());
+                document.getElementById('modeNewBox').classList.toggle('d-none', isExisting72());
+            }
+            function renderMeetingPick72() {
+                const list = meetings72();
+                document.getElementById('meetingPick').innerHTML = list.map(m =>
+                    `<option value="${m.trc_id}">ครั้งที่ ${m.no} — วันที่ ${ECMIS.thaiDate(m.date)} (บรรจุแล้ว ${m.agendaCount} วาระ)</option>`
+                ).join('') || '<option value="">— ไม่มีครั้งประชุมที่เปิดรับวาระ (ตั้งครั้งประชุมใหม่ได้) —</option>';
+                document.getElementById('meetingPickHint').textContent = urgent72
+                    ? 'เรื่องด่วน: แสดงทุกครั้งประชุมที่ยังไม่ประชุม รวมถึงที่ใกล้ปิดรับวาระ'
+                    : 'แสดงเฉพาะครั้งประชุมที่ยังเปิดรับวาระตามปกติ (เหลือเวลามากกว่า 3 วัน)';
+                syncMeeting72();
+            }
+            /* คืนค่าครั้งประชุมที่เลือก หรือ null พร้อมแจ้งเตือนถ้ายังไม่ครบ */
+            function meetingChoice72() {
+                if (isExisting72()) {
+                    const m = pickedMeeting72();
+                    if (!m) { ECMIS.toastWarn('กรุณาเลือกครั้งประชุมก่อนเปิดวาระ หรือเลือก "ตั้งครั้งประชุมใหม่"'); return null; }
+                    const dateIso = AR.toRealIsoDate(m.date);
+                    if (!dateIso) { ECMIS.toastWarn(`วันที่ของครั้งประชุม ${m.no} ไม่ถูกต้อง — กรุณาแก้ในทะเบียนวาระก่อน`); return null; }
+                    return { trcId: m.trc_id, meetNo: m.no, meetDate: m.date, dateIso, agendaNo: `5.${m.agendaCount + 1}` };
+                }
+                const meetNo = document.getElementById('meetNo').value.trim();
+                const meetDate = document.getElementById('meetDate').value.trim();
+                const agendaNo = document.getElementById('agendaNo').value.trim();
+                if (!meetNo || !meetDate || !agendaNo) { ECMIS.toastWarn('กรุณาระบุ ครั้งที่ประชุม, วันที่ประชุม และ วาระที่'); return null; }
+                const dateIso = AR.toRealIsoDate(meetDate);
+                if (!dateIso) { ECMIS.toastWarn('วันที่ประชุมไม่ถูกต้อง กรุณากรอกแบบ ปปปป-ดด-วว เช่น 2569-12-30'); return null; }
+                return { trcId: null, meetNo, meetDate, dateIso, agendaNo };
+            }
+            await AR.ready;
+            renderMeetingPick72();
+            document.querySelectorAll('input[name="agendaMode"]').forEach(r => r.addEventListener('change', syncMeeting72));
+            document.getElementById('meetingPick').addEventListener('change', syncMeeting72);
             document.getElementById('checklistCard72').classList.remove('d-none');
             document.getElementById('boardInviteCard72').classList.remove('d-none');
 
@@ -552,6 +632,8 @@
                     ECMIS.toastWarn('กรุณาเตรียมเอกสารประกอบวาระให้ครบก่อนส่งหนังสือเชิญประชุม');
                     return;
                 }
+                const meet = meetingChoice72();
+                if (!meet) return;
                 const inviteStatus = Array.from(document.querySelectorAll('#boardTb72 tr')).map((tr, i) => ({
                     name: BOARD[i].n,
                     status: tr.querySelector('.invite-status').value
@@ -559,7 +641,8 @@
 
                 ECMIS.confirmAction({
                     title: 'ส่งหนังสือเชิญประชุมและเปิดวาระ',
-                    html: `<p>สำนวน <strong>${kase.id}</strong> — เอกสารประกอบวาระครบถ้วนแล้ว</p>`,
+                    html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — เอกสารประกอบวาระครบถ้วนแล้ว</p>
+                           <p>บรรจุเข้าระเบียบวาระ ครั้งที่ ${meet.meetNo} วันที่ ${ECMIS.thaiDate(meet.meetDate)} วาระที่ ${meet.agendaNo}${urgent72 ? ' <span class="badge bg-danger">ด่วน</span>' : ''}</p>`,
                     confirmText: 'ยืนยันส่งหนังสือเชิญประชุม'
                 }).then(async res => {
                     if (!res.isConfirmed) return;
@@ -569,7 +652,24 @@
                        initAgenda71() ด้านบน — inviteChecklist72/inviteStatus72/inviteSentDate72 เป็น
                        field แสดงผลเฉพาะหน้านี้ ไม่มีคอลัมน์ปลายทางใน Supabase จึงยังคง mock ไว้เหมือนเดิม */
                     try {
-                        await persistCase(kase, { status: 'IN_MEETING_72' });
+                        let trc_id = meet.trcId;
+                        if (!trc_id) {
+                            const meeting = await AR.addMeeting({ trc_name: meet.meetNo, trc_date: meet.meetDate, trc_status: '0' });
+                            trc_id = meeting.trc_id;
+                        }
+                        const item = await AR.addItem({
+                            trc_id, trci_number: meet.agendaNo, category: 'finding',
+                            trci_topic: `รายงานไต่สวนเพื่อวินิจฉัยชี้มูล กรณี ${kase.subject}`,
+                            case_ref: kase.id,
+                            remark: urgent72 ? 'วาระเร่งด่วน' : '-'
+                        });
+                        /* ลิงก์สำนวน↔วาระไม่สำเร็จ = สำนวนไม่อยู่ในครั้งประชุมจริง — ไม่เปิดวาระต่อ */
+                        if ((item.unresolvedCaseNos || []).includes(kase.id)) throw new Error('เชื่อมสำนวนกับวาระไม่สำเร็จ');
+                        await persistCase(kase, {
+                            status: 'IN_MEETING_72',
+                            meetingNo: meet.meetNo, agendaNo: meet.agendaNo,
+                            meetingDateIso: meet.dateIso
+                        });
                     } catch (err) {
                         console.error('เปิดวาระไม่สำเร็จ:', err);
                         ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -758,6 +858,10 @@
             ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: mayEdit });
         } catch (e) { }
     </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

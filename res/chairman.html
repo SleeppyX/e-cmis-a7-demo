@@ -14,6 +14,7 @@
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link href="../assets/ecmis-app.css" rel="stylesheet">
     <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
+    <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
     <style>
         .document-workspace {
             display: grid !important;
@@ -41,7 +42,7 @@
     </style>
 </head>
 
-<body>
+<body class="ws-std">
 
     <main class="app-main">
         <div class="page-head">
@@ -193,7 +194,7 @@
                             <!-- Right Group: Zoom Stepper Controls -->
                             <div class="toolbar-group ms-auto">
                                 <div class="d-flex align-items-center bg-dark rounded px-1"
-                                    style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                                    style="height:26px;">
                                     <button type="button"
                                         class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut"
                                         title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
@@ -222,7 +223,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
-    <script src="../assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+    <script src="../cases.js"></script>
+    <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
     <script src="../assets/ecmis-model.js"></script>
     <script>
         ECMIS.renderShell('chairman.html');
@@ -256,7 +262,7 @@
 
 
         function refreshCaseView() {
-            document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+            document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
             document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase);
 
             // Render Upstream Chain Timeline
@@ -302,8 +308,8 @@
 
             // Render Summary Card
             document.getElementById('summary').innerHTML = [
-                ['เลขสำนวน', kase.id],
-                ['ฐานการรับเรื่อง', kase.legalBase || 'ม.18/4'],
+                ['เลขสำนวน', ECMIS.caseNo(kase)],
+                ['ฐานการรับเรื่อง', kase.legalBase || 'ไม่ระบุ'],
                 ['เจ้าของสำนวน', kase.owner],
                 ['หน่วยงาน', kase.ownerOrg],
                 ['วันที่รับเรื่อง', ECMIS.thaiDate(kase.receivedDate)],
@@ -347,7 +353,7 @@
                         </div>
                         
                         <div style="margin-top:16px; font-size:16pt; line-height:1.3;">
-                            <div class="doc-row"><span class="k">เรื่องที่:</span> ${M(kase.id)}</div>
+                            <div class="doc-row"><span class="k">เรื่องที่:</span> ${M(ECMIS.caseNo(kase))}</div>
                             <div class="doc-row"><span class="k">เรื่องกล่าวหา:</span> ${M(kase.subject)}</div>
                             <div class="doc-row"><span class="k">ผู้รับผิดชอบ:</span> ${M(kase.owner)}</div>
                             <div class="doc-row"><span class="k">สังกัด:</span> ${M(kase.ownerOrg)}</div>
@@ -383,7 +389,7 @@
                         </div>
                         
                         <div class="doc-indent" style="margin-top:16px;font-size:16pt;line-height:1.3;text-indent:2.5em;">
-                            ในคราวการประชุมคณะกรรมการ ป.ป.ท. เพื่อพิจารณาและวินิจฉัยชี้มูลความผิด เรื่องที่ ${M(kase.id)} 
+                            ในคราวการประชุมคณะกรรมการ ป.ป.ท. เพื่อพิจารณาและวินิจฉัยชี้มูลความผิด เรื่องที่ ${M(ECMIS.caseNo(kase))} 
                             ของคณะอนุกรรมการไต่สวน/คณะพนักงานไต่สวน ตามคำสั่งคณะกรรมการ ป.ป.ท./สำนักงาน ป.ป.ท. 
                             กรณีกล่าวหา ${(kase.accused || []).map(a => `<strong>${a.name}</strong> ${a.pos}`).join(', ') || 'ผู้ถูกกล่าวหา'}
                         </div>
@@ -427,7 +433,7 @@
 
                         <div class="doc-indent" style="margin-top:16px;font-size:16pt;line-height:1.3;text-indent:2.5em;">
                             ด้วยคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ (คณะกรรมการ ป.ป.ท.) ได้รับเรื่องกล่าวหา 
-                            สำนวนเรื่องที่ <strong>${M(kase.id)}</strong> กรณีกล่าวหา ${(kase.accused || []).map(a => `<strong>${a.name}</strong> ตำแหน่ง ${a.pos} สังกัด ${a.agency}`).join(', ') || 'ผู้ถูกกล่าวหา'} 
+                            สำนวนเรื่องที่ <strong>${M(ECMIS.caseNo(kase))}</strong> กรณีกล่าวหา ${(kase.accused || []).map(a => `<strong>${a.name}</strong> ตำแหน่ง ${a.pos} สังกัด ${a.agency}`).join(', ') || 'ผู้ถูกกล่าวหา'} 
                             ว่ากระทำความผิด ${M(kase.allegation || kase.subject)}
                         </div>
 
@@ -550,7 +556,7 @@
             }
             if (act === 'sign') {
                 const docTitle = ECMIS.isCase72(kase) ? 'รายงานการไต่สวนเพื่อวินิจฉัยชี้มูล (ปปท. ๗-๐๒)' : 'คำสั่งแต่งตั้งคณะอนุกรรมการไต่สวน (ปปท. ๕-๐๒)';
-                ECMIS.signDialog(`ลงนามคำสั่งประธานกรรมการ ป.ป.ท. — ${docTitle} (เรื่องที่ ${kase.id})`,
+                ECMIS.signDialog(`ลงนามคำสั่งประธานกรรมการ ป.ป.ท. — ${docTitle} (เรื่องที่ ${ECMIS.caseNo(kase)})`,
                     `${SIGNER_NAME} — ${SIGNER_TITLE}`, SIGNER_CERT)
                     .then(res => {
                         if (!res.isConfirmed) return;
@@ -602,7 +608,7 @@
                         icon: 'success',
                         title: 'บันทึกคำสั่งและลงนามสำเร็จ',
                         html: `<div class="text-start">
-                                  สำนวนเรื่องที่ <strong>${kase.id}</strong><br>
+                                  สำนวนเรื่องที่ <strong>${ECMIS.caseNo(kase)}</strong><br>
                                   สถานะใหม่: <strong>${ECMIS.STATUS[nextStatus]?.label || nextStatus}</strong><br><br>
                                   <span style="font-size:.9rem;color:#475569">
                                       <i class="fa-solid fa-arrow-right me-1 text-primary"></i>ส่งสำนวนเข้าสู่ระบบเรียบร้อยแล้ว ดำเนินการส่งต่อฝ่ายเลขาฯ บรรจุวาระต่อไป
@@ -806,6 +812,10 @@
             refreshCaseView();
         })();
     </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

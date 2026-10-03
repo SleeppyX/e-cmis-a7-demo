@@ -93,6 +93,58 @@
     saveCaseRefOverlay(map);
   }
 
+  /* สำนวน junction ที่เกิดใน browser ไม่มี trr_id ให้เก็บความสัมพันธ์กับวาระ
+     แยกจาก unresolved: รายการนี้เป็นสำนวนที่ระบบรู้จักและบรรจุวาระแล้ว เพียงแต่
+     ยังไม่มีแถว tbl_res_request สำหรับสร้าง FK ใน Supabase */
+  const JUNCTION_CASE_REF_KEY = 'ecmis_agenda_junction_case_ref_overlay';
+  function loadJunctionCaseRefs() {
+    try {
+      const st = getStorage();
+      return st ? JSON.parse(st.getItem(JUNCTION_CASE_REF_KEY) || '{}') : {};
+    } catch (e) { return {}; }
+  }
+  function saveJunctionCaseRefs(map) {
+    try {
+      const st = getStorage();
+      if (st) st.setItem(JUNCTION_CASE_REF_KEY, JSON.stringify(map));
+    } catch (e) { /* ignore */ }
+  }
+  function junctionCaseLinks(trciId) {
+    const refs = loadJunctionCaseRefs()[trciId];
+    return Array.isArray(refs) ? refs.map(ref => typeof ref === 'string' ? { caseRef: ref } : ref).filter(ref => ref && ref.caseRef) : [];
+  }
+  function junctionCaseRefs(trciId) {
+    return junctionCaseLinks(trciId).map(link => link.caseRef);
+  }
+  function setJunctionCaseRefs(trciId, refs) {
+    const map = loadJunctionCaseRefs();
+    if (refs && refs.length) map[trciId] = refs;
+    else delete map[trciId];
+    saveJunctionCaseRefs(map);
+  }
+  function junctionLinkForCase(kase, caseRef) {
+    const payload = kase?.junction?.payload || {};
+    return { caseRef, docType: payload.docType || '', submissionPackageId: payload.submissionPackageId || '', sourceRevision: Number(payload.sourceRevision || payload.reportRevision || 0) };
+  }
+  function linkMatchesCurrentCase(link, kase, item) {
+    const payload = kase?.junction?.payload || {};
+    if (!link.docType) {
+      const legacyDocType = item?.category === 'preliminary' ? '213' : item?.category === 'finding' ? '644' : '';
+      return legacyDocType === (payload.docType || '');
+    }
+    return link.docType === (payload.docType || '')
+      && link.submissionPackageId === (payload.submissionPackageId || '')
+      && Number(link.sourceRevision || 0) === Number(payload.sourceRevision || payload.reportRevision || 0);
+  }
+  function isJunctionCaseLinked(kase) {
+    if (!kase || typeof kase === 'string') return false;
+    const caseRef = kase.junction?.payload?.caseNumber || kase.id;
+    return Object.keys(loadJunctionCaseRefs()).some(trciId => {
+      const item = ITEMS.find(entry => String(entry.trci_id) === String(trciId));
+      return junctionCaseLinks(trciId).some(link => link.caseRef === caseRef && linkMatchesCurrentCase(link, kase, item));
+    });
+  }
+
   /* trci_id -> [เลขสำนวนจริง, ...] ที่เชื่อมผ่าน tbl_res_calendar_item_case จริง (โหลดใน load()) */
   const LINKED_CASE_NOS = {};
   /* trci_id -> [{tcc_no, org, remark}, ...] รายละเอียดสำนวนที่เชื่อมจริง สำหรับตาราง
@@ -106,13 +158,34 @@
   const LINKED_TRR_IDS = new Set();
 
   function combinedCaseRef(trciId) {
-    const parts = [...(LINKED_CASE_NOS[trciId] || [])];
+    const parts = [...(LINKED_CASE_NOS[trciId] || []), ...junctionCaseRefs(trciId)];
     const unresolved = getUnresolvedCaseRef(trciId);
     if (unresolved) parts.push(...unresolved.split(',').map(s => s.trim()).filter(Boolean));
-    return parts.length ? parts.join(', ') : '-';
+    return parts.length ? [...new Set(parts)].join(', ') : '-';
+  }
+
+  function findLocalJunctionCase(caseNo) {
+    return global.ECMIS && Array.isArray(global.ECMIS.CASES)
+      ? global.ECMIS.CASES.find(c => c.junction && (String(c.id) === String(caseNo) || String(c.junction.payload?.caseNumber) === String(caseNo)))
+      : null;
+  }
+
+  function agendaLookupFromCase(kase, caseRef) {
+    const resolvedLike = ['RESOLVED_PENDING', 'RESOLVED', 'DISPATCHING', 'CLOSED'].includes(kase.status);
+    const category = kase.docType === 'GENERAL' ? 'policy' : (resolvedLike ? 'finding' : 'preliminary');
+    const topic = kase.docType === 'GENERAL' ? kase.subject : `รายงานไต่สวน${resolvedLike ? 'เพื่อวินิจฉัยชี้มูล' : 'เบื้องต้น'} กรณี ${kase.subject}`;
+    const remarkParts = [];
+    if (kase.prescription && kase.prescription !== '—') remarkParts.push(`ครบอายุความ ${global.ECMIS.thaiDate(kase.prescription)}`);
+    const statusLabel = global.ECMIS.STATUS[kase.status]?.label;
+    if (statusLabel) remarkParts.push(statusLabel);
+    return { category, topic, caseRef: caseRef || kase.junction?.payload?.caseNumber || kase.id,
+      owner: kase.owner || kase.junction?.payload?.owner || '', org: kase.ownerOrg || kase.junction?.payload?.destinationUnit || '',
+      remark: remarkParts.join(' / ') || '-' };
   }
 
   async function resolveCaseNoToTrrId(caseNo) {
+    const localCase = findLocalJunctionCase(caseNo);
+    if (localCase && localCase.trr_id) return localCase.trr_id;
     const { data, error } = await sb
       .from('tbl_res_request')
       .select('trr_id, tbl_cmp_case!inner(tcc_no)')
@@ -120,7 +193,17 @@
       .eq('is_deleted', false)
       .maybeSingle();
     if (error) throw error;
-    return data ? data.trr_id : null;
+    return data && data.trr_id ? data.trr_id : null;
+  }
+
+  /* คิวบรรจุวาระอ่านสำนวนจาก API เป็นหลัก แต่สำนวนที่รับมาจากกระบวนการไต่สวน
+     เก็บสถานะล่าสุดไว้ใน junction store ของ browser ก่อนที่จะมีแถว API เสมอ
+     รวมสองแหล่งตรงนี้ เพื่อให้ reload แล้วคิวไม่หาย โดยยังให้แถว API เป็นเจ้าของ
+     trr_id และข้อมูลสิทธิ์เมื่อมีเลขสำนวนเดียวกันอยู่แล้ว */
+  function mergeQueueCases(apiCases) {
+    const bridge = global.ECMISJunctionBridgeA7;
+    if (bridge && typeof bridge.mergeLinkedCases === 'function') return bridge.mergeLinkedCases(apiCases || []);
+    return Array.isArray(apiCases) ? apiCases.slice() : [];
   }
 
   /* owner/org overlay from localStorage or case metadata */
@@ -163,10 +246,10 @@
     // If still empty and there is a case_ref, attempt auto-fill from ECMIS.CASES
     if ((!owner || !org) && caseRef && caseRef !== '-') {
       const firstNo = caseRef.split(',')[0].trim();
-      const mock = (global.ECMIS && global.ECMIS.CASES) ? global.ECMIS.CASES.find(c => c.id === firstNo) : null;
+      const mock = findLocalJunctionCase(firstNo) || ((global.ECMIS && global.ECMIS.CASES) ? global.ECMIS.CASES.find(c => c.id === firstNo) : null);
       if (mock) {
-        if (!owner) owner = mock.owner || '';
-        if (!org) org = mock.ownerOrg || '';
+        if (!owner) owner = mock.owner || mock.junction?.payload?.owner || '';
+        if (!org) org = mock.ownerOrg || mock.junction?.payload?.destinationUnit || '';
       }
     }
     // Fallback for general meeting items (e.g. วาระ 2 หรือ 3)
@@ -190,6 +273,23 @@
       org: org || '-',
       remark: row.remark || '-'
     };
+  }
+
+  function syncJunctionAgendaReferences() {
+    let changed = false;
+    ITEMS.forEach(item => {
+      const meeting = MEETINGS.find(m => String(m.trc_id) === String(item.trc_id));
+      junctionCaseLinks(item.trci_id).forEach(link => {
+        const kase = findLocalJunctionCase(link.caseRef);
+        if (!kase || !linkMatchesCurrentCase(link, kase, item)) return;
+        kase.meetingNo = meeting?.trc_name || kase.meetingNo || '';
+        kase.meetingDate = meeting?.trc_date || kase.meetingDate || '';
+        kase.agendaNo = item.trci_number || kase.agendaNo || '';
+        kase.junction.agenda = { trciId: item.trci_id, trcId: item.trc_id, caseRef: link.caseRef };
+        changed = true;
+      });
+    });
+    if (changed && global.ECMIS && typeof global.ECMIS.saveCases === 'function') global.ECMIS.saveCases();
   }
 
   async function load() {
@@ -233,6 +333,7 @@
     });
 
     ITEMS.length = 0; (iRows || []).forEach(r => ITEMS.push(mapItemRow(r)));
+    syncJunctionAgendaReferences();
   }
 
   const ready = load();
@@ -314,6 +415,8 @@
   async function lookupCaseForAgenda(caseId) {
     const trimmed = String(caseId || '').trim();
     if (!trimmed) return null;
+    const localJunctionCase = findLocalJunctionCase(trimmed);
+    if (localJunctionCase && !localJunctionCase.trr_id) return agendaLookupFromCase(localJunctionCase, trimmed);
     const { data, error } = await sb
       .from('tbl_res_request')
       .select('*, tbl_cmp_case!inner(*)')
@@ -322,21 +425,8 @@
       .maybeSingle();
     if (error) throw error;
     if (!data) {
-      const mock = (global.ECMIS && global.ECMIS.CASES) ? global.ECMIS.CASES.find(c => c.id === trimmed) : null;
-      if (mock) {
-        const resolvedLike = ['RESOLVED_PENDING', 'RESOLVED', 'DISPATCHING', 'CLOSED'].includes(mock.status);
-        const category = mock.docType === 'GENERAL' ? 'policy' : (resolvedLike ? 'finding' : 'preliminary');
-        const topic = mock.docType === 'GENERAL' ? mock.subject : `รายงานไต่สวน${resolvedLike ? 'เพื่อวินิจฉัยชี้มูล' : 'เบื้องต้น'} กรณี ${mock.subject}`;
-        const remarkParts = [];
-        if (mock.prescription && mock.prescription !== '—') remarkParts.push(`ครบอายุความ ${global.ECMIS.thaiDate(mock.prescription)}`);
-        const statusLabel = global.ECMIS.STATUS[mock.status]?.label;
-        if (statusLabel) remarkParts.push(statusLabel);
-        return {
-          category, topic, caseRef: mock.id,
-          owner: mock.owner || '', org: mock.ownerOrg || '',
-          remark: remarkParts.join(' / ') || '-'
-        };
-      }
+      const mock = findLocalJunctionCase(trimmed) || ((global.ECMIS && global.ECMIS.CASES) ? global.ECMIS.CASES.find(c => c.id === trimmed) : null);
+      if (mock) return agendaLookupFromCase(mock, trimmed);
       return null;
     }
     const cc = data.tbl_cmp_case;
@@ -356,7 +446,27 @@
   }
 
   /* ---------- mutations: เขียนลง Supabase จริง แล้วอัปเดต array ในเครื่อง ---------- */
+  /* วันที่ประชุมที่ผู้ใช้กรอก → ISO ปี ค.ศ. สำหรับคอลัมน์ DATE
+     ช่องในหน้าบรรจุวาระแสดง/รับปี พ.ศ. (เช่น 2569-12-30) แต่เดิมส่งลง DB ตรง ๆ ทำให้เก็บเป็นปี ค.ศ. 2569
+     แล้วตอนอ่าน +543 กลายเป็นปี 3112 (Task 171) — รับ yyyy-mm-dd หรือ d/m/yyyy ทั้ง พ.ศ./ค.ศ.
+     คืน null ถ้ารูปแบบหรือวันที่ไม่ถูกต้อง */
+  function toRealIsoDate(input) {
+    const s = String(input || '').trim();
+    let y, m, d, mt;
+    if ((mt = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) [, y, m, d] = mt;
+    else if ((mt = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) [, d, m, y] = mt;
+    else return null;
+    y = +y; m = +m; d = +d;
+    if (y > 2400) y -= 543;
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+
   async function addMeeting({ trc_name, trc_date, trc_status, trc_start_time, trc_end_time }) {
+    const realDate = toRealIsoDate(trc_date);
+    if (!realDate) throw new Error(`รูปแบบวันที่ประชุมไม่ถูกต้อง: "${trc_date}" (ใช้ ปปปป-ดด-วว เช่น 2569-12-30)`);
+    trc_date = realDate;
     const role = global.ECMIS.currentRole();
     const { data, error } = await sb.from('tbl_res_calendar')
       .insert({
@@ -411,7 +521,9 @@
     const caseNos = String(case_ref || '').split(',').map(s => s.trim()).filter(s => s && s !== '-');
     const unresolved = [];
     const linkedNos = [];
+    const linkedJunctionCases = [];
     for (const caseNo of caseNos) {
+      const localJunctionCase = findLocalJunctionCase(caseNo);
       let trrId = null;
       try { trrId = await resolveCaseNoToTrrId(caseNo); } catch (e) { console.error('ค้นหาสำนวนไม่สำเร็จ:', e); }
       if (trrId) {
@@ -420,14 +532,17 @@
         if (linkErr) { console.error('เชื่อมสำนวนกับวาระไม่สำเร็จ:', linkErr); unresolved.push(caseNo); }
         else { linkedNos.push(caseNo); LINKED_TRR_IDS.add(trrId); }
       } else {
-        unresolved.push(caseNo);
+        if (localJunctionCase) linkedJunctionCases.push(junctionLinkForCase(localJunctionCase, caseNo));
+        else unresolved.push(caseNo);
       }
     }
     if (linkedNos.length) LINKED_CASE_NOS[data.trci_id] = linkedNos;
+    setJunctionCaseRefs(data.trci_id, linkedJunctionCases);
     setUnresolvedCaseRef(data.trci_id, unresolved.join(', '));
 
     const mapped = mapItemRow(data);
     ITEMS.push(mapped);
+    syncJunctionAgendaReferences();
     /* unresolved: เลขที่เรื่องที่ resolveCaseNoToTrrId หาไม่พบในระบบ — เดิม swallow ไปเฉยๆ
        (เก็บ overlay สำรองไว้ก็จริง แต่ผู้ใช้ไม่รู้ตัวว่าสำนวนไม่ได้เชื่อมโยงจริงลง DB) จึง return
        กลับไปให้ผู้เรียกแจ้งเตือนต่อ */
@@ -462,6 +577,8 @@
       .update({ is_deleted: true, updated_by: role.row, updated_datetime: new Date().toISOString() })
       .eq('trci_id', trciId);
     if (error) throw error;
+    setJunctionCaseRefs(trciId, []);
+    setUnresolvedCaseRef(trciId, '');
     logItemHistory(trciId, `ลบวาระ "${it ? it.trci_topic : trciId}" (soft delete)`);
     const idx = ITEMS.findIndex(x => x.trci_id === trciId);
     if (idx !== -1) ITEMS.splice(idx, 1);
@@ -501,8 +618,8 @@
     sb, MEETINGS, ITEMS, LINKED_TRR_IDS, CATEGORY_LABEL, CATEGORY_CLASS, STATUS_LABEL, STATUS_CLASS, STATUS_ICON, meetingBadge,
     ready, meetingOf, itemsOf, isFlagged, isBundled, itemSortKey,
     renderCaseRef, renderCaseSchedule, renderQualifierChips, renderPresenters,
-    lookupCaseForAgenda, resolveCaseNoToTrrId, getOwnerOrg, setOwnerOrg,
-    addMeeting, deleteMeeting, addItem, deleteItem, updateItemNumber, swapItemNumber, confirmMeeting
+    lookupCaseForAgenda, resolveCaseNoToTrrId, mergeQueueCases, isJunctionCaseLinked, getOwnerOrg, setOwnerOrg,
+    addMeeting, toRealIsoDate, deleteMeeting, addItem, deleteItem, updateItemNumber, swapItemNumber, confirmMeeting
   };
 
 })(window);

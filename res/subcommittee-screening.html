@@ -14,9 +14,10 @@
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link href="../assets/ecmis-app.css" rel="stylesheet">
     <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
+    <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
 </head>
 
-<body>
+<body class="ws-std">
 
     <main class="app-main">
         <div class="page-head">
@@ -63,10 +64,10 @@
                     <div class="card-body">
                         <div class="row g-2 mb-3">
                             <div class="col-md-4"><label class="form-label field-req">ครั้งที่ประชุมคณะอนุฯ</label>
-                                <input class="form-control" id="subMeetNo" value="12/2569">
+                                <input class="form-control" id="subMeetNo" placeholder="เช่น 1/2569">
                             </div>
                             <div class="col-md-4"><label class="form-label field-req">วันที่ประชุม</label>
-                                <input class="form-control" id="subMeetDate" value="2569-05-28">
+                                <input class="form-control" id="subMeetDate" placeholder="วว/ดด/ปปปป หรือ YYYY-MM-DD">
                             </div>
                             <div class="col-md-4"><label class="form-label">จำนวนอนุกรรมการที่เข้าประชุม</label>
                                 <input class="form-control" id="subQuorum" value="5" type="number" min="1">
@@ -187,7 +188,7 @@
 
                       <!-- Right Group: Zoom Stepper Controls -->
                       <div class="toolbar-group ms-auto">
-                        <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                        <div class="d-flex align-items-center bg-dark rounded px-1" style="height:26px;">
                           <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                           <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
                           <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -211,7 +212,12 @@
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-    <script src="../assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+    <script src="../cases.js"></script>
+    <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
     <script src="../assets/ecmis-model.js"></script>
     <script>
         ECMIS.renderShell('screening.html');
@@ -255,9 +261,9 @@
         }
 
         const docType = ECMIS.DOC_TYPES[kase.docType];
-        const isRuling = docType.code === 'RULING' || ECMIS.isCase72(kase);
+        const isRuling = docType?.code === 'RULING' || ECMIS.isCase72(kase);
 
-        document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+        document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
         document.getElementById('stepper').innerHTML = isRuling
             ? ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
             : ECMIS.stepperHtml(kase);
@@ -270,7 +276,7 @@
 
         /* ประธานฯ ตีกลับให้ทบทวนความเห็น (จากขั้น PENDING_SIGN_AGENDA_72) — แสดงเหตุผล, ฟอร์มปลดล็อคเอง
            (subScreeningStatus คืน 'PENDING' เมื่อ status = IN_SCREENING_72 → isScreeningLocked = false) */
-        if (kase.status === 'IN_SCREENING_72' && (kase.chairmanReturnReason72 || '').trim()) {
+        if ((kase.status === 'IN_SCREENING_72' || kase.status === 'IN_SCREENING') && (kase.chairmanReturnReason72 || '').trim()) {
             document.getElementById('stBadge').insertAdjacentHTML('afterend',
                 '<div class="alert alert-warning mt-2 mb-0 py-2 px-3 small">' +
                 '<i class="fa-solid fa-rotate-left me-1"></i><strong>ประธานฯ ตีกลับให้คณะอนุกลั่นกรองฯ ทบทวนความเห็น</strong>' +
@@ -290,6 +296,39 @@
         const MORE_INFO_EVENT   = isRuling ? 'REQUEST_MORE_INFO_72' : 'REQUEST_MORE_INFO';
         const MORE_INFO_STATUS  = isRuling ? 'SCREENING_MORE_INFO_72' : 'SCREENING_MORE_INFO';
 
+        function selectedSubcommitteeTeam() {
+            if (kase.subCommittee) return kase.subCommittee;
+            if (role.id === 'subcommittee' && typeof ECMIS.currentSubTeam === 'function') return ECMIS.currentSubTeam();
+            return '';
+        }
+
+        function savedScreeningMeeting() {
+            const data = kase.resolutionData || {};
+            return {
+                number: kase.screeningMeetNo72 || kase.screeningMeetNo || kase.subMeetingNo ||
+                    data.screeningMeetNo72 || data.screeningMeetNo || data.subMeetingNo || '',
+                date: kase.screeningMeetDate72 || kase.screeningMeetDate || kase.subMeetingDate ||
+                    data.screeningMeetDate72 || data.screeningMeetDate || data.subMeetingDate || ''
+            };
+        }
+
+        function draftSigner() {
+            const savedName = kase.subSecSignerName72 || kase.subSecSignerName || '';
+            const savedTitle = kase.subSecSignerTitle72 || kase.subSecSignerTitle || '';
+            if (savedName) return {
+                name: savedName,
+                title: savedTitle || 'อนุกรรมการและเลขานุการ คณะอนุกรรมการกลั่นกรองฯ'
+            };
+            return {
+                name: role.id === 'subcommittee' && role.name ? role.name : 'ไม่ระบุผู้ลงนาม',
+                title: role.id === 'subcommittee' && role.title ? role.title : 'อนุกรรมการและเลขานุการ คณะอนุกรรมการกลั่นกรองฯ'
+            };
+        }
+
+        const savedMeeting = savedScreeningMeeting();
+        document.getElementById('subMeetNo').value = savedMeeting.number;
+        document.getElementById('subMeetDate').value = savedMeeting.date;
+
         function currentSubOutcome(){
             const el = document.querySelector('input[name="subRes"]:checked');
             return el ? (SUBRES_TO_OUTCOME[el.value] || null) : null;
@@ -305,7 +344,7 @@
             const targetStatus = om
                 ? (om.localStatus === 'RETURNED'
                     ? (isRuling ? 'RETURNED_72' : 'RETURNED')
-                    : (isRuling ? 'PENDING_SIGN_AGENDA_72' : 'AGENDA_SET'))  /* 7.2: เสนอประธานฯ ลงนามสั่งบรรจุวาระก่อน (G3) */
+                    : (isRuling ? 'PENDING_SIGN_AGENDA_72' : 'PENDING_SIGN_AGENDA'))  /* ทั้ง 7.1/7.2: เสนอประธานฯ ลงนามสั่งบรรจุวาระก่อน (G3; 7.1 เพิ่ม Task 164) */
                 : kase.status;
             ECMIS.pushCaseHistory(kase, {
                 from: kase.status, to: targetStatus,
@@ -405,7 +444,7 @@
             { n: 1, used: 40 }, { n: 2, used: 38 }, { n: 3, used: 22 }, { n: 4, used: 31 },
             { n: 5, used: 40 }, { n: 6, used: 19 }, { n: 7, used: 27 }, { n: 8, used: 35 }
         ];
-        const assigned = kase.subCommittee || ('คณะที่ ' + QUOTA.filter(q => q.used < 40).sort((a, b) => a.used - b.used)[0].n);
+        const assigned = selectedSubcommitteeTeam() || ('คณะที่ ' + QUOTA.filter(q => q.used < 40).sort((a, b) => a.used - b.used)[0].n);
 
         document.getElementById('quotaGrid').innerHTML = QUOTA.map(q => {
             const full = q.used >= 40;
@@ -462,14 +501,15 @@
 
         let signed = false;
         let pendingSigData = null;
-        const SIGNER_NAME = 'นางสาวกานดา วิเชียรศรี';
+        const signer = draftSigner();
+        const SIGNER_NAME = signer.name;
         const SIGNER_CERT = 'PACC-SUBCOMM-2569-001';
 
         function updateSigBoxUI(isSigned, sigData, dateStr) {
             const sigBoxEl = document.getElementById('sigBox');
             if (!sigBoxEl) return;
             const team = document.getElementById('manualTeam')?.value || assigned;
-            const title = `อนุกรรมการและเลขานุการ คณะอนุกรรมการกลั่นกรองเรื่องไต่สวนข้อเท็จจริง ${team}`;
+            const title = `${signer.title} ${team}`;
             if (isSigned) {
                 sigBoxEl.className = 'sig-box signed';
                 sigBoxEl.innerHTML = `
@@ -512,7 +552,7 @@
       </div>
       <div class="doc-sub">ครั้งที่ ${M(meetNo)} วันที่ ${M(meetDate)}</div>
 
-      <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+      <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
       <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
       <div class="doc-row"><span class="k">ผู้รับผิดชอบ</span> ${M(kase.owner)}</div>
       <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
@@ -535,8 +575,8 @@
       <div class="doc-sign">
         ${signed && pendingSigData && pendingSigData.sig ? `<img class="doc-sig-img" src="${pendingSigData.sig}" alt="ลายมือชื่อ"><br>` : (signed ? `<span style="display:inline-block;padding:4px 8px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:4px;color:#065f46;font-size:0.8rem;margin-bottom:6px"><i class="fa-solid fa-certificate me-1"></i>Digital Signature Verified (${pendingSigData?.certCode || SIGNER_CERT})</span><br>` : '<span class="doc-dots"></span><br>')}
         (${SIGNER_NAME})<br>
-        อนุกรรมการและเลขานุการ<br>
-        คณะอนุกรรมการกลั่นกรองเรื่องไต่สวนข้อเท็จจริง ${M(team)}
+        ${M(signer.title)}<br>
+        ${M(team)}
         ${signed ? `<br><span style="font-size:0.75rem;color:#16A34A"><i class="fa-solid fa-circle-check"></i> ลงนามดิจิทัลเมื่อ ${new Date().toLocaleString('th-TH')}</span>` : ''}
       </div>
       <div class="doc-secret-foot">ลับ</div>
@@ -616,7 +656,7 @@
                 const note = (document.getElementById('subOpinion').value || '').trim();
                 ECMIS.confirmAction({
                     title: 'ขอข้อมูลเพิ่มเติม',
-                    html: `<p>สำนวน <strong>${kase.id}</strong> — คณะอนุกลั่นกรองฯ ขอข้อมูล/เอกสารเพิ่มเติมจากเจ้าของสำนวน (หยุดนับ SLA จนกว่าจะได้รับข้อมูลกลับ)</p>`,
+                    html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — คณะอนุกลั่นกรองฯ ขอข้อมูล/เอกสารเพิ่มเติมจากเจ้าของสำนวน (หยุดนับ SLA จนกว่าจะได้รับข้อมูลกลับ)</p>`,
                     confirmText: 'ยืนยันขอข้อมูลเพิ่มเติม'
                 }).then(res => {
                     if (!res.isConfirmed) return;
@@ -651,9 +691,9 @@
             if (act === 'sign') {
                 if (!validateScreening()) return;
                 const team = document.getElementById('manualTeam').value || assigned;
-                const signerTitle = `อนุกรรมการและเลขานุการ คณะอนุกรรมการกลั่นกรองเรื่องไต่สวนข้อเท็จจริง ${team}`;
+                const signerTitle = `${signer.title} ${team}`;
 
-                ECMIS.signDialog(`มติการประชุมคณะอนุกรรมการกลั่นกรองฯ ${team} — เรื่องที่ ${kase.id}`,
+                ECMIS.signDialog(`มติการประชุมคณะอนุกรรมการกลั่นกรองฯ ${team} — เรื่องที่ ${ECMIS.caseNo(kase)}`,
                     `${SIGNER_NAME} — ${signerTitle}`, SIGNER_CERT)
                     .then(res => {
                         if (!res.isConfirmed) return;
@@ -671,12 +711,23 @@
                 if (!validateScreening()) return;
                 const res = document.querySelector('input[name="subRes"]:checked').value;
                 const team = document.getElementById('manualTeam').value || assigned;
-                const signerTitle = `อนุกรรมการและเลขานุการ คณะอนุกรรมการกลั่นกรองเรื่องไต่สวนข้อเท็จจริง ${team}`;
-                const { om } = persistSubOutcome({ signedBySubSec: true, subSecSignedAt: new Date().toISOString() });
+                const meetNo = document.getElementById('subMeetNo').value.trim();
+                const meetDate = document.getElementById('subMeetDate').value.trim();
+                const signerTitle = `${signer.title} ${team}`;
+                const { om } = persistSubOutcome({
+                    screeningMeetNo: meetNo,
+                    screeningMeetDate: meetDate,
+                    subMeetingNo: meetNo,
+                    subMeetingDate: meetDate,
+                    subSecSignerName: SIGNER_NAME,
+                    subSecSignerTitle: signer.title,
+                    signedBySubSec: true,
+                    subSecSignedAt: new Date().toISOString()
+                });
                 const isReturn = om && om.localStatus === 'RETURNED';
                 const next = isReturn
                     ? { p: ECMIS.homeHref(role.id), t: 'ส่งคืนเจ้าของสำนวนเพื่อไต่สวนเพิ่มเติม (ม.๒๔ ว.๕)' }
-                    : { p: 'agenda.html', t: 'ส่งฝ่ายเจ้าหน้าที่กิจการฯ เพื่อบรรจุระเบียบวาระ' };
+                    : { p: ECMIS.homeHref(role.id), t: 'เสนอประธานกรรมการ ป.ป.ท. ลงนามสั่งบรรจุระเบียบวาระ' };
                 renderScreeningTimeline();
 
                 if (ECMIS.Model && ECMIS.Model.SignatureStore) {
@@ -694,7 +745,7 @@
                     icon: 'success',
                     title: 'ส่งมติคณะอนุกลั่นกรองฯ เรียบร้อย',
                     html: `<div class="text-start">
-                        สำนวน <strong>${kase.id}</strong> — ${next.t}<br>
+                        สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — ${next.t}<br>
                         <span class="st st-done mt-2 d-inline-block"><i class="fa-solid fa-signature me-1"></i>ลงนามรับรองมติแล้ว</span>
                     </div>`,
                     confirmButtonColor: '#0F2A62',
@@ -713,7 +764,7 @@
                 { n: 1, used: 40 }, { n: 2, used: 38 }, { n: 3, used: 22 }, { n: 4, used: 31 },
                 { n: 5, used: 40 }, { n: 6, used: 19 }, { n: 7, used: 27 }, { n: 8, used: 35 }
             ];
-            const assigned = kase.subCommittee || ('คณะที่ ' + QUOTA.filter(q => q.used < 40).sort((a, b) => a.used - b.used)[0].n);
+            const assigned = selectedSubcommitteeTeam() || ('คณะที่ ' + QUOTA.filter(q => q.used < 40).sort((a, b) => a.used - b.used)[0].n);
 
             document.getElementById('quotaGrid').innerHTML = QUOTA.map(q => {
                 const full = q.used >= 40;
@@ -771,14 +822,15 @@
 
             let signed72 = false;
             let pendingSigData72 = null;
-            const SIGNER_NAME72 = 'นางสาวกานดา วิเชียรศรี';
+            const signer72 = draftSigner();
+            const SIGNER_NAME72 = signer72.name;
             const SIGNER_CERT72 = 'PACC-SUBCOMM-2569-001';
 
             function updateSigBoxUI72(isSigned, sigData, dateStr) {
                 const sigBoxEl = document.getElementById('sigBox');
                 if (!sigBoxEl) return;
                 const team = document.getElementById('manualTeam')?.value || assigned;
-                const title = `อนุกรรมการและเลขานุการ คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง ${team}`;
+                const title = `${signer72.title} ${team}`;
                 if (isSigned) {
                     sigBoxEl.className = 'sig-box signed';
                     sigBoxEl.innerHTML = `
@@ -813,7 +865,7 @@
       </div>
       <div class="doc-sub">ครั้งที่ ${M(meetNo)} วันที่ ${M(meetDate)}</div>
 
-      <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+      <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
       <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
       <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(kase.owner)}</div>
       <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
@@ -832,8 +884,8 @@
       <div class="doc-sign">
         ${signed72 && pendingSigData72 && pendingSigData72.sig ? `<img class="doc-sig-img" src="${pendingSigData72.sig}" alt="ลายมือชื่อ"><br>` : (signed72 ? `<span style="display:inline-block;padding:4px 8px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:4px;color:#065f46;font-size:0.8rem;margin-bottom:6px"><i class="fa-solid fa-certificate me-1"></i>Digital Signature Verified (${pendingSigData72?.certCode || SIGNER_CERT72})</span><br>` : '<span class="doc-dots"></span><br>')}
         (${SIGNER_NAME72})<br>
-        อนุกรรมการและเลขานุการ<br>
-        คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง ${M(team)}
+        ${M(signer72.title)}<br>
+        ${M(team)}
         ${signed72 ? `<br><span style="font-size:0.75rem;color:#16A34A"><i class="fa-solid fa-circle-check"></i> ลงนามดิจิทัลเมื่อ ${new Date().toLocaleString('th-TH')}</span>` : ''}
       </div>
       <div class="doc-secret-foot">ลับ</div>
@@ -915,7 +967,7 @@
                     const team = document.getElementById('manualTeam').value || assigned;
                     ECMIS.confirmAction({
                         title: 'ขอข้อมูลเพิ่มเติม',
-                        html: `<p>สำนวน <strong>${kase.id}</strong> — คณะอนุกลั่นกรองฯ ขอข้อมูล/เอกสารเพิ่มเติมจากผู้รับผิดชอบสำนวน</p>`,
+                        html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — คณะอนุกลั่นกรองฯ ขอข้อมูล/เอกสารเพิ่มเติมจากผู้รับผิดชอบสำนวน</p>`,
                         confirmText: 'ยืนยันขอข้อมูลเพิ่มเติม'
                     }).then(res => {
                         if (!res.isConfirmed) return;
@@ -933,9 +985,9 @@
                 if (act === 'sign') {
                     if (!validateOpinion()) return;
                     const team = document.getElementById('manualTeam').value || assigned;
-                    const signerTitle = `อนุกรรมการและเลขานุการ คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง ${team}`;
+                    const signerTitle = `${signer72.title} ${team}`;
 
-                    ECMIS.signDialog(`รายงานความเห็นคณะอนุกลั่นกรองฯ ${team} — เรื่องที่ ${kase.id}`,
+                    ECMIS.signDialog(`รายงานความเห็นคณะอนุกลั่นกรองฯ ${team} — เรื่องที่ ${ECMIS.caseNo(kase)}`,
                         `${SIGNER_NAME72} — ${signerTitle}`, SIGNER_CERT72)
                         .then(res => {
                             if (!res.isConfirmed) return;
@@ -956,12 +1008,14 @@
                     const meetNo = document.getElementById('subMeetNo').value.trim();
                     const meetDate = document.getElementById('subMeetDate').value.trim();
                     const team = document.getElementById('manualTeam').value || assigned;
-                    const signerTitle = `อนุกรรมการและเลขานุการ คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง ${team}`;
+                    const signerTitle = `${signer72.title} ${team}`;
 
                     const { om: om72 } = persistSubOutcome({
                         screeningMeetNo72: meetNo,
                         screeningMeetDate72: meetDate,
                         screeningOpinion72: opinion,
+                        subSecSignerName72: SIGNER_NAME72,
+                        subSecSignerTitle72: signer72.title,
                         signedBySubSec72: true,
                         subSecSignedAt72: new Date().toISOString()
                     });
@@ -983,7 +1037,7 @@
                         icon: 'success',
                         title: isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อทำเพิ่มเติมเรียบร้อย' : 'บันทึกความเห็นและเสนอประธานฯ เรียบร้อย',
                         html: `<div class="text-start">
-                            สำนวน <strong>${kase.id}</strong> — ${isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อไต่สวนเพิ่มเติม (ม.๖๗ พ.ร.ป. ป.ป.ช. ๒๕๖๑)' : 'เสนอประธานกรรมการ ป.ป.ท. ลงนามสั่งบรรจุระเบียบวาระการประชุม'}<br>
+                            สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — ${isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อไต่สวนเพิ่มเติม (ม.๖๗ พ.ร.ป. ป.ป.ช. ๒๕๖๑)' : 'เสนอประธานกรรมการ ป.ป.ท. ลงนามสั่งบรรจุระเบียบวาระการประชุม'}<br>
                             <span class="st st-done mt-2 d-inline-block"><i class="fa-solid fa-signature me-1"></i>ลงนามรับรองความเห็นแล้ว</span>
                         </div>`,
                         confirmButtonColor: '#0F2A62',
@@ -1161,6 +1215,10 @@
             ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: mayEdit });
         } catch (e) { }
     </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

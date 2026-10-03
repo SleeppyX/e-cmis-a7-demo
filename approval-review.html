@@ -14,9 +14,10 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <div class="page-head">
@@ -38,7 +39,7 @@
 
         <div class="ws-card mb-3">
           <div class="card-header"><i class="fa-solid fa-list-ol"></i> ที่มาของสำนวน — การเสนอตามลำดับชั้นภายในกอง/เขต
-            (ต้นทาง กจ.5)</div>
+            (ต้นทางกระบวนการไต่สวน) <span class="chip ms-2" id="chainMockChip" style="font-size:.7rem">ตัวอย่างประกอบ</span></div>
           <div class="card-body">
             <ul class="tl mb-0" id="chain"></ul>
           </div>
@@ -248,7 +249,7 @@
               <!-- Right Group: Zoom Stepper Controls -->
               <div class="toolbar-group ms-auto">
                 <div class="d-flex align-items-center bg-dark rounded px-1"
-                  style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                  style="height:26px;">
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut"
                     title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                   <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;"
@@ -275,7 +276,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('approval-review.html');
@@ -377,7 +383,7 @@
          ทั้งที่เนื้อหาในหน้าไม่ใช่ของเลขาธิการฯ แล้ว (พบจาก /grill-me 2026-09-24) */
       document.title = urgentGateTitle + ' | E-CMIS';
       document.querySelector('.flow-ref').innerHTML = 'ด่านรับรองความเร่งด่วน (T7) — ก่อนส่งเข้าคิวประธานฯ';
-      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
       document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS, ECMIS.STATUS_STEP);
 
       const deadlineChips = (() => {
@@ -449,7 +455,7 @@
           <div class="doc-secret">ลับ</div>
           <div class="doc-title">${docType.label}</div>
           <div class="doc-sub">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
-          <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+          <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
           <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
           <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(kase.owner)}</div>
           <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
@@ -488,7 +494,7 @@
           }
           ECMIS.confirmAction({
             title: 'รับรองเหตุผลเร่งด่วน',
-            html: `<p>สำนวน <strong>${kase.id}</strong> — รับรองโดย ${dirCase.title}<br>
+            html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — รับรองโดย ${dirCase.title}<br>
             <small class="text-muted">ส่งกลับให้เลขาธิการฯ ยืนยันอีกครั้งก่อนเข้าคิวประธานฯ</small></p>`,
             confirmText: 'ยืนยันรับรอง'
           }).then(async res => {
@@ -523,7 +529,7 @@
         if (act === 'certifyReject') {
           ECMIS.confirmAction({
             title: 'ไม่เห็นด้วยว่าด่วน',
-            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกปรับกลับเข้า${ECMIS.isCase73(kase) ? 'คิวประธานฯ ตามขั้นตอนปกติ (เรื่องทั่วไป/กกม. ไม่มีคณะอนุกลั่นกรองฯ)' : 'เส้นทางกลั่นกรองปกติ'} (ไม่บรรจุวาระด่วน)</p>`,
+            html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกปรับกลับเข้า${ECMIS.isCase73(kase) ? 'คิวประธานฯ ตามขั้นตอนปกติ (เรื่องทั่วไป/กกม. ไม่มีคณะอนุกลั่นกรองฯ)' : 'เส้นทางกลั่นกรองปกติ'} (ไม่บรรจุวาระด่วน)</p>`,
             confirmText: 'ยืนยันไม่รับรอง'
           }).then(async res => {
             if (!res.isConfirmed) return;
@@ -558,7 +564,7 @@
           const secgenOp = opEl.value.trim();
           ECMIS.confirmAction({
             title: 'ยืนยันเสนอวาระด่วนต่อประธานฯ',
-            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งเข้าคิวประธานฯ เพื่อพิจารณาสั่งบรรจุวาระด่วนต่อไป</p>`,
+            html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกส่งเข้าคิวประธานฯ เพื่อพิจารณาสั่งบรรจุวาระด่วนต่อไป</p>`,
             confirmText: 'ยืนยัน'
           }).then(async res => {
             if (!res.isConfirmed) return;
@@ -587,6 +593,227 @@
       }
     }
 
+    /* โหมดรองเลขาธิการฯ (Task 190 — Plan_A7_Deputy_Role) — ขั้นแรกของ กจ.7 ทุกสาย 7.1/7.2/7.3
+       ใช้รูปแบบเดียวกับ initUrgentGateScreen(): แทนเฉพาะคอลัมน์ซ้าย แล้วแสดงเอกสารแบบอ่านอย่างเดียวในแผงเดิม
+       รองเลขาฯ ทำได้ 2 อย่าง: ลงความเห็น (บังคับ + ลงนามดิจิทัล) แล้วเสนอเลขาธิการฯ หรือตีกลับต้นทาง กจ.5
+       ไม่มีการชี้ซับซ้อน / เร่งด่วน / ลงนามแทนเลขาธิการฯ — role อื่นที่เปิดหน้านี้เห็นแบบอ่านอย่างเดียว */
+    function initDeputyScreen() {
+      const deputy = ECMIS.getRole('deputy');
+      const is72 = ECMIS.isCase72(kase);
+      const pendingSt = is72 ? 'PENDING_DEPUTY_72' : 'PENDING_DEPUTY';
+      const nextSt = is72 ? 'PENDING_SECGEN_72' : 'PENDING_SECGEN';
+      const returnSt = is72 ? 'RETURNED_72' : 'RETURNED';
+      const isActor = role.id === 'deputy' && kase.status === pendingSt;
+      docType = ECMIS.DOC_TYPES[kase.docType] || ECMIS.DOC_TYPES['213'];
+      const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+      const pageTitle = 'รองเลขาธิการฯ พิจารณา / ลงความเห็น';
+      document.querySelector('.page-head h1').innerHTML = `<i class="fa-solid fa-user-tie me-2"></i>${pageTitle}`;
+      document.title = pageTitle + ' | E-CMIS';
+      const flowRef = document.querySelector('.flow-ref');
+      if (flowRef) flowRef.innerHTML = 'ขั้นแรกของ กจ.7 — รองเลขาธิการฯ ลงความเห็นก่อนเสนอเลขาธิการฯ';
+      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+      document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase);
+
+      const accusedSummary = (kase.accused || []).map(a => `${esc(a.name)}${a.pos ? ' — ' + esc(a.pos) : ''}`).join('<br>') || '—';
+      const summaryHtml = [
+        ['ประเภทเรื่อง', ECMIS.typeBadge(kase)],
+        ['ฐานการรับเรื่อง', esc(kase.legalBase)],
+        ['เจ้าของสำนวน', `${esc(kase.owner || '—')}${kase.ownerOrg ? ' · ' + esc(kase.ownerOrg) : ''}`],
+        ['วันที่รับเรื่อง', kase.receivedDate ? ECMIS.thaiDate(kase.receivedDate) : '—'],
+        ['ผู้ถูกกล่าวหา', accusedSummary],
+        ['ข้อกล่าวหา', esc(kase.allegation || kase.subject || '—')]
+      ].map(([k, v]) => `<div class="mb-1"><span class="text-muted">${k}:</span> ${v || '—'}</div>`).join('');
+
+      /* ที่มาของสำนวนก่อนถึงรองเลขาฯ — ชั้นกอง/เขตต้นทาง กจ.5 เป็นตัวอย่างประกอบ (Task 179) */
+      const sourceRows = ECMIS.upstreamMockChain(kase).filter(rid => rid !== 'deputy').map(rid => {
+        const sla = ECMIS.UPSTREAM_MOCK_SLA[rid] || { used: 2, limit: 5 };
+        return `<li class="ok"><span class="tl-dot"></span>
+          <div class="tl-t">${ECMIS.upstreamMockTitle(rid, kase)}</div>
+          <div class="tl-m">ผ่านแล้ว · <span class="text-success fw-medium"><i class="fa-solid fa-clock me-1"></i>ใช้ไป ${sla.used}/${sla.limit} วัน</span></div></li>`;
+      }).join('') + `<li class="now"><span class="tl-dot"></span>
+          <div class="tl-t">${deputy.title} ${role.id === 'deputy' ? '<span class="chip ms-1">คุณ</span>' : ''}</div>
+          <div class="tl-m">${deputy.name} · <strong>${kase.status === pendingSt ? 'อยู่ระหว่างพิจารณา' : 'พิจารณาแล้ว'}</strong></div></li>`;
+      const sourceHtml = kase.junction && window.ECMISJunctionBridgeA7?.renderSourceChain
+        ? window.ECMISJunctionBridgeA7.renderSourceChain(kase)
+        : sourceRows;
+
+      const opinionHtml = isActor
+        ? `<label class="form-label field-req" for="deputyOpinion">ความเห็นของรองเลขาธิการฯ</label>
+           <textarea class="form-control" id="deputyOpinion" rows="5"
+             placeholder="ระบุความเห็นประกอบการเสนอเลขาธิการฯ เช่น ตรวจสอบสำนวนแล้วเห็นชอบตามที่เสนอ...">${esc(kase.deputyOpinion || '')}</textarea>
+           <div class="val-msg val-err" data-for="deputyOpinion">กรุณาระบุความเห็นก่อนเสนอเลขาธิการฯ</div>
+           <div class="ws-callout mt-2" style="font-size:.82rem">
+             <i class="fa-solid fa-circle-info me-1"></i>เมื่อกด <strong>ลงความเห็นและเสนอเลขาธิการฯ</strong> ระบบจะให้ลงนามดิจิทัล
+             แล้วส่งสำนวนเข้าคิวเลขาธิการฯ — ความเห็นนี้จะแสดงในการ์ดที่มาของสำนวนและบันทึกเสนอของเลขาธิการฯ
+           </div>`
+        : `<label class="form-label">ความเห็นของรองเลขาธิการฯ</label>
+           <div class="ws-readonly">${kase.deputyOpinion ? esc(kase.deputyOpinion) : '<span class="text-muted">— ยังไม่ได้ลงความเห็น —</span>'}</div>
+           ${role.id === 'deputy' ? '' : `<div class="text-muted mt-2" style="font-size:.8rem"><i class="fa-solid fa-lock me-1"></i>เฉพาะ${deputy.title}เท่านั้นที่ลงความเห็นในขั้นนี้ได้</div>`}`;
+
+      document.getElementById('docLeftCol').innerHTML = `
+        <div class="ws-card mb-3">
+          <div class="card-header"><i class="fa-solid fa-folder-open"></i> สรุปสำนวน</div>
+          <div class="card-body" style="font-size:.88rem">${summaryHtml}</div>
+        </div>
+        <div class="ws-card mb-3">
+          <div class="card-header d-flex align-items-center gap-2"><i class="fa-solid fa-sitemap"></i> ที่มาของสำนวน
+            ${kase.junction ? '' : '<span class="chip ms-auto" style="font-size:.72rem">ชั้นต้นทางเป็นตัวอย่างประกอบ</span>'}</div>
+          <div class="card-body"><ul class="tl mb-0" id="deputyChain">${sourceHtml}</ul></div>
+        </div>
+        <div class="ws-card mb-3">
+          <div class="card-header"><i class="fa-solid fa-pen-to-square"></i> ความเห็นรองเลขาธิการฯ</div>
+          <div class="card-body">${opinionHtml}</div>
+        </div>`;
+
+      function renderDeputyDoc() {
+        const M = ECMIS.mergeField;
+        const op = isActor ? (document.getElementById('deputyOpinion')?.value.trim() || '') : (kase.deputyOpinion || '');
+        const prior = (kase.chainOpinions || []).filter(o => o.roleId !== 'deputy').map(o =>
+          `<div>${o.mock ? ECMIS.upstreamMockTitle(o.roleId, kase) : ECMIS.getRole(o.roleId).title}: เห็นชอบ — ${M(o.note)}</div>`).join('');
+        const docTarget = document.getElementById('docPaperPage') || document.getElementById('docPaper');
+        docTarget.innerHTML = `
+          <div class="doc-secret">ลับ</div>
+          <div class="doc-title">${docType.label}</div>
+          <div class="doc-sub">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
+          <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
+          <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
+          <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(kase.owner)}</div>
+          <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
+          ${(kase.accused && kase.accused.length) ? `<div class="doc-h">ผู้ถูกกล่าวหา</div>${kase.accused.map(a => `<div>${a.no || ''}. ${M(a.name)} ${M(a.pos)} ${M(a.agency)}</div>`).join('')}` : ''}
+          <div class="doc-h">ข้อกล่าวหา</div>
+          <div class="doc-indent">${M(kase.allegation)}</div>
+          <div class="doc-h">ความเห็นตามสายอนุมัติ</div>
+          <div class="doc-indent">${prior || '<span class="text-muted">— ยังไม่มีข้อมูล —</span>'}
+            <div>${deputy.title}: ${M(op, '……………………………………')}</div></div>
+          <div class="doc-sign" id="docSign">
+            ${kase.deputySignedAt
+              ? `<span style="color:#166434"><i class="fa-solid fa-signature"></i> ลงนามดิจิทัลแล้ว</span><br>`
+              : '<span class="text-muted">(ยังไม่ลงนาม)</span><br>'}
+            (${deputy.name})<br>${deputy.title}
+          </div>`;
+        updatePaginationUI();
+        applyZoom();
+      }
+      renderDeputyDoc();
+      ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: false });
+
+      const opEl = document.getElementById('deputyOpinion');
+      if (opEl) opEl.addEventListener('input', () => {
+        if (opEl.value.trim()) {
+          opEl.classList.remove('is-invalid-ecmis');
+          document.querySelector('.val-msg[data-for="deputyOpinion"]')?.classList.remove('show');
+        }
+        renderDeputyDoc();
+      });
+
+      const buttons = [
+        { act: 'deputyReturn', label: 'ตีกลับต้นทาง (กจ.5)', icon: 'fa-rotate-left', cls: 'btn-outline-danger' },
+        { act: 'deputyPropose', label: 'ลงความเห็นและเสนอเลขาธิการฯ', icon: 'fa-signature', cls: 'btn-gold' }
+      ];
+      document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(kase, role.id, buttons);
+      document.querySelectorAll('.action-bar [data-act]').forEach(b =>
+        b.addEventListener('click', () => handleDeputy(b.dataset.act)));
+
+      async function handleDeputy(act) {
+        if (!isActor) return;
+        if (act === 'deputyPropose') {
+          const opinion = opEl ? opEl.value.trim() : '';
+          if (!opinion) {
+            opEl?.classList.add('is-invalid-ecmis');
+            document.querySelector('.val-msg[data-for="deputyOpinion"]')?.classList.add('show');
+            opEl?.focus();
+            ECMIS.toastWarn('กรุณาระบุความเห็นก่อนเสนอเลขาธิการฯ');
+            return;
+          }
+          const sig = await ECMIS.signDialog(`ความเห็นรองเลขาธิการฯ — ${docType.label} เรื่องที่ ${ECMIS.caseNo(kase)}`,
+            `${deputy.name} — ${deputy.title}`);
+          if (!sig || !sig.isConfirmed) return;
+          const now = new Date();
+          const signedAtIso = now.toISOString();
+          const signedAt = ECMIS.toBuddhistFakeIso(signedAtIso.slice(0, 10));
+          try {
+            ECMIS.Model?.SignatureStore?.create?.({
+              caseId: kase.id, docType: `ความเห็นรองเลขาธิการฯ — ${docType.label}`,
+              signerRole: 'deputy', signerName: `${deputy.name} — ${deputy.title}`,
+              method: sig.value?.mode, signedAt: signedAtIso
+            });
+            const deputyData = { deputyOpinion: opinion, deputySignedAt: signedAt, deputySignedAtIso: signedAtIso, deputyName: deputy.name };
+            await persistCase(kase, { status: nextSt, ...deputyData, resolutionData: deputyData });
+            await ECMIS.logRequestEvent(kase.trr_id, pendingSt, nextSt, {
+              type: is72 ? 'PROPOSE_72' : 'DEPUTY_PROPOSE', actorRole: 'deputy', data: { deputyOpinion: opinion }
+            });
+            ECMIS.pushCaseHistory?.(kase, { action: is72 ? 'PROPOSE_72' : 'DEPUTY_PROPOSE', status: nextSt, deputyOpinion: opinion });
+            ECMIS.saveCases();
+          } catch (err) {
+            console.error('เสนอเลขาธิการฯ ไม่สำเร็จ:', err);
+            ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+            return;
+          }
+          ECMIS.toastOk('ลงความเห็นและลงนามเรียบร้อย — เสนอเลขาธิการฯ แล้ว');
+          setTimeout(() => location.href = ECMIS.homeHref(role.id), 1400);
+          return;
+        }
+
+        if (act === 'deputyReturn') {
+          const opts = ECMIS.RETURN_REASONS.map(r => `<option value="${r.code}">${r.label}</option>`).join('');
+          const scopeOpts = ECMIS.RETURN_SCOPES.map((s, i) => `
+            <label class="list-group-item d-flex gap-2 align-items-start" style="font-size:.84rem">
+              <input class="form-check-input mt-1" type="radio" name="swal-scope" value="${s.code}" ${i === 0 ? 'checked' : ''}>
+              <span><strong>${s.label}</strong><br><small class="text-muted">${s.note}</small></span>
+            </label>`).join('');
+          const res = await Swal.fire({
+            title: 'ตีกลับต้นทาง (กจ.5)',
+            html: `<div class="text-start" style="font-size:.9rem">
+              <div style="background:#fdecea;border-left:4px solid #DB2626;padding:.6rem .8rem;border-radius:0 6px 6px 0;margin-bottom:.8rem">
+                สำนวนจะถูก<strong>ส่งกลับสายงานต้นทาง</strong>โดยยังไม่ถึงเลขาธิการฯ ระบบ<strong>บังคับ</strong>ระบุเหตุผลเพื่อใช้ทำสถิติและตรวจสอบย้อนหลัง
+              </div>
+              <label class="form-label">ส่งคืนไปยังชั้นใดของสายงานต้นทาง <span style="color:#DB2626">*</span></label>
+              <div class="list-group mb-2">${scopeOpts}</div>
+              <label class="form-label" for="swal-reason">เหตุผลการตีกลับ <span style="color:#DB2626">*</span></label>
+              <select id="swal-reason" class="form-select mb-2"><option value="">— เลือกเหตุผล —</option>${opts}</select>
+              <label class="form-label" for="swal-note">รายละเอียดเพิ่มเติม <span style="color:#DB2626">*</span></label>
+              <textarea id="swal-note" class="form-control" rows="3" placeholder="ระบุสิ่งที่ต้องแก้ไขให้ชัดเจน"></textarea>
+              <label class="form-label mt-2" for="swal-file">แนบไฟล์ประกอบเหตุผล (ไม่บังคับ)</label>
+              <input type="file" id="swal-file" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip">
+            </div>`,
+            showCancelButton: true, confirmButtonText: 'ยืนยันตีกลับ', cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#DB2626', cancelButtonColor: '#7C8CA3', reverseButtons: true, width: 640,
+            preConfirm() {
+              const r = document.getElementById('swal-reason').value;
+              const n = document.getElementById('swal-note').value.trim();
+              const s = document.querySelector('input[name="swal-scope"]:checked').value;
+              if (!r) { Swal.showValidationMessage('กรุณาเลือกเหตุผลการตีกลับ'); return false; }
+              if (n.length < 10) { Swal.showValidationMessage('กรุณาระบุรายละเอียดอย่างน้อย 10 ตัวอักษร'); return false; }
+              return { r, n, s, f: document.getElementById('swal-file').files[0] || null };
+            }
+          });
+          if (!res.isConfirmed) return;
+          const ret = { reason: res.value.n, reasonCode: res.value.r, scope: res.value.s, by: deputy.name, byRole: 'deputy', atIso: new Date().toISOString() };
+          try {
+            await persistCase(kase, { status: returnSt,
+              resolutionData: { ...(kase.resolutionData || {}), sourceReturn: ret, deputyReturn: ret } });
+            window.ECMISJunctionBridgeA7?.publishReturn?.(kase, ret);
+            await ECMIS.logRequestEvent(kase.trr_id, pendingSt, returnSt, {
+              type: is72 ? 'RETURN_72' : 'DEPUTY_RETURN', actorRole: 'deputy', data: ret
+            });
+            if (res.value.f && kase.tcc_id) {
+              await uploadAttachment(kase.tcc_id, res.value.f, role.id);
+              if (ECMIS.refreshAttachmentCard) ECMIS.refreshAttachmentCard();
+            }
+            ECMIS.pushCaseHistory?.(kase, { action: is72 ? 'RETURN_72' : 'DEPUTY_RETURN', status: returnSt, reasonCode: ret.reasonCode });
+            ECMIS.saveCases();
+          } catch (err) {
+            console.error('ตีกลับไม่สำเร็จ:', err);
+            ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+            return;
+          }
+          ECMIS.toastOk('ตีกลับเรียบร้อย — ส่งคืนสายงานต้นทาง (กจ.5) แล้ว');
+          setTimeout(() => location.href = ECMIS.homeHref(role.id), 1600);
+        }
+      }
+    }
+
     let kase, docType, isRuling, secgenPendingStatus, alreadySigned, signed, g1;
     const SECGEN_SIG_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 70">' +
@@ -604,9 +831,27 @@
         kase = ECMIS.requireCase(caseParam);
       }
       if (!kase) return;
+      kase = window.ECMISJunctionBridgeA7?.applyLinkedCase?.(kase) || kase;
+      if (kase.sourceReportHtml) {
+        const panel = document.createElement('section');
+        panel.className = 'ws-section';
+        const heading = document.createElement('h3');
+        heading.textContent = `รายงานจากระบบไต่สวน ฉบับที่ ${kase.junction?.payload?.reportRevision || 1}`;
+        panel.appendChild(heading);
+        const body = document.createElement('div');
+        body.innerHTML = kase.sourceReportHtml;
+        panel.appendChild(body);
+        document.getElementById('docPaperStage')?.appendChild(panel);
+      }
 
       if (kase.status === 'PENDING_URGENT' || kase.status === 'PENDING_SECGEN_URGENT_CONFIRM') {
         initUrgentGateScreen();
+        return;
+      }
+      if (kase.status === 'PENDING_DEPUTY' || kase.status === 'PENDING_DEPUTY_72') {
+        initDeputyScreen();
+        updatePaginationUI();
+        applyZoom();
         return;
       }
 
@@ -635,7 +880,7 @@
         `<i class="fa-solid fa-signature"></i> ลายมือชื่อดิจิทัลบน${docType.short}`;
       document.getElementById('docTitleBar').textContent = docType.label;
       document.getElementById('stBadge').innerHTML =
-        `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` +
+        `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` +
         `<span class="chip me-1">${docType.short}</span>` +
         ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
       const is73 = ECMIS.isCase73(kase);
@@ -650,23 +895,20 @@
         owner: 'DRAFT', section_head: 'PENDING_SECTION', director: 'PENDING_DIRECTOR',
         deputy: 'PENDING_DEPUTY', secgen: 'PENDING_SECGEN'
       };
-      const FULL_CHAIN = ECMIS.UPSTREAM_CHAIN.concat(['secgen']);
+      const FULL_CHAIN = ECMIS.upstreamMockChain(kase).concat(['secgen']);
       const curIdx = FULL_CHAIN.findIndex(r => CHAIN_STATUS[r] === kase.status);
 
       const opByRole = Object.fromEntries((kase.chainOpinions || []).map(o => [o.roleId, o]));
       const divSplit = g1.divergence.split;
 
-      const MOCK_STEP_SLA = {
-        owner: { used: 2, limit: 5 },
-        section_head: { used: 1, limit: 5 },
-        director: { used: 8, limit: 5 },
-        deputy: { used: 3, limit: 5 }
-      };
+      const MOCK_STEP_SLA = ECMIS.UPSTREAM_MOCK_SLA;
 
       document.getElementById('chain').innerHTML = FULL_CHAIN.map((rid, i) => {
         const r = ECMIS.getRole(rid);
         const upstream = r.scope === 'UPSTREAM';
         const op = opByRole[rid];
+        /* แถวชั้นกอง/เขตที่ไม่มีความเห็นจริง (ระบบสร้างเอง) = ตัวอย่างประกอบ: ชื่อตำแหน่งต้นทาง ไม่มีชื่อบุคคล/ป้ายความเห็น (Task 179) */
+        const mockRow = rid !== 'secgen' && (!op || op.mock); // ไม่ใช้ r.scope — role ต้นทางใน ROLES ของ A7 ถูกผูกกับ affairs/secgen
 
         const stepData = (op && op.daysUsed)
           ? { used: op.daysUsed, limit: op.slaLimit || 5 }
@@ -678,7 +920,7 @@
           note = `ผ่านขั้นตอนนี้แล้ว · <span class="text-success fw-medium"><i class="fa-solid fa-clock me-1"></i>ใช้ไป ${stepData.used}/${stepData.limit} วัน</span>`;
         } else if (i === curIdx) {
           cls = 'now';
-          note = `<strong>อยู่ระหว่างพิจารณา</strong> · ${ECMIS.slaLabel(kase.slaDays, ECMIS.effectiveSlaLimit(kase))}`;
+          note = `<strong>อยู่ระหว่างพิจารณา</strong> · ${(u => ECMIS.slaLabel(u.used, u.lim))(ECMIS.slaUsedLimit(kase))}`;
         } else if (i > curIdx) {
           cls = '';
           note = 'รอคิว';
@@ -686,9 +928,9 @@
           cls = 'ok';
           const isOver = stepData.used > stepData.limit;
           if (isOver) {
-            note = `เห็นชอบแล้ว · <span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i>ใช้ไป ${stepData.used}/${stepData.limit} วัน <span class="badge bg-danger ms-1">เกินกำหนด ${stepData.used - stepData.limit} วัน</span></span>`;
+            note = `${mockRow ? 'ผ่านแล้ว' : 'เห็นชอบแล้ว'} · <span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i>ใช้ไป ${stepData.used}/${stepData.limit} วัน <span class="badge bg-danger ms-1">เกินกำหนด ${stepData.used - stepData.limit} วัน</span></span>`;
           } else {
-            note = `เห็นชอบแล้ว · <span class="text-success fw-medium"><i class="fa-solid fa-clock me-1"></i>ใช้ไป ${stepData.used}/${stepData.limit} วัน</span>`;
+            note = `${mockRow ? 'ผ่านแล้ว' : 'เห็นชอบแล้ว'} · <span class="text-success fw-medium"><i class="fa-solid fa-clock me-1"></i>ใช้ไป ${stepData.used}/${stepData.limit} วัน</span>`;
           }
         }
 
@@ -697,7 +939,7 @@
 
         /* ความเห็นของชั้นนี้ + ทำเครื่องหมายชั้นที่ความเห็นเริ่มแตกจากชั้นก่อนหน้า */
         let opHtml = '';
-        if (op) {
+        if (op && !mockRow && rid !== 'deputy') { // แถวรองเลขาฯ แสดงข้อความความเห็นจริงแทนป้ายประเภท (Task 190)
           const isSplit = divSplit && divSplit.to.roleId === rid;
           opHtml = `<div class="tl-m mt-1">
       <span class="st ${op.type === 'ACCEPT' ? 'st-done' : (op.type === 'MORE' ? 'st-review' : 'st-returned')}"
@@ -706,24 +948,32 @@
     </div>`;
         }
 
+        /* ความเห็นจริงของรองเลขาธิการฯ (Task 190) แสดงข้อความเต็มใต้แถว */
+        const deputyNote = (rid === 'deputy' && op && !mockRow && op.note)
+          ? `<div class="tl-m mt-1" style="white-space:pre-line">ความเห็น: ${ECMIS.escapeHtml(op.note)}${op.date ? ` <span class="text-muted">(${ECMIS.toThaiDigits(ECMIS.thaiDate(op.date))})</span>` : ''}</div>` : '';
         return `<li class="${cls}" ${upstream ? 'style="opacity:.85"' : ''}><span class="tl-dot"></span>
-    <div class="tl-t">${r.title} ${tag} ${isMe ? '<span class="chip ms-1">คุณ</span>' : ''}</div>
-    <div class="tl-m">${r.name} · ${note}</div>${opHtml}</li>`;
+    <div class="tl-t">${mockRow ? ECMIS.upstreamMockTitle(rid, kase) : r.title} ${tag} ${isMe ? '<span class="chip ms-1">คุณ</span>' : ''}</div>
+    <div class="tl-m">${mockRow ? note : `${r.name} · ${note}`}</div>${opHtml}${deputyNote}</li>`;
       }).join('');
+      if (kase.junction) {
+        document.getElementById('chain').innerHTML = window.ECMISJunctionBridgeA7.renderSourceChain(kase);
+        document.getElementById('chainMockChip').hidden = true;
+      }
 
       /* ---------- สรุปสำนวน ----------
          "ฐานการรับเรื่อง" เป็นข้อมูลที่มาจากต้นทาง (ตอนรับสำนวนเข้าระบบ) ไม่ใช่ฟิลด์ที่
          เลขาธิการฯ เลือก/แก้ไขเองในขั้นตอนนี้ — แสดงเป็น text อ่านอย่างเดียวเสมอ */
       document.getElementById('summary').innerHTML = [
-        ['เลขสำนวน', kase.id],
+        ['เลขสำนวน', ECMIS.caseNo(kase)],
         ['ฐานการรับเรื่อง', kase.legalBase], ['เจ้าของสำนวน', kase.owner],
         ['หน่วยงาน', kase.ownerOrg], ['วันที่รับเรื่อง', ECMIS.thaiDate(kase.receivedDate)],
         ['ต้องเริ่มไต่สวนภายใน (ม.23)', ECMIS.thaiDate(kase.deadline60)],
         ['ครบกำหนด 2 ปี (ม.23)', ECMIS.thaiDate(kase.deadline2y)]
-      ].map(([k, v]) => `<div class="col-md-6"><span class="k">${k}:</span> <span class="v">${v}</span></div>`).join('');
+      ].map(([k, v]) => `<div class="col-md-6"><span class="k">${k}:</span> <span class="v">${(v === null || v === undefined || v === '') ? '—' : v}</span></div>`).join('');
       document.getElementById('sAllegation').textContent = kase.allegation;
+      /* 7.3 (เรื่องทั่วไป/ข้อกฎหมาย) ไม่มีความเห็น "รับไว้ไต่สวน" ของผู้รับผิดชอบ — แสดง "—" (Task 179) */
       const ownerOp = opByRole['owner'];
-      document.getElementById('sOpinion').innerHTML = ownerOp
+      document.getElementById('sOpinion').innerHTML = ECMIS.isCase73(kase) ? '—' : ownerOp
         ? `<span class="chip">${ECMIS.OPINION_TYPES[ownerOp.type].label}</span> — ${ownerOp.note}`
         : '<span class="text-muted">— ยังไม่มีการบันทึกความเห็นของผู้รับผิดชอบสำนวน —</span>';
 
@@ -739,7 +989,7 @@
             : (dec === 'DIFFER'
               ? '<span class="badge bg-danger">เห็นต่าง / มีความเห็นแย้ง</span>'
               : (dec === 'RETURN'
-                ? '<span class="badge bg-secondary">ส่งคืนสายงานต้นทาง (กจ.5)</span>'
+                ? '<span class="badge bg-secondary">ส่งคืนสายงานต้นทาง (กระบวนการไต่สวน)</span>'
                 : '<span class="badge bg-info">ขอข้อมูลเพิ่มเติม</span>'));
 
           resBody.innerHTML = `
@@ -972,7 +1222,7 @@
   <div class="doc-secret">ลับ</div>
   <div class="doc-title">${docType.label}</div>
   <div class="doc-sub">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
-  <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+  <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
   <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
   <div class="doc-row"><span class="k">ผู้รับผิดชอบ</span> ${M(kase.owner)}</div>
   <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
@@ -1088,7 +1338,7 @@
       }
 
       function buildButtons() {
-        const b = [{ act: 'return', label: 'ส่งคืนสายงานต้นทาง (กจ.5)', icon: 'fa-arrow-left-long', cls: 'btn-outline-danger' }];
+        const b = [{ act: 'return', label: 'ส่งคืนสายงานต้นทาง (กระบวนการไต่สวน)', icon: 'fa-arrow-left-long', cls: 'btn-outline-danger' }];
         if (role.id === 'secgen') {
           const hasSupportOpinion = !!(kase.supportOpinion || kase.supportOpinion72 || kase.supportDecision);
           const isRegional = isRegionalCase(kase);
@@ -1239,7 +1489,9 @@
           }).then(async res => {
             if (res.isConfirmed) {
               try {
-                await persistCase(kase, { status: ECMIS.isCase72(kase) ? 'RETURNED_72' : 'RETURNED' });
+                await persistCase(kase, { status: ECMIS.isCase72(kase) ? 'RETURNED_72' : 'RETURNED',
+                  resolutionData: { ...(kase.resolutionData || {}), sourceReturn: { reason: res.value.n, reasonCode: res.value.r, scope: res.value.s, by: role.name || role.id } } });
+                window.ECMISJunctionBridgeA7?.publishReturn?.(kase, { reason: res.value.n, reasonCode: res.value.r, scope: res.value.s, by: role.name || role.id });
                 if (res.value.f) {
                   await uploadAttachment(kase.tcc_id, res.value.f, role.id);
                   if (ECMIS.refreshAttachmentCard) ECMIS.refreshAttachmentCard();
@@ -1263,7 +1515,7 @@
           const nextStatus = CHAIN_STATUS[nextRoleId];
           ECMIS.confirmAction({
             title: 'เห็นชอบและเสนอตามลำดับชั้น',
-            html: `<p>เสนอสำนวน <strong>${kase.id}</strong> ต่อไปยัง <strong>${nextRoleTitle()}</strong></p>`,
+            html: `<p>เสนอสำนวน <strong>${ECMIS.caseNo(kase)}</strong> ต่อไปยัง <strong>${nextRoleTitle()}</strong></p>`,
             confirmText: 'ยืนยันเห็นชอบ'
           }).then(async r => {
             if (r.isConfirmed) {
@@ -1290,7 +1542,7 @@
           const nextStatus = ECMIS.isCase72(kase) ? 'PENDING_SUPPORT_ASSIGN_72' : 'PENDING_SUPPORT_ASSIGN';
           ECMIS.confirmAction({
             title: 'ส่งเรื่องซับซ้อนให้ ผอ.กบค.',
-            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งพร้อม <strong>ใบบันทึกซับซ้อน</strong> ไปยัง
+            html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกส่งพร้อม <strong>ใบบันทึกซับซ้อน</strong> ไปยัง
             <strong>ผู้อำนวยการกองบริหารคดี (ผอ.กบค.)</strong> เพื่อออกเลขทะเบียนคุมและมอบหมาย
             <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ</strong></p>`,
             confirmText: 'ยืนยันส่ง ผอ.กบค.'
@@ -1326,7 +1578,7 @@
               icon: 'success',
               title: 'ส่งเรื่องให้ ผอ.กบค. เรียบร้อย',
               html: `<div class="text-start">
-              สำนวน <strong>${kase.id}</strong> ถูกส่งไปยัง <strong>ผู้อำนวยการกองบริหารคดี (ผอ.กบค.)</strong> แล้ว<br>
+              สำนวน <strong>${ECMIS.caseNo(kase)}</strong> ถูกส่งไปยัง <strong>ผู้อำนวยการกองบริหารคดี (ผอ.กบค.)</strong> แล้ว<br>
               <div style="font-size:.82rem;color:#7C8CA3;margin-top:.6rem">ขั้นถัดไป: ผอ.กบค. ออกเลขทะเบียนคุมและมอบหมายคณะอนุสนับสนุนฯ → คณะอนุสนับสนุนฯ กลั่นกรอง → กลับมาเลขาธิการฯ</div>
             </div>`,
               confirmButtonColor: '#0F2A62',
@@ -1468,7 +1720,7 @@
             icon: 'success',
             title: hasSupportOpinion ? (targetStatus === 'IN_SCREENING' ? 'ลงนามและส่งกองบริหารคดีเรียบร้อย' : 'ลงนามและเสนอประธานกรรมการ ป.ป.ท. เรียบร้อย') : (isCase73Item ? 'ลงนามบันทึกเสนอเรื่องเรียบร้อย' : 'บันทึกและเปลี่ยนสถานะเรียบร้อย'),
             html: `<div class="text-start">
-            สำนวน <strong>${kase.id}</strong> ถูกบันทึกสถานะเป็น
+            สำนวน <strong>${ECMIS.caseNo(kase)}</strong> ถูกบันทึกสถานะเป็น
             <span class="st st-done" style="font-size:0.85rem"><i class="fa-solid fa-signature me-1"></i>เลขาลงนามแล้ว</span><br>
             และส่งต่อไปยัง <strong>${dest}</strong> เรียบร้อยแล้ว
             <div style="font-size:.82rem;color:#7C8CA3;margin-top:.6rem">เส้นทางที่ระบบกำหนด: ${path}</div>
@@ -1498,7 +1750,7 @@
               ECMIS.toastWarn('กรุณาเลือกมาตราที่ใช้อ้างอิงก่อนลงนามคำสั่ง'); return;
             }
             const order = ECMIS.m28Order(m28);
-            ECMIS.signDialog(`คำสั่งเลขาธิการฯ ตาม ${order.lawRef} เรื่องที่ ${kase.id}`,
+            ECMIS.signDialog(`คำสั่งเลขาธิการฯ ตาม ${order.lawRef} เรื่องที่ ${ECMIS.caseNo(kase)}`,
               'นายอภิชาติ สุจริตกุล — เลขาธิการคณะกรรมการ ป.ป.ท.')
               .then(res => {
                 if (!res.isConfirmed) return;
@@ -1529,8 +1781,8 @@
             }]
             : [SEC];
           const signPromise = needsSequential
-            ? ECMIS.sequentialSignDialog(`${docType.label} เรื่องที่ ${kase.id}`, signers)
-            : ECMIS.signDialog(`${docType.label} เรื่องที่ ${kase.id}`, `${SEC.name} — ${SEC.title}`);
+            ? ECMIS.sequentialSignDialog(`${docType.label} เรื่องที่ ${ECMIS.caseNo(kase)}`, signers)
+            : ECMIS.signDialog(`${docType.label} เรื่องที่ ${ECMIS.caseNo(kase)}`, `${SEC.name} — ${SEC.title}`);
 
           signPromise.then(res => {
             if (!res.isConfirmed) return;
@@ -1563,7 +1815,7 @@
         `<i class="fa-solid fa-signature"></i> ลายมือชื่อดิจิทัลบน${docType.short}`;
       document.getElementById('docTitleBar').textContent = docType.label;
       document.getElementById('stBadge').innerHTML =
-        `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` +
+        `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` +
         `<span class="chip me-1">${docType.short}</span>` +
         ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
       document.getElementById('stepper').innerHTML =
@@ -1588,7 +1840,24 @@
         else { prevDate = null; }
       });
 
-      document.getElementById('chain').innerHTML = CHAIN_72.map((rid, i) => {
+      /* ความเห็นรองเลขาธิการฯ เป็นข้อมูลจริงของ กจ.7 (Task 190) — ชั้นกอง/เขตก่อนหน้ายังเป็นตัวอย่างประกอบ */
+      const deputyOp72 = opByRole.deputy && !opByRole.deputy.mock ? opByRole.deputy : null;
+      const mockRows72 = curIdx === -1 && !isReturned && (kase.chainOpinions || []).every(o => o.mock || o.roleId === 'deputy');
+      /* ความเห็นชั้นกอง/เขตเป็นข้อมูลที่ระบบสร้างเอง → แสดงเป็นตัวอย่างประกอบ 4 ชั้นตามต้นทาง กจ.5 (Task 179) */
+      const mockRowsHtml72 = () => ECMIS.upstreamMockChain(kase).filter(rid => !(deputyOp72 && rid === 'deputy')).map(rid => {
+        const s = ECMIS.UPSTREAM_MOCK_SLA[rid] || { used: 2, limit: 5 };
+        return `<li class="ok" style="opacity:.85"><span class="tl-dot"></span>
+          <div class="tl-t">${ECMIS.upstreamMockTitle(rid, kase)}</div>
+          <div class="tl-m">ผ่านแล้ว · <span class="text-success fw-medium"><i class="fa-solid fa-clock me-1"></i>ใช้ไป ${s.used}/${s.limit} วัน</span></div></li>`;
+      }).join('') + (deputyOp72 ? (() => {
+        const d = ECMIS.getRole('deputy');
+        return `<li class="ok"><span class="tl-dot"></span>
+          <div class="tl-t">${d.title}</div>
+          <div class="tl-m">${d.name} · เห็นชอบแล้ว</div>
+          <div class="tl-m mt-1" style="white-space:pre-line"><span class="st st-done" style="font-size:.68rem">เห็นชอบ</span>
+            — ${ECMIS.escapeHtml(deputyOp72.note)}${deputyOp72.date ? ` <span style="font-size:11px;color:#666">(${ECMIS.toThaiDigits(ECMIS.thaiDate(deputyOp72.date))})</span>` : ''}</div></li>`;
+      })() : '');
+      document.getElementById('chain').innerHTML = (mockRows72 ? mockRowsHtml72() : CHAIN_72.map((rid, i) => {
         const r = ECMIS.getRole(rid);
         const op = opByRole[rid];
         const usedDays = daysUsedByRole[rid];
@@ -1611,21 +1880,21 @@
         return `<li class="${cls}"><span class="tl-dot"></span>
           <div class="tl-t">${r.title} ${isMe ? '<span class="chip ms-1">คุณ</span>' : ''}</div>
           <div class="tl-m">${r.name} · ${note}</div>${opHtml}</li>`;
-      }).join('') + `
+      }).join('')) + `
         <li><span class="tl-dot"></span>
           <div class="tl-t">เลขาธิการคณะกรรมการ ป.ป.ท.</div>
           <div class="tl-m">พิจารณา/ลงนาม/ชี้สำนวนซับซ้อน-เร่งด่วน</div></li>`;
 
       /* ---------- สรุปสำนวน — ไม่มี ม.23 (60 วัน/2 ปี) ในชั้นวินิจฉัยชี้มูล ใช้รอบการไต่สวนแทน ---------- */
       document.getElementById('summary').innerHTML = [
-        ['เลขสำนวน', kase.id],
+        ['เลขสำนวน', ECMIS.caseNo(kase)],
         ['ฐานการรับเรื่อง', kase.legalBase], ['ผู้รับผิดชอบสำนวน', kase.owner],
         ['หน่วยงาน', kase.ownerOrg], ['วันที่รับเรื่อง', ECMIS.thaiDate(kase.receivedDate)],
         ['รอบการไต่สวน', `ครั้งที่ ${kase.round72 || 1}`]
-      ].map(([k, v]) => `<div class="col-md-6"><span class="k">${k}:</span> <span class="v">${v}</span></div>`).join('');
+      ].map(([k, v]) => `<div class="col-md-6"><span class="k">${k}:</span> <span class="v">${(v === null || v === undefined || v === '') ? '—' : v}</span></div>`).join('');
       document.getElementById('sAllegation').textContent = kase.allegation;
       document.getElementById('sOpinion').innerHTML = (kase.chainOpinions || []).length
-        ? (kase.chainOpinions || []).map(o => `<span class="chip me-1">${ECMIS.getRole(o.roleId).title}</span>`).join('')
+        ? (kase.chainOpinions || []).map(o => `<span class="chip me-1">${o.mock ? ECMIS.upstreamMockTitle(o.roleId, kase) : ECMIS.getRole(o.roleId).title}</span>`).join('')
         : '<span class="text-muted">— ยังไม่มีการบันทึกความเห็นตามสายอนุมัติ —</span>';
 
       /* opinionCard แสดงต่างกัน 3 แบบตามบทบาท:
@@ -1672,7 +1941,7 @@
       function urgentYes() { const el = document.getElementById('urgentYes72'); return el ? el.checked : false; }
 
       function onComplexChange() {
-        const box = document.getElementById('g1reasonBox');
+        const box = document.getElementById('complexReasonBox');
         if (box) box.classList.toggle('d-none', !complexYes());
         renderRouteOutcome(); renderDoc();
       }
@@ -1698,7 +1967,7 @@
         const priorOpinions = (kase.chainOpinions || []).map(o =>
           `<div>${ECMIS.getRole(o.roleId).title}: เห็นชอบ — ${M(o.note)}
             <span style="font-size:11px;color:#666">(${ECMIS.toThaiDigits(ECMIS.thaiDate(o.date))})</span></div>`).join('');
-        const complexReasonEl = document.getElementById('g1reason');
+        const complexReasonEl = document.getElementById('complexReason');
         const urgentReasonEl = document.getElementById('urgentReason72');
 
         const docTarget = document.getElementById('docPaperPage') || document.getElementById('docPaper');
@@ -1706,7 +1975,7 @@
           <div class="doc-secret">ลับ</div>
           <div class="doc-title">${docType.label}</div>
           <div class="doc-sub">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
-          <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+          <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
           <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
           <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(kase.owner)}</div>
           <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
@@ -1801,7 +2070,7 @@
           const nextTitle = nextRoleTitle();
           ECMIS.confirmAction({
             title: 'เห็นชอบและเสนอตามลำดับชั้น',
-            html: `<p>เสนอสำนวน <strong>${kase.id}</strong> ต่อไปยัง <strong>${nextTitle}</strong></p>`,
+            html: `<p>เสนอสำนวน <strong>${ECMIS.caseNo(kase)}</strong> ต่อไปยัง <strong>${nextTitle}</strong></p>`,
             confirmText: 'ยืนยันเห็นชอบ'
           }).then(async res => {
             if (!res.isConfirmed) return;
@@ -1845,6 +2114,7 @@
             if (!res.isConfirmed) return;
             try {
               await persistCase(kase, { status: 'RETURNED_72' });
+              window.ECMISJunctionBridgeA7?.publishReturn?.(kase, { reason: res.value.n, by: role.name || role.id });
             } catch (err) {
               console.error('ตีกลับไม่สำเร็จ:', err);
               ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -1862,7 +2132,7 @@
         if (act === 'resubmit') {
           ECMIS.confirmAction({
             title: 'ยืนยันเสนอใหม่',
-            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกเสนอกลับเข้าสายอนุมัติ 3 ชั้นอีกครั้ง เริ่มที่ <strong>หัวหน้ากลุ่มงาน</strong></p>`,
+            html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกเสนอกลับเข้าสายอนุมัติ 3 ชั้นอีกครั้ง เริ่มที่ <strong>หัวหน้ากลุ่มงาน</strong></p>`,
             confirmText: 'ยืนยันเสนอใหม่'
           }).then(async res => {
             if (!res.isConfirmed) return;
@@ -1880,7 +2150,7 @@
         }
 
         if (act === 'approve') {
-          const complexReasonEl = document.getElementById('g1reason');
+          const complexReasonEl = document.getElementById('complexReason');
           const urgentReasonEl = document.getElementById('urgentReason72');
           if (complexYes() && (!complexReasonEl || !complexReasonEl.value.trim())) {
             ECMIS.toastWarn('กรุณาระบุเหตุผลที่ถือเป็นเรื่องยุ่งยากซับซ้อน'); return;
@@ -1901,14 +2171,20 @@
 
           ECMIS.confirmAction({
             title: 'เห็นชอบและส่งต่อ',
-            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งต่อไปยัง <strong>${ECMIS.STATUS[next.to].label}</strong></p>`,
+            html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกส่งต่อไปยัง <strong>${ECMIS.STATUS[next.to].label}</strong></p>`,
             confirmText: 'ยืนยันเห็นชอบ'
           }).then(async res => {
             if (!res.isConfirmed) return;
             try {
               /* ไม่ set signedBySecgen -- เลขาธิการฯ เห็นชอบส่งต่อ ไม่ได้ลงนามบนรายงานวินิจฉัยชี้มูล
                  (ตัวจริงยังไม่เกิดขึ้นจนกว่าบอร์ดจะลงมติ และลงนามจริงโดยประธานฯ นอกระบบ) */
-              await persistCase(kase, { status: next.to });
+              /* เก็บเหตุผลของเลขาฯ ลง trr_resolution_data แบบเดียวกับสาย 7.1 — dir-case-support-assign.html
+                 อ่าน complexReason ไปใส่ใบบันทึกซับซ้อนถึง ผอ.กบค. (เดิม 7.2 บันทึกแค่สถานะ เหตุผลหาย — Task 169) */
+              const reasons = {};
+              if (kase.complex72) { reasons.complexReason = kase.complexReason72; reasons.complex72 = true; }
+              if (kase.urgent72) reasons.urgentReason72 = kase.urgentReason72;
+              await persistCase(kase, Object.keys(reasons).length
+                ? { status: next.to, resolutionData: reasons } : { status: next.to });
             } catch (err) {
               console.error('บันทึกเห็นชอบไม่สำเร็จ:', err);
               ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -2080,6 +2356,10 @@
     const mayEdit = ECMIS.canEditMaster(role.id) || ['secgen', 'director', 'deputy', 'section_head', 'affairs'].includes(role.id);
     ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: mayEdit });
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

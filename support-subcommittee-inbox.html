@@ -14,6 +14,7 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
   <style>
     .kpi-card {
       transition: all 0.2s ease;
@@ -27,7 +28,7 @@
   </style>
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
 
@@ -129,198 +130,16 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script>
     ECMIS.renderShell('support-subcommittee-inbox.html');
 
     const role = ECMIS.currentRole();
-
-    const SUPPORT_CASES = [
-      {
-        id: '2015/2569',
-        subject: 'กล่าวหาเจ้าหน้าที่โครงการชลประทานทุจริตจัดซื้อจัดจ้างระบบสูบน้ำพลังงานแสงอาทิตย์',
-        allegation: 'จัดทำเอกสารประมาณราคาโครงการจัดซื้อระบบสูบน้ำพลังงานแสงอาทิตย์สูงกว่าราคากลางท้องตลาด และตรวจรับพัสดุไม่ตรงสเปก',
-        docType: '213',
-        owner: 'นายสมชาย ปราบทุจริต',
-        ownerOrg: 'กองปราบปรามการทุจริตในภาครัฐ 1',
-        assignedGroup: 'group1',
-        team: 'TEAM1',
-        teamLabel: 'คณะที่ 1',
-        triggerType: 'DIFFER',
-        triggerBadgeText: 'ความเห็นแย้งในสายงาน',
-        triggerText: 'ความเห็นแย้งในสายงาน (พงส. ชี้มูล vs ผอ.กอง ยุติเรื่อง)',
-        status: 'IN_SUPPORT_SUB',
-        statusText: 'รอกลั่นกรอง',
-        statusCat: 'PENDING',
-        slaDays: 2,
-        slaLimit: 5,
-        accused: [{ no: 1, name: 'นายสมศักดิ์ สุขใจ', pos: 'วิศวกรชลประทานชำนาญการ' }]
-      },
-      {
-        id: '2018/2569',
-        subject: 'กล่าวหาผู้บริหารองค์กรปกครองส่วนท้องถิ่นจัดทำโครงการฝึกอบรมดูงานอันเป็นเท็จ',
-        allegation: 'จัดทำโครงการอบรมสัมมนาโดยไม่มีการจัดกิจกรรมจริง และเบิกจ่ายงบประมาณอันเป็นเท็จ',
-        docType: '644',
-        owner: 'นายประสิทธิ์ นิติกุล',
-        ownerOrg: 'สำนักงาน ป.ป.ท. เขต 3',
-        assignedGroup: 'group1',
-        team: 'TEAM1',
-        teamLabel: 'คณะที่ 1',
-        triggerType: 'COMPLEX',
-        triggerBadgeText: 'ประเด็นซับซ้อน',
-        triggerText: 'ประเด็นข้อกฎหมายซับซ้อน / พยานเอกสาร 1,200 แผ่น',
-        status: 'IN_SUPPORT_SUB',
-        statusText: 'รอกลั่นกรอง',
-        statusCat: 'PENDING',
-        slaDays: 3,
-        slaLimit: 5,
-        accused: [{ no: 1, name: 'นางกาญจนา นามสมมุติ', pos: 'นายก อบต.' }]
-      },
-      {
-        id: '2026/2569',
-        subject: 'กล่าวหาเจ้าหน้าที่จัดซื้อครุภัณฑ์วิทยาศาสตร์สถานศึกษาเกินความจำเป็น',
-        allegation: 'จัดซื้อครุภัณฑ์ห้องปฏิบัติการทางวิทยาศาสตร์ในราคาสูงกว่าปกติ และมีการล็อกคุณลักษณะเฉพาะ',
-        docType: '213',
-        owner: 'นายชาญชัย มั่นคง',
-        ownerOrg: 'กองปราบปรามการทุจริตในภาครัฐ 4',
-        assignedGroup: 'group1',
-        team: 'TEAM1',
-        teamLabel: 'คณะที่ 1',
-        triggerType: 'MORE_INFO',
-        triggerBadgeText: 'ขอเอกสารเพิ่ม',
-        triggerText: 'ขอเอกสารรายงานผลการสอบสวนข้อเท็จจริงของคณะกรรมการตรวจรับพัสดุ',
-        status: 'IN_SUPPORT_SUB',
-        statusText: 'รอข้อมูลเพิ่ม',
-        statusCat: 'MORE_INFO',
-        moreInfoItems: 'ขอใบเสนอราคาเปรียบเทียบจากผู้ประกอบการ 3 ราย และรายงานการตรวจรับพัสดุ',
-        moreInfoDays: 7,
-        slaDays: 3,
-        slaLimit: 7,
-        accused: [{ no: 1, name: 'นายเกรียงไกร สดใส', pos: 'เจ้าพนักงานพัสดุชำนาญงาน' }]
-      },
-      {
-        id: '2004/2569',
-        subject: 'กล่าวหาเจ้าหน้าที่แขวงทางหลวงจัดทำสัญญาปรับปรุงผิวจราจรไม่ถูกต้องตามระเบียบ',
-        allegation: 'สำนวนไต่สวนไม่ปรากฏพยานหลักฐานการตรวจรับพัสดุฉบับจริง ส่งคืนสายงานต้นทาง กจ.5 เพื่อรวบรวมเอกสารใหม่',
-        docType: '213',
-        owner: 'นายวิเชียร มุ่งมั่น',
-        ownerOrg: 'กองปราบปรามการทุจริตในภาครัฐ 2',
-        assignedGroup: 'group1',
-        team: 'TEAM1',
-        teamLabel: 'คณะที่ 1',
-        triggerType: 'RETURN',
-        triggerBadgeText: 'ส่งคืนสายงานต้นทาง',
-        triggerText: 'สำนวนไม่สมบูรณ์ ส่งคืนสายงานต้นทาง (กจ.5) ดำเนินการใหม่',
-        status: 'RETURNED',
-        statusText: 'ส่งคืนต้นทาง (กจ.5)',
-        statusCat: 'RETURNED',
-        slaDays: 3,
-        slaLimit: 5,
-        accused: [{ no: 1, name: 'นายชูเกียรติ ก่อสร้าง', pos: 'นายช่างโยธาอาวุโส' }]
-      },
-      {
-        id: '2012/2569',
-        subject: 'กล่าวหาเจ้าหน้าที่โรงพยาบาลทุจริตจัดซื้อเวชภัณฑ์ยา',
-        allegation: 'จัดซื้อเวชภัณฑ์ยาไม่เป็นไปตามระเบียบกระทรวงสาธารณสุข และมีพฤติการณ์แสวงหาประโยชน์',
-        docType: '213',
-        owner: 'นางสาวรัตนา สถิตธรรม',
-        ownerOrg: 'สำนักงาน ป.ป.ท. เขต 1',
-        assignedGroup: 'group1',
-        team: 'TEAM1',
-        teamLabel: 'คณะที่ 1',
-        triggerType: 'DONE',
-        triggerBadgeText: 'กลั่นกรองแล้วเสร็จ',
-        triggerText: 'กลั่นกรองแล้วเสร็จ (เสนอความเห็นเห็นพ้อง คืนเลขาธิการฯ แล้ว)',
-        status: 'PENDING_SECGEN',
-        statusText: 'กลั่นกรองแล้วเสร็จ',
-        statusCat: 'DONE',
-        slaDays: 4,
-        slaLimit: 5,
-        accused: [{ no: 1, name: 'นายแพทย์อดุลย์ มีชัย', pos: 'ผู้อำนวยการโรงพยาบาล' }]
-      },
-      {
-        id: '2020/2569',
-        subject: 'กล่าวหาเจ้าหน้าที่เทศบาลตรวจรับงานโครงการปรับภูมิทัศน์สวนสาธารณะต่ำกว่ามาตรฐาน',
-        allegation: 'ตรวจรับงานจ้างปรับปรุงภูมิทัศน์ทั้งที่งานไม่แล้วเสร็จสมบูรณ์ตามสัญญาจ้าง',
-        docType: '213',
-        owner: 'นายพิเชษฐ์ รักชาติ',
-        ownerOrg: 'สำนักงาน ป.ป.ท. เขต 4',
-        assignedGroup: 'group2',
-        team: 'TEAM2',
-        teamLabel: 'คณะที่ 2',
-        triggerType: 'DIFFER',
-        triggerBadgeText: 'ความเห็นแย้งในสายงาน',
-        triggerText: 'ความเห็นแย้งในสายงาน (พงส. ชี้มูล ม.25 vs ผอ.เขต ยุติเรื่อง)',
-        status: 'IN_SUPPORT_SUB',
-        statusText: 'รอกลั่นกรอง',
-        statusCat: 'PENDING',
-        slaDays: 1,
-        slaLimit: 5,
-        accused: [{ no: 1, name: 'นายธวัชชัย ประเสริฐ', pos: 'นายช่างโยธาชำนาญงาน' }]
-      },
-      {
-        id: '2022/2569',
-        subject: 'กล่าวหาเจ้าหน้าที่จัดสรรที่ดิน ส.ป.ก. ออกเอกสารสิทธิ์ทับซ้อนพื้นที่ป่าสงวนแห่งชาติ',
-        allegation: 'รังวัดและออกหนังสืออนุญาตให้เข้าทำประโยชน์ในเขตปฏิรูปที่ดินทับซ้อนเขตป่าสงวนแห่งชาติ',
-        docType: '213',
-        owner: 'นางสาววิไลลักษณ์ ยุติธรรม',
-        ownerOrg: 'สำนักงาน ป.ป.ท. เขต 5',
-        assignedGroup: 'group2',
-        team: 'TEAM2',
-        teamLabel: 'คณะที่ 2',
-        triggerType: 'MORE_INFO',
-        triggerBadgeText: 'ขอเอกสารเพิ่ม',
-        triggerText: 'ขอเอกสารตรวจสอบแนวเขตเพิ่มเติมจากกรมป่าไม้',
-        status: 'IN_SUPPORT_SUB',
-        statusText: 'รอข้อมูลเพิ่ม',
-        statusCat: 'MORE_INFO',
-        moreInfoItems: '1. ขอสำเนารายงานการตรวจสอบแนวเขตป่าไม้ฉบับจริงจากกรมป่าไม้ 2. ขอถ้อยคำพยานบุคคลเพิ่มเติม',
-        moreInfoDays: 7,
-        slaDays: 4,
-        slaLimit: 7,
-        accused: [{ no: 1, name: 'นายอำนาจ รักษ์ถิ่น', pos: 'นายช่างรังวัดอาวุโส' }]
-      },
-      {
-        id: '2008/2569',
-        subject: 'กล่าวหาเจ้าหน้าที่กรมป่าไม้ออกใบอนุญาตแปรรูปไม้โดยมิชอบ',
-        allegation: 'สำนวนการไต่สวนข้อเท็จจริงขาดรายงานผลการตรวจพิสูจน์เนื้อไม้ ส่งคืนต้นทาง กจ.5 เพื่อตรวจสอบเพิ่มเติม',
-        docType: '644',
-        owner: 'นายสมเกียรติ ยิ่งเจริญ',
-        ownerOrg: 'กองปราบปรามการทุจริตในภาครัฐ 5',
-        assignedGroup: 'group2',
-        team: 'TEAM2',
-        teamLabel: 'คณะที่ 2',
-        triggerType: 'RETURN',
-        triggerBadgeText: 'ส่งคืนสายงานต้นทาง',
-        triggerText: 'สำนวนขาดรายงานตรวจพิสูจน์ ส่งคืนสายงานต้นทาง (กจ.5) ดำเนินการใหม่',
-        status: 'RETURNED',
-        statusText: 'ส่งคืนต้นทาง (กจ.5)',
-        statusCat: 'RETURNED',
-        slaDays: 2,
-        slaLimit: 5,
-        accused: [{ no: 1, name: 'นายณรงค์ รักษ์ไพร', pos: 'เจ้าพนักงานป่าไม้ชำนาญงาน' }]
-      },
-      {
-        id: '1984/2569',
-        subject: 'กล่าวหาเจ้าหน้าที่เบิกจ่ายงบประมาณสนับสนุนศูนย์พัฒนาเด็กเล็กโดยมิชอบ (ม.24)',
-        allegation: 'เบิกจ่ายเงินงบประมาณอุดหนุนศูนย์พัฒนาเด็กเล็กไม่เป็นไปตามระเบียบ',
-        docType: 'RULING',
-        owner: 'นายธนาธิป สุจริต',
-        ownerOrg: 'กองปราบปรามการทุจริตในภาครัฐ 3',
-        assignedGroup: 'group2',
-        team: 'TEAM2',
-        teamLabel: 'คณะที่ 2',
-        triggerType: 'DONE',
-        triggerBadgeText: 'กลั่นกรองแล้วเสร็จ',
-        triggerText: 'กลั่นกรองแล้วเสร็จ (ส่งผลกลับเลขาธิการฯ แล้ว)',
-        status: 'PENDING_SECGEN',
-        statusText: 'กลั่นกรองแล้วเสร็จ',
-        statusCat: 'DONE',
-        slaDays: 5,
-        slaLimit: 5,
-        accused: [{ no: 1, name: 'นางสาวพิมพ์ใจ ชื่นจิต', pos: 'หัวหน้าศูนย์พัฒนาเด็กเล็ก' }]
-      }
-    ];
 
     const SUPABASE_URL = 'https://ljhabbwjxnoucrcrsoii.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_2Bps-dWMZHz_7cs3BppF6A_ul1_A_xd';
@@ -328,7 +147,7 @@
       ? window.ECMIS.getSupabaseClient(SUPABASE_URL, SUPABASE_KEY)
       : (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }) : null);
 
-    let allCases = [...SUPPORT_CASES];
+    let allCases = [];
 
     // การเลือกกลุ่มงานอยู่ที่ dropdown บน topbar ของระบบแล้ว (ECMIS.currentSupportGroup/setSupportGroup)
     let selectedGroup = ECMIS.currentSupportGroup();
@@ -429,9 +248,7 @@
         });
 
         if (liveCases.length > 0) {
-          const liveIds = new Set(liveCases.map(c => c.id));
-          const preservedMocks = SUPPORT_CASES.filter(c => !liveIds.has(c.id));
-          allCases = [...liveCases, ...preservedMocks];
+          allCases = liveCases;
           updateScopeGroup(selectedGroup);
         }
       } catch (err) {
@@ -454,28 +271,9 @@
         { id: 'DONE', n: done, l: 'กลั่นกรองแล้วเสร็จ', i: 'fa-circle-check', c: '#16A34A' }
       ];
 
-      document.getElementById('kpiRow').innerHTML = kpis.map(k => {
-        const isActive = (activeKpi === k.id);
-        const cardStyle = isActive ? `style="border-color:${k.c};background:#F8FAFC;"` : '';
-        return `
-          <div class="col">
-            <div class="card card-ecmis kpi-card h-100 ${isActive ? 'border-2 shadow-sm' : ''}" 
-                 ${cardStyle}
-                 onclick="filterByKPI('${k.id}')">
-              <div class="card-body p-3 d-flex align-items-center justify-content-between">
-                <div>
-                  <div class="text-muted small mb-1">${k.l}</div>
-                  <div class="h3 fw-bold mb-0" style="color:${k.c}">${k.n}</div>
-                </div>
-                <div class="rounded-circle p-3 d-flex align-items-center justify-content-center"
-                     style="background: ${k.c}15; width:48px; height:48px;">
-                  <i class="fa-solid ${k.i} fs-5" style="color:${k.c}"></i>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
+      document.getElementById('kpiRow').innerHTML = kpis.map(k => ECMIS.kpiCardHtml({
+        n: k.n, l: k.l, active: activeKpi === k.id, attrs: `onclick="filterByKPI('${k.id}')"`
+      })).join('');
     }
 
     function filterByKPI(kpiId) {
@@ -637,6 +435,10 @@
 
     });
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

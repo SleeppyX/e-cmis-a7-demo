@@ -14,9 +14,10 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <div class="page-head">
@@ -45,18 +46,18 @@
             <div id="modeBanner" class="mb-3"></div>
             <div class="row g-2 mb-3">
               <div class="col-md-4"><label class="form-label field-req">ครั้งที่ประชุม</label>
-                <input class="form-control" id="meetNo" value="38/2569">
+                <input class="form-control" id="meetNo" placeholder="เช่น 1/2569">
               </div>
               <div class="col-md-4"><label class="form-label field-req">วันที่ประชุม</label>
-                <input class="form-control" id="meetDate" type="date" value="2569-06-02">
+                <input class="form-control" id="meetDate" type="date">
               </div>
               <div class="col-md-4"><label class="form-label field-req">วาระที่</label>
-                <input class="form-control" id="agendaNo" value="5.12">
+                <input class="form-control" id="agendaNo" placeholder="เช่น 5.1">
               </div>
             </div>
 
             <label class="form-label">รายชื่อกรรมการและการลงคะแนน</label>
-            <table class="table tbl-ecmis mb-2">
+            <div class="table-responsive"><table class="table tbl-ecmis mb-2">
               <thead>
                 <tr>
                   <th>กรรมการ</th>
@@ -65,7 +66,7 @@
                 </tr>
               </thead>
               <tbody id="boardTb"></tbody>
-            </table>
+            </table></div>
           </div>
         </div>
 
@@ -238,7 +239,7 @@
 
               <!-- Right Group: Zoom Stepper Controls -->
               <div class="toolbar-group ms-auto">
-                <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                <div class="d-flex align-items-center bg-dark rounded px-1" style="height:26px;">
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                   <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -262,15 +263,26 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
-  <script src="assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="assets/ecmis-model.js"></script>
-  <script src="assets/agenda-registry-data.js"></script>
+  <script src="assets/agenda-registry-data.js?v=20261002-merge-main1"></script>
   <script>
     ECMIS.renderShell('resolution.html');
 
     const params = new URLSearchParams(location.search);
     const kase = ECMIS.requireCase(params.get('case') || '1547/2568');
     if (!kase) throw new Error('ECMIS_CASE_NOT_FOUND');
+    /* หน้านี้บันทึกมติของ 7.1/7.3 (สถานะ RESOLVED) — เคส 7.2 ต้องไปหน้า resolution-72.html ซึ่งเขียน RESOLVED_PENDING_72
+       เดิมเปิดเคส 7.2 ที่นี่แล้วบันทึกมติได้ ทำให้สาย 7.2 ไปไม่ถึงรายงานวินิจฉัยชี้มูล (Task 166) */
+    if (ECMIS.isCase72(kase)) {
+      location.replace('resolution-72.html?case=' + encodeURIComponent(kase.id));
+      throw new Error('ECMIS_REDIRECT_72');
+    }
     const role = ECMIS.currentRole();
 
     /* ความเห็นคณะอนุกรรมการกลั่นกรองฯ (subOutcome) — แสดงเป็น input ประกอบ ไม่ใช่มติสุดท้าย */
@@ -315,7 +327,7 @@
     }
 
     const generalTypeInfo = kase.generalType ? ECMIS.generalType73(kase.generalType) : null;
-    document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase)
+    document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase)
       + (generalTypeInfo ? ` <span class="chip me-1" title="${generalTypeInfo.group}"><i class="fa-solid fa-scale-balanced me-1"></i>${generalTypeInfo.label}</span>` : '');
     /* legal73/general73 ("เรื่องของ กกม." / "เรื่องทั่วไป") ไม่เคยผ่านใบด่วน/อนุกลั่นกรองฯ และไม่จบ
        ที่ "ออกคำสั่ง ม.24" (คำสั่งแต่งตั้งองค์คณะไต่สวน ใช้เฉพาะสาย 7.1) — ใช้ FLOW_STEPS_73 แทน
@@ -340,15 +352,22 @@
       docToolbarNameEl.innerHTML = `<i class="fa-solid fa-file-word"></i> ${title}`;
     }
 
-    if (kase.meetingNo) document.getElementById('meetNo').value = kase.meetingNo;
-    if (kase.agendaNo) document.getElementById('agendaNo').value = kase.agendaNo;
-    if (kase.meetingDate) setDateInputValue('meetDate', kase.meetingDate);
+    const meetingFieldIds = ['meetNo', 'meetDate', 'agendaNo'];
+    let meetingFieldsTouched = false;
+    let agendaTextTouched = false;
+    meetingFieldIds.forEach(id => document.getElementById(id).addEventListener('input', () => { meetingFieldsTouched = true; }));
+    const isLinkedCase = Boolean(kase.junction?.sourceCaseId || kase.junction?.payload?.sourceCaseId);
+    if (!isLinkedCase) {
+      if (kase.meetingNo) document.getElementById('meetNo').value = kase.meetingNo;
+      if (kase.agendaNo) document.getElementById('agendaNo').value = kase.agendaNo;
+      if (kase.meetingDate) setDateInputValue('meetDate', kase.meetingDate);
+    }
 
     /* เรื่องกล่าวหา (แก้ไขได้) */
     document.getElementById('caseSubject').value = kase.subject;
-    document.getElementById('caseSubject').addEventListener('input', renderDoc);
+    document.getElementById('caseSubject').addEventListener('input', () => { agendaTextTouched = true; renderDoc(); });
     document.getElementById('agendaDetails').value = kase.allegation || '';
-    document.getElementById('agendaDetails').addEventListener('input', renderDoc);
+    document.getElementById('agendaDetails').addEventListener('input', () => { agendaTextTouched = true; renderDoc(); });
 
     /* ผู้รับผิดชอบสำนวนมีได้มากกว่า 1 ท่าน (คีย์เพิ่มชื่อได้) */
     document.getElementById('caseOwnersField').value = kase.owner;
@@ -886,10 +905,12 @@
         ${M(presenter)} ${M(ownerOrg)} เสนอรายงานการไต่สวนเบื้องต้นที่ผ่านการพิจารณา
         เลขาธิการคณะกรรมการ ป.ป.ท. ต่อที่ประชุมคณะกรรมการ ป.ป.ท. ดังนี้
       </div>`),
-        bi(`<div style="margin-top:4px">๑. เรื่องที่ ${M(kase.id)}
+        bi(`<div style="margin-top:4px">๑. เรื่องที่ ${M(ECMIS.caseNo(kase))}
         (${M(kase.legalBase === 'ม.62'
           ? 'รับตามมาตรา ๖๒ พระราชบัญญัติประกอบรัฐธรรมนูญว่าด้วยการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๖๑'
-          : 'รับตามมาตรา ๑๘/๔ พระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม')})
+          : kase.legalBase === 'ม.18/4'
+            ? 'รับตามมาตรา ๑๘/๔ พระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม'
+            : kase.legalBase || 'ไม่ระบุฐานการรับเรื่อง')})
       </div>`),
         bi(`<div class="doc-h">ผู้กล่าวหา</div><div>${M(kase.complainant)}</div>`),
         bi(`<div class="doc-h">ผู้ถูกร้อง</div>`),
@@ -997,7 +1018,9 @@
       const ac = kase.accused || [];
       const legalBaseClause = kase.legalBase === 'ม.62'
         ? '(รับตามมาตรา 62 พระราชบัญญัติประกอบรัฐธรรมนูญว่าด้วยการป้องกันและปราบปรามการทุจริต พ.ศ. 2561)'
-        : '(รับตามมาตรา 18/4 พระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม)';
+        : kase.legalBase === 'ม.18/4'
+          ? '(รับตามมาตรา 18/4 พระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม)'
+          : kase.legalBase ? `(ฐานการรับเรื่อง ${kase.legalBase})` : '(ไม่ระบุฐานการรับเรื่อง)';
       const nacc65Clause = kase.legalBase === 'ม.62'
         ? '2. ให้ผู้รับผิดชอบสำนวนดำเนินการรายงานผลการดำเนินการตามพระราชบัญญัติประกอบรัฐธรรมนูญว่าด้วยการป้องกันและปราบปรามการทุจริต พ.ศ. 2561 มาตรา 65'
         : '';
@@ -1195,7 +1218,7 @@
         ECMIS.confirmAction({
           title: 'ยืนยันบันทึกมติที่ประชุม',
           html: `<div class="text-start">
-        <p class="mb-2">สำนวน <strong>${kase.id}</strong> — มติ: <strong>${r.label}</strong></p>
+        <p class="mb-2">สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — มติ: <strong>${r.label}</strong></p>
         <div style="background:#fdf7e8;border-left:4px solid #D0A830;padding:.6rem .8rem;border-radius:0 6px 6px 0;font-size:.83rem">
           เมื่อบันทึกแล้วระบบจะ:<br>
           • บันทึกมติที่ประชุมเข้าสู่ระบบ<br>
@@ -1284,16 +1307,18 @@
             }
           }
 
-          /* Seam Hook: ส่งผลมติกลับ Activity 5 (intake-investigation) หากรันใน ECMIS Monorepo */
-          if (window.ECMISIntakeAggregate && typeof window.ECMISIntakeAggregate.publishBoardResult === 'function') {
+          /* ส่งผลมติกลับกิจกรรมต้นทางผ่านทะเบียนกลาง (ก5 213, คุ้มครองพยาน, ก10, ก8) และมติทางกฎหมายไป ก10 */
+          if (window.ECMISJunctionBridgeA7) {
             try {
-              window.ECMISIntakeAggregate.publishBoardResult(kase, {
-                text: r.label,
-                reference: `มติ ${document.getElementById('meetNo')?.value || '38/2569'} วาระ ${kase.agendaNo || '5.12'}`,
+              await window.ECMISJunctionBridgeA7.publishResult(kase, {
+                code: r.code,
+                label: r.label,
+                text: kase.docType === 'GENERAL' ? (document.getElementById('boardOpinion')?.value || r.label) : (r.code === 'OTHER' ? `อื่นๆ: ${otherText}` : r.label),
+                reference: `มติ ${document.getElementById('meetNo')?.value || ''} วาระ ${document.getElementById('agendaNo')?.value || kase.agendaNo || ''}`.trim(),
                 by: signerName
               });
             } catch (e) {
-              console.warn('publishBoardResult warning:', e);
+              console.warn('publishResult warning:', e);
             }
           }
 
@@ -1301,7 +1326,7 @@
           /* เดิม redirect ไป inbox.html ตายตัว ทั้งที่ role หลักของหน้านี้ (board_sec) ไม่มี inbox.html
              เป็นหน้าแรกด้วยซ้ำ (home จริงคือ agenda-registry.html) — ขัดกับ convention ที่มีอยู่แล้วใน
              ECMIS.renderBackButton() ซึ่ง route board_sec/affairs กลับ resolution-inbox.html เสมอ
-             เมื่ออยู่หน้านี้ (assets/ecmis-app.js:7477-7483) จึงย้ายกลับให้ตรงกัน (พบจาก /grill-me
+             เมื่ออยู่หน้านี้ (assets/ecmis-app.js?v=20261002-agenda-context5 จึงย้ายกลับให้ตรงกัน (พบจาก /grill-me
              2026-09-24) */
           const postSaveHref = (role.id === 'board_sec' || role.id === 'affairs')
             ? ECMIS.resolvePage('resolution-inbox.html')
@@ -1466,16 +1491,23 @@
     applyMode(); toggleBoxes(); renderOutcome(); renderDoc();
 
     async function refreshAgendaContext() {
-      const context = await ECMIS.getAgendaContextForCase(kase);
+      const agendaCase = kase.junction?.payload?.caseNumber
+        ? { ...kase, id: kase.junction.payload.caseNumber }
+        : kase;
+      const context = await ECMIS.getAgendaContextForCase(agendaCase);
       if (!context) return;
       kase.meetingNo = context.meetingNo;
       kase.meetingDate = context.meetingDate;
       kase.agendaNo = context.agendaNo;
-      document.getElementById('meetNo').value = context.meetingNo || '';
-      setDateInputValue('meetDate', context.meetingDate || '');
-      document.getElementById('agendaNo').value = context.agendaNo || '';
-      document.getElementById('caseSubject').value = context.agendaTitle || kase.subject || '';
-      document.getElementById('agendaDetails').value = context.agendaDetails || kase.allegation || '';
+      if (!meetingFieldsTouched) {
+        document.getElementById('meetNo').value = context.meetingNo || '';
+        setDateInputValue('meetDate', context.meetingDate || '');
+        document.getElementById('agendaNo').value = context.agendaNo || '';
+      }
+      if (!agendaTextTouched) {
+        document.getElementById('caseSubject').value = context.agendaTitle || kase.subject || '';
+        document.getElementById('agendaDetails').value = context.agendaDetails || kase.allegation || '';
+      }
       const attendance = ECMIS.getLockedBoardAttendance(kase, BOARD, { includeLegacy:false })
         || (!hasRecordedBoardAttendance && loadMeetingLastAttendance(context.meetingNo));
       if (attendance) document.querySelectorAll('#boardTb tr').forEach((tr, index) => {
@@ -1500,6 +1532,10 @@
       applyMode(); toggleBoxes(); renderOutcome(); renderDoc();
     })();
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

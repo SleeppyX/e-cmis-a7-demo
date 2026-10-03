@@ -14,9 +14,10 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <div class="page-head">
@@ -44,18 +45,18 @@
           <div class="card-body">
             <div class="row g-2 mb-3">
               <div class="col-md-4"><label class="form-label field-req">ครั้งที่ประชุม</label>
-                <input class="form-control" id="meetNo" value="12/2569">
+                <input class="form-control" id="meetNo" value="" placeholder="เช่น 12/2569">
               </div>
               <div class="col-md-4"><label class="form-label field-req">วันที่ประชุม</label>
-                <input class="form-control" id="meetDate" value="2569-04-22">
+                <input class="form-control" id="meetDate" value="" placeholder="ปปปป-ดด-วว เช่น 2569-04-22">
               </div>
               <div class="col-md-4"><label class="form-label field-req">วาระที่</label>
-                <input class="form-control" id="agendaNo" value="3.4">
+                <input class="form-control" id="agendaNo" value="" placeholder="เช่น 5.1">
               </div>
             </div>
 
             <label class="form-label">รายชื่อกรรมการและการลงคะแนน</label>
-            <table class="table tbl-ecmis mb-2">
+            <div class="table-responsive"><table class="table tbl-ecmis mb-2">
               <thead>
                 <tr>
                   <th>กรรมการ</th>
@@ -64,7 +65,7 @@
                 </tr>
               </thead>
               <tbody id="boardTb"></tbody>
-            </table>
+            </table></div>
           </div>
         </div>
 
@@ -241,7 +242,7 @@
 
               <!-- Right Group: Zoom Stepper Controls -->
               <div class="toolbar-group ms-auto">
-                <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                <div class="d-flex align-items-center bg-dark rounded px-1" style="height:26px;">
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                   <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -265,9 +266,14 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
-  <script src="assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="assets/ecmis-model.js"></script>
-  <script src="assets/agenda-registry-data.js"></script>
+  <script src="assets/agenda-registry-data.js?v=20261002-merge-main1"></script>
   <script>
     ECMIS.renderShell('resolution-72.html');
 
@@ -290,15 +296,24 @@
       return data ? ECMIS.supabaseRowToCase(data) : null;
     }
 
-    document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+    document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
     document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
-    if (kase.meetingNo) document.getElementById('meetNo').value = kase.meetingNo;
-    if (kase.agendaNo) document.getElementById('agendaNo').value = kase.agendaNo;
-    if (kase.meetingDate) document.getElementById('meetDate').value = kase.meetingDate;
+    const meetingFieldIds = ['meetNo', 'meetDate', 'agendaNo'];
+    let meetingFieldsTouched = false;
+    let agendaTextTouched = false;
+    meetingFieldIds.forEach(id => document.getElementById(id).addEventListener('input', () => { meetingFieldsTouched = true; }));
+    const isLinkedCase = Boolean(kase.junction?.sourceCaseId || kase.junction?.payload?.sourceCaseId);
+    if (!isLinkedCase) {
+      if (kase.meetingNo) document.getElementById('meetNo').value = kase.meetingNo;
+      if (kase.agendaNo) document.getElementById('agendaNo').value = kase.agendaNo;
+      if (kase.meetingDate) document.getElementById('meetDate').value = kase.meetingDate;
+    }
     document.getElementById('caseSubject').value = kase.subject || '';
     document.getElementById('agendaDetails').value = kase.allegation || '';
+    document.getElementById('caseSubject').addEventListener('input', () => { agendaTextTouched = true; });
+    document.getElementById('agendaDetails').addEventListener('input', () => { agendaTextTouched = true; });
     document.getElementById('investigatorRef').value =
-      kase.investigatorRef72 || `คณะพนักงานไต่สวน/คณะอนุกรรมการไต่สวน แล้วแต่กรณี ตามคำสั่งแต่งตั้งเรื่องที่ ${kase.id}`;
+      kase.investigatorRef72 || `คณะพนักงานไต่สวน/คณะอนุกรรมการไต่สวน แล้วแต่กรณี ตามคำสั่งแต่งตั้งเรื่องที่ ${ECMIS.caseNo(kase)}`;
     document.getElementById('investigatorOpinion').value = kase.investigatorOpinion72 || '';
 
     document.getElementById('presenter').value = `${kase.owner} (ผู้รับผิดชอบสำนวน)`;
@@ -483,7 +498,7 @@
       } else if (r.code === 'MORE_INVESTIGATE_72') {
         const scope = document.getElementById('moreScope').value;
         const reason = document.getElementById('moreReason').value.trim();
-        return `ให้ ${document.getElementById('investigatorRef').value.trim()} เรื่องที่ ${kase.id} ไปดำเนินการ${scope === 'เพิ่มเติมบางส่วน' ? 'ไต่สวนเพิ่มเติม' : scope} โดยมีเหตุผลดังนี้ ${reason || '……………………………………'} ตามมาตรา ๒๔ วรรคท้าย แห่งพระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม`;
+        return `ให้ ${document.getElementById('investigatorRef').value.trim()} เรื่องที่ ${ECMIS.caseNo(kase)} ไปดำเนินการ${scope === 'เพิ่มเติมบางส่วน' ? 'ไต่สวนเพิ่มเติม' : scope} โดยมีเหตุผลดังนี้ ${reason || '……………………………………'} ตามมาตรา ๒๔ วรรคท้าย แห่งพระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม`;
       } else if (r.code === 'NO_MERIT_72') {
         const reasonCode = document.getElementById('noMeritReason').value;
         const name = ECMIS.mergeField(kase.accused[0] ? kase.accused[0].name : '', '(ชื่อผู้ถูกกล่าวหา)');
@@ -592,10 +607,12 @@
         bi(`<div class="doc-indent" style="margin-top:4px">
         ${M(presenter)} กล่าวต่อที่ประชุมว่า ${M(investigatorRef)} ขอรายงานผลการไต่สวน ดังต่อไปนี้
       </div>`),
-        bi(`<div style="margin-top:4px">เรื่องที่ ${M(kase.id)}
+        bi(`<div style="margin-top:4px">เรื่องที่ ${M(ECMIS.caseNo(kase))}
         (${M(kase.legalBase === 'ม.62'
               ? 'รับตามมาตรา ๖๒ พระราชบัญญัติประกอบรัฐธรรมนูญว่าด้วยการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๖๑'
-              : 'รับตามมาตรา ๑๘/๔ พระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม')})
+              : kase.legalBase === 'ม.18/4'
+                ? 'รับตามมาตรา ๑๘/๔ พระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม'
+                : kase.legalBase || 'ไม่ระบุฐานการรับเรื่อง')})
       </div>`),
         bi(`<div class="doc-h">ผู้กล่าวหา</div><div>${M(kase.complainant)}</div>`),
         bi(`<div class="doc-h">ผู้ถูกกล่าวหา</div>
@@ -721,7 +738,7 @@
         ECMIS.confirmAction({
           title: 'บันทึกมติและล็อกไฟล์ PDF',
           html: `<div class="text-start">
-        <p class="mb-2">สำนวน <strong>${kase.id}</strong> — มติ: <strong>${r.label}</strong></p>
+        <p class="mb-2">สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — มติ: <strong>${r.label}</strong></p>
         <div style="background:#fdf7e8;border-left:4px solid #D0A830;padding:.6rem .8rem;border-radius:0 6px 6px 0;font-size:.83rem">
           เมื่อบันทึกแล้วระบบจะ:<br>
           • ล็อกเอกสารมติเป็น PDF<br>
@@ -792,6 +809,19 @@
           }
           ECMIS.Model.CaseStore.update(kase.id, patch);
 
+        /* ส่งผลมติวินิจฉัยชี้มูลกลับระบบไต่สวน (ก5) และเปิดงานติดตามวินัย (ก8) ผ่านทะเบียนกลาง */
+        if (window.ECMISJunctionBridgeA7) {
+          try {
+            await window.ECMISJunctionBridgeA7.publishResult(kase, {
+              code: r.code, label: r.label, text: op.value.trim() || r.label,
+              reference: `มติ ${document.getElementById('meetNo').value.trim()} วาระ ${document.getElementById('agendaNo').value.trim()}`,
+              by: 'คณะกรรมการ ป.ป.ท.', flags: { criminal: crim, disciplinary: disc }
+            });
+          } catch (e) {
+            console.warn('publishResult warning:', e);
+          }
+        }
+
           /* เขียนมติจริงลง Supabase ก่อน redirect เสมอ — reuse patch object เดิมตรงๆ เป็น
              trr_resolution_data (มีทุกฟิลด์ resolution72/boardOpinion72/guiltyCriminal72 ฯลฯ อยู่แล้ว) */
           if (sb && kase.trr_id) {
@@ -858,7 +888,9 @@
       const disc = document.getElementById('guiltyDiscipline').checked;
       const legalBaseClause = kase.legalBase === 'ม.62'
         ? '(รับตามมาตรา 62 พระราชบัญญัติประกอบรัฐธรรมนูญว่าด้วยการป้องกันและปราบปรามการทุจริต พ.ศ. 2561)'
-        : '(รับตามมาตรา 18/4 พระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม)';
+        : kase.legalBase === 'ม.18/4'
+          ? '(รับตามมาตรา 18/4 พระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม)'
+          : kase.legalBase ? `(ฐานการรับเรื่อง ${kase.legalBase})` : '(ไม่ระบุฐานการรับเรื่อง)';
       const nacc65Clause = kase.legalBase === 'ม.62'
         ? '2. ให้ผู้รับผิดชอบสำนวนดำเนินการรายงานผลการดำเนินการตามพระราชบัญญัติประกอบรัฐธรรมนูญว่าด้วยการป้องกันและปราบปรามการทุจริต พ.ศ. 2561 มาตรา 65'
         : '';
@@ -1071,16 +1103,23 @@
     toggleBoxes(); renderQuorum(); renderDoc();
 
     async function refreshAgendaContext() {
-      const context = await ECMIS.getAgendaContextForCase(kase);
+      const agendaCase = kase.junction?.payload?.caseNumber
+        ? { ...kase, id: kase.junction.payload.caseNumber }
+        : kase;
+      const context = await ECMIS.getAgendaContextForCase(agendaCase);
       if (!context) return;
       kase.meetingNo = context.meetingNo;
       kase.meetingDate = context.meetingDate;
       kase.agendaNo = context.agendaNo;
-      document.getElementById('meetNo').value = context.meetingNo || '';
-      document.getElementById('meetDate').value = context.meetingDate || '';
-      document.getElementById('agendaNo').value = context.agendaNo || '';
-      document.getElementById('caseSubject').value = context.agendaTitle || kase.subject || '';
-      document.getElementById('agendaDetails').value = context.agendaDetails || kase.allegation || '';
+      if (!meetingFieldsTouched) {
+        document.getElementById('meetNo').value = context.meetingNo || '';
+        document.getElementById('meetDate').value = context.meetingDate || '';
+        document.getElementById('agendaNo').value = context.agendaNo || '';
+      }
+      if (!agendaTextTouched) {
+        document.getElementById('caseSubject').value = context.agendaTitle || kase.subject || '';
+        document.getElementById('agendaDetails').value = context.agendaDetails || kase.allegation || '';
+      }
       const attendance = ECMIS.getLockedBoardAttendance(kase, BOARD, { includeLegacy:false });
       if (attendance) document.querySelectorAll('#boardTb tr').forEach((tr, index) => {
         tr.querySelector('.attend').value = attendance[BOARD[index].n] || 'present';
@@ -1104,6 +1143,10 @@
       toggleBoxes(); renderQuorum(); renderDoc();
     })();
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

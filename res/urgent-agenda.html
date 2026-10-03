@@ -14,9 +14,10 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="../assets/ecmis-app.css" rel="stylesheet">
   <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <div class="page-head">
@@ -92,7 +93,7 @@
 
               <!-- Right Group: Zoom Stepper Controls -->
               <div class="toolbar-group ms-auto">
-                <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                <div class="d-flex align-items-center bg-dark rounded px-1" style="height:26px;">
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                   <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -116,7 +117,12 @@
   <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="../assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="../assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('urgent-agenda.html');
@@ -189,7 +195,7 @@
     })();
 
     function renderPage() {
-    document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+    document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
     document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
 
     dirCase = ECMIS.getRole('dir_case');
@@ -261,7 +267,7 @@
         document.getElementById('stepCardBody').innerHTML = `
       <div class="no-permission">
         <i class="fa-solid fa-circle-info me-1"></i>
-        สำนวน <strong>${kase.id}</strong> อยู่ในสถานะ <strong>${ECMIS.STATUS[kase.status] ? ECMIS.STATUS[kase.status].label : kase.status}</strong>
+        สำนวน <strong>${ECMIS.caseNo(kase)}</strong> อยู่ในสถานะ <strong>${ECMIS.STATUS[kase.status] ? ECMIS.STATUS[kase.status].label : kase.status}</strong>
         ซึ่งไม่ใช่ขั้นตอนคำร้องขอบรรจุวาระด่วน — เปิดหน้านี้ได้เฉพาะสถานะรอ ผอ.กบค. รับรอง /
         รอเลขาธิการฯ ยืนยัน หรือรอประธานฯ ลงนามมอบหมาย/บรรจุวาระด่วนเท่านั้น
       </div>`;
@@ -285,7 +291,7 @@
         <div class="doc-title-l1">หนังสือขอบรรจุวาระการประชุมด่วน</div>
         <div class="doc-title-l2">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
       </div>
-      <div class="doc-sub">เรื่องที่ ${M(kase.id)}</div>
+      <div class="doc-sub">เรื่องที่ ${M(ECMIS.caseNo(kase))}</div>
 
       <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
       <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(kase.owner)}</div>
@@ -379,7 +385,7 @@
 
         ECMIS.confirmAction({
           title: 'รับรองเหตุผลเร่งด่วน',
-          html: `<p>สำนวน <strong>${kase.id}</strong> — รับรองโดย ${dirCase.title}<br>
+          html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — รับรองโดย ${dirCase.title}<br>
           <small class="text-muted">ส่งกลับให้เลขาธิการฯ ยืนยันอีกครั้งก่อนเข้าคิวประธานฯ</small></p>`,
           confirmText: 'ยืนยันรับรอง'
         }).then(async res => {
@@ -411,7 +417,7 @@
       if (act === 'certifyReject') {
         ECMIS.confirmAction({
           title: 'ไม่เห็นด้วยว่าด่วน',
-          html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกปรับกลับเข้าเส้นทางพิจารณาปกติของเลขาธิการฯ (ไม่บรรจุวาระด่วน)</p>`,
+          html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกปรับกลับเข้าเส้นทางพิจารณาปกติของเลขาธิการฯ (ไม่บรรจุวาระด่วน)</p>`,
           confirmText: 'ยืนยันไม่รับรอง'
         }).then(async res => {
           if (!res.isConfirmed) return;
@@ -444,7 +450,7 @@
         const secgenOp = opEl.value.trim();
         ECMIS.confirmAction({
           title: 'ยืนยันเสนอวาระด่วนต่อประธานฯ',
-          html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งเข้าคิวประธานฯ เพื่อพิจารณาบรรจุวาระด่วนต่อไป</p>`,
+          html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกส่งเข้าคิวประธานฯ เพื่อพิจารณาบรรจุวาระด่วนต่อไป</p>`,
           confirmText: 'ยืนยัน'
         }).then(async res => {
           if (!res.isConfirmed) return;
@@ -472,7 +478,7 @@
       }
 
       if (act === 'sign') {
-        ECMIS.signDialog(`หนังสือขอบรรจุวาระการประชุมด่วน — เรื่องที่ ${kase.id}`, `${chairman.name} — ${chairman.title}`)
+        ECMIS.signDialog(`หนังสือขอบรรจุวาระการประชุมด่วน — เรื่องที่ ${ECMIS.caseNo(kase)}`, `${chairman.name} — ${chairman.title}`)
           .then(async res => {
             if (!res.isConfirmed) return;
             if (res.value && res.value.sig) {
@@ -516,7 +522,7 @@
         if (act === 'sendScreening') {
           ECMIS.confirmAction({
             title: 'ส่งเข้าคณะอนุกลั่นกรองฯ',
-            html: `<p>สำนวน <strong>${kase.id}</strong> จะ<strong>ไม่บรรจุวาระด่วน</strong> และถูกส่งให้กองบริหารคดีกระจายเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘ ตามขั้นตอนปกติ</p>`,
+            html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะ<strong>ไม่บรรจุวาระด่วน</strong> และถูกส่งให้กองบริหารคดีกระจายเข้าคณะอนุกลั่นกรองฯ คณะที่ ๑–๘ ตามขั้นตอนปกติ</p>`,
             confirmText: 'ยืนยันส่งกลั่นกรอง'
           }).then(async res => {
             if (!res.isConfirmed) return;
@@ -544,7 +550,7 @@
 
         ECMIS.confirmAction({
           title: 'ตีกลับให้ผู้รับผิดชอบสำนวนแก้ไข',
-          html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งคืนผู้รับผิดชอบสำนวนเพื่อแก้ไขให้สมบูรณ์ แล้วเสนอกลับตามลำดับชั้น</p>`,
+          html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกส่งคืนผู้รับผิดชอบสำนวนเพื่อแก้ไขให้สมบูรณ์ แล้วเสนอกลับตามลำดับชั้น</p>`,
           confirmText: 'ยืนยันตีกลับ'
         }).then(async res => {
           if (!res.isConfirmed) return;
@@ -716,6 +722,10 @@
       }
     });
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

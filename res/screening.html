@@ -14,9 +14,10 @@
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link href="../assets/ecmis-app.css" rel="stylesheet">
     <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
+    <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
 </head>
 
-<body>
+<body class="ws-std">
 
     <main class="app-main">
         <div class="page-head">
@@ -187,7 +188,7 @@
 
                       <!-- Right Group: Zoom Stepper Controls -->
                       <div class="toolbar-group ms-auto">
-                        <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                        <div class="d-flex align-items-center bg-dark rounded px-1" style="height:26px;">
                           <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                           <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
                           <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -210,7 +211,12 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
-    <script src="../assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+    <script src="../cases.js"></script>
+    <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
     <script src="../assets/ecmis-model.js"></script>
     <script>
         ECMIS.renderShell('screening.html');
@@ -230,7 +236,7 @@
         const docType = ECMIS.DOC_TYPES[kase.docType];
         const isRuling = docType.code === 'RULING' || ECMIS.isCase72(kase);
 
-        document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
+        document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
         document.getElementById('stepper').innerHTML = isRuling
             ? ECMIS.stepperHtml(kase, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72)
             : ECMIS.stepperHtml(kase);
@@ -475,7 +481,7 @@
       </div>
       <div class="doc-sub">ครั้งที่ ${M(meetNo)} วันที่ ${M(meetDate)}</div>
 
-      <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+      <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
       <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
       <div class="doc-row"><span class="k">ผู้รับผิดชอบ</span> ${M(kase.owner)}</div>
       <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
@@ -579,7 +585,7 @@
                 const note = (document.getElementById('subOpinion').value || '').trim();
                 ECMIS.confirmAction({
                     title: 'ขอข้อมูลเพิ่มเติม',
-                    html: `<p>สำนวน <strong>${kase.id}</strong> — คณะอนุกลั่นกรองฯ ขอข้อมูล/เอกสารเพิ่มเติมจากเจ้าของสำนวน (หยุดนับ SLA จนกว่าจะได้รับข้อมูลกลับ)</p>`,
+                    html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — คณะอนุกลั่นกรองฯ ขอข้อมูล/เอกสารเพิ่มเติมจากเจ้าของสำนวน (หยุดนับ SLA จนกว่าจะได้รับข้อมูลกลับ)</p>`,
                     confirmText: 'ยืนยันขอข้อมูลเพิ่มเติม'
                 }).then(res => {
                     if (!res.isConfirmed) return;
@@ -616,7 +622,7 @@
                 const team = document.getElementById('manualTeam').value || assigned;
                 const signerTitle = `อนุกรรมการและเลขานุการ คณะอนุกรรมการกลั่นกรองเรื่องไต่สวนข้อเท็จจริง ${team}`;
 
-                ECMIS.signDialog(`มติการประชุมคณะอนุกรรมการกลั่นกรองฯ ${team} — เรื่องที่ ${kase.id}`,
+                ECMIS.signDialog(`มติการประชุมคณะอนุกรรมการกลั่นกรองฯ ${team} — เรื่องที่ ${ECMIS.caseNo(kase)}`,
                     `${SIGNER_NAME} — ${signerTitle}`, SIGNER_CERT)
                     .then(res => {
                         if (!res.isConfirmed) return;
@@ -657,7 +663,7 @@
                     icon: 'success',
                     title: 'ส่งมติคณะอนุกลั่นกรองฯ เรียบร้อย',
                     html: `<div class="text-start">
-                        สำนวน <strong>${kase.id}</strong> — ${next.t}<br>
+                        สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — ${next.t}<br>
                         <span class="st st-done mt-2 d-inline-block"><i class="fa-solid fa-signature me-1"></i>ลงนามรับรองมติแล้ว</span>
                     </div>`,
                     confirmButtonColor: '#0F2A62',
@@ -776,7 +782,7 @@
       </div>
       <div class="doc-sub">ครั้งที่ ${M(meetNo)} วันที่ ${M(meetDate)}</div>
 
-      <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+      <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
       <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
       <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(kase.owner)}</div>
       <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
@@ -878,7 +884,7 @@
                     const team = document.getElementById('manualTeam').value || assigned;
                     ECMIS.confirmAction({
                         title: 'ขอข้อมูลเพิ่มเติม',
-                        html: `<p>สำนวน <strong>${kase.id}</strong> — คณะอนุกลั่นกรองฯ ขอข้อมูล/เอกสารเพิ่มเติมจากผู้รับผิดชอบสำนวน</p>`,
+                        html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — คณะอนุกลั่นกรองฯ ขอข้อมูล/เอกสารเพิ่มเติมจากผู้รับผิดชอบสำนวน</p>`,
                         confirmText: 'ยืนยันขอข้อมูลเพิ่มเติม'
                     }).then(res => {
                         if (!res.isConfirmed) return;
@@ -898,7 +904,7 @@
                     const team = document.getElementById('manualTeam').value || assigned;
                     const signerTitle = `อนุกรรมการและเลขานุการ คณะอนุกลั่นกรองเรื่องไต่สวนข้อเท็จจริง ${team}`;
 
-                    ECMIS.signDialog(`รายงานความเห็นคณะอนุกลั่นกรองฯ ${team} — เรื่องที่ ${kase.id}`,
+                    ECMIS.signDialog(`รายงานความเห็นคณะอนุกลั่นกรองฯ ${team} — เรื่องที่ ${ECMIS.caseNo(kase)}`,
                         `${SIGNER_NAME72} — ${signerTitle}`, SIGNER_CERT72)
                         .then(res => {
                             if (!res.isConfirmed) return;
@@ -946,7 +952,7 @@
                         icon: 'success',
                         title: isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อทำเพิ่มเติมเรียบร้อย' : 'บันทึกความเห็นและส่งบรรจุวาระเรียบร้อย',
                         html: `<div class="text-start">
-                            สำนวน <strong>${kase.id}</strong> — ${isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อไต่สวนเพิ่มเติม (ม.๖๗ พ.ร.ป. ป.ป.ช. ๒๕๖๑)' : 'ส่งฝ่ายจัดประชุมเพื่อจัดพิมพ์หนังสือเชิญประชุม (T11_72)'}<br>
+                            สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — ${isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อไต่สวนเพิ่มเติม (ม.๖๗ พ.ร.ป. ป.ป.ช. ๒๕๖๑)' : 'ส่งฝ่ายจัดประชุมเพื่อจัดพิมพ์หนังสือเชิญประชุม (T11_72)'}<br>
                             <span class="st st-done mt-2 d-inline-block"><i class="fa-solid fa-signature me-1"></i>ลงนามรับรองความเห็นแล้ว</span>
                         </div>`,
                         confirmButtonColor: '#0F2A62',
@@ -1124,6 +1130,10 @@
             ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: mayEdit });
         } catch (e) { }
     </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

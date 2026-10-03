@@ -13,6 +13,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
   <style>
     .meet-row{cursor:pointer}
     #meetTb tr:hover{background:var(--table-row-hover)}
@@ -23,7 +24,7 @@
   </style>
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <div class="page-head">
@@ -91,8 +92,13 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="assets/ecmis-app.js"></script>
-  <script src="assets/agenda-registry-data.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+  <script src="assets/agenda-registry-data.js?v=20261002-merge-main1"></script>
   <script>
     ECMIS.renderShell('agenda-registry.html');
     const M = ECMIS.mergeField;
@@ -130,9 +136,12 @@
           .in('trr_status', wantedCodes)
           .eq('is_deleted', false);
         if (error) throw error;
-        const mapped = (data || []).map(ECMIS.supabaseRowToCase).filter(Boolean)
+        const mapped = AR.mergeQueueCases((data || []).map(ECMIS.supabaseRowToCase).filter(Boolean))
           .filter(c => ECMIS.canViewCase(c, role.id))
-          .filter(c => !AR.LINKED_TRR_IDS.has(c.trr_id));
+          .filter(c => !AR.isJunctionCaseLinked(c))
+          /* สำนวนที่กิจการฯ ขอเข้าวาระใหม่หลังมติ (reagendaPending) มีลิงก์ครั้งประชุมเดิมค้างอยู่ — ต้องกลับเข้าคิวจนกว่าจะบรรจุใหม่ (Task 175) */
+          .filter(c => c.reagendaPending || !AR.LINKED_TRR_IDS.has(c.trr_id) || (c.junction?.id === 'J04' && c.status === 'PENDING_INVITE_72'
+            && !AR.ITEMS.some(item => item.category === 'finding' && String(item.case_ref || '').split(',').some(id => id.trim() === c.id))));
         return mapped;
       } catch (err) {
         console.warn('โหลดคิวจาก Supabase ไม่สำเร็จ ใช้รายการสำนวนจำลอง:', err);
@@ -142,7 +151,7 @@
       // (ไม่มีสำนวนไหนรอบรรจุวาระจริง) ต้องแสดงเป็นคิวว่าง ไม่ใช่สลับไปโชว์ข้อมูลจำลองที่สถานะไม่ตรงกัน
       return ECMIS.CASES.filter(c => {
         return ['AGENDA_SET', 'PENDING_INVITE_72', 'DEFERRED'].includes(c.status) || c.urgent || c.urgent72;
-      }).map(c => Object.assign({}, c));
+      }).filter(c => !AR.isJunctionCaseLinked(c)).map(c => Object.assign({}, c));
     }
 
     /* ข้อ 47 (ชีตติดตามงาน): เพิ่มหมวด "เรื่องที่ส่งมาจากคณะอนุกรรมการกลั่นกรอง" — ใช้ kase.subCommittee
@@ -186,6 +195,7 @@
       wrap.classList.remove('d-none');
       tbody.innerHTML = filtered.map(c => {
         const cat = getQueueCaseCategory(c);
+        const caseRef = c.junction?.payload?.caseNumber || c.id;
         const catBadge = cat === 'URGENT' ? '<span class="badge bg-danger ms-1">เร่งด่วน</span>'
           : cat === 'SCREENING' ? `<span class="badge text-white ms-1" style="background:#0d9488">จากอนุกลั่นกรอง ${ECMIS.escapeHtml(c.subCommittee)}</span>`
           : cat === 'RETURN' ? '<span class="badge bg-purple text-white ms-1" style="background:#6b3fa0">กลับมาอีก</span>'
@@ -200,7 +210,7 @@
              </span>`;
 
         return `<tr>
-          <td class="case-no">${c.id} ${catBadge}</td>
+          <td class="case-no">${ECMIS.escapeHtml(caseRef)} ${catBadge}</td>
           <td class="text-truncate" style="max-width:320px">${c.subject}</td>
           <td>${ECMIS.statusBadge(c.status)}</td>
           <td class="text-end">${actionCell}</td>
@@ -213,14 +223,22 @@
        ประการ ต่างแค่ตัดแผงพรีวิวเอกสารสด (auto-generate จาก case ไม่ได้แก้ไขที่ขั้นนี้อยู่แล้ว ดูซ้ำ
        ได้ที่ agenda-detail.html/meeting-docs.html ทีหลัง) ออก เพื่อให้ทำงานจบ
        ในคิวได้เลยโดยไม่ต้องออกจากหน้า */
-    function meetingsOpenForPopup(urgent) {
-      const list = AR.MEETINGS.filter(m => m.trc_status === '0').map(m => ({
+    /* ทุกครั้งประชุมที่ "กำหนดการแล้ว — รอประชุม" ชุดเดียวกับตาราง "ครั้งที่ประชุม" เรียงเลขครั้งมาก→น้อยเหมือนตาราง
+       ครั้งที่ใกล้ปิดรับ (≤ 3 วัน) / เลยวันประชุมแล้วยังเลือกได้ แต่ติดป้ายในรายการ (Task 193) */
+    const meetNoKey = name => { const [n, y] = String(name || '').split('/').map(x => parseInt(x, 10) || 0); return y * 10000 + n; };
+    function meetingsOpenForPopup() {
+      return AR.MEETINGS.filter(m => m.trc_status === '0').map(m => ({
         no: m.trc_name, date: m.trc_date, trc_id: m.trc_id,
         agendaCount: AR.itemsOf(m.trc_id).length,
         closesInDays: ECMIS.daysUntilFakeIso(m.trc_date)
-      }));
-      return urgent ? list : list.filter(m => m.closesInDays > 3);
+      })).sort((a, b) => meetNoKey(b.no) - meetNoKey(a.no));
     }
+    /* ค่าเริ่มต้น = ครั้งที่วันประชุมใกล้ที่สุดซึ่งยังเปิดรับวาระตามปกติ (เหลือ > 3 วัน) */
+    function defaultMeetingForPopup(list) {
+      const open = list.filter(m => m.closesInDays > 3).sort((a, b) => a.closesInDays - b.closesInDays);
+      return open[0] || list[0] || null;
+    }
+    const meetingTagForPopup = m => m.closesInDays < 0 ? ' — เลยวันประชุมแล้ว' : (m.closesInDays <= 3 ? ' — ใกล้ปิดรับวาระ' : '');
     const nextAgendaNoForPopup = m => `5.${m.agendaCount + 1}`;
 
     async function openAgendaSetPopup(encodedCaseId) {
@@ -228,6 +246,7 @@
       const caseId = decodeURIComponent(encodedCaseId);
       const c = queueCases.find(x => x.id === caseId);
       if (!c) { ECMIS.toastWarn('ไม่พบสำนวนนี้ในคิว'); return; }
+      const caseRef = c.junction?.payload?.caseNumber || c.id;
       const resolvedLike = ['RESOLVED_PENDING', 'RESOLVED', 'DISPATCHING', 'CLOSED'].includes(c.status) || c.docType === 'RULING' || ECMIS.isCase72(c);
       const isUrgent = !!(c.urgent || c.urgent72);
 
@@ -238,7 +257,7 @@
         width: 560,
         html: `
           <div class="text-start small mb-3 p-2 rounded" style="background:#F8FAFC;border:1px solid #E2E8F0">
-            <strong>เรื่องที่ ${ECMIS.escapeHtml(c.id)}</strong><br>
+            <strong>เรื่องที่ ${ECMIS.escapeHtml(caseRef)}</strong><br>
             <span class="text-muted">${ECMIS.escapeHtml(c.subject)}</span>
           </div>
           <div class="text-start">
@@ -264,11 +283,11 @@
             </div>
             <div id="swNewBox" class="row g-2 mb-2 d-none">
               <div class="col-4"><label class="form-label">ครั้งที่ประชุม *</label>
-                <input class="form-control" id="swMeetNo" placeholder="เช่น 41/2569"></div>
+                <input class="form-control" id="swMeetNo" value="${ECMIS.escapeHtml(nextMeetName())}" placeholder="เช่น 41/2569"></div>
               <div class="col-4"><label class="form-label">วันที่ประชุม *</label>
                 <input class="form-control" id="swMeetDate" type="date"></div>
               <div class="col-4"><label class="form-label">วาระที่ *</label>
-                <input class="form-control" id="swAgendaNo" placeholder="เช่น 5.1"></div>
+                <input class="form-control" id="swAgendaNo" value="5.1" placeholder="เช่น 5.1"></div>
             </div>
             <div class="mb-2"><label class="form-label">ลักษณะเรื่อง *</label>
               <input class="form-control" id="swItemTopic" value="${ECMIS.escapeHtml(defaultTopic)}"></div>
@@ -295,19 +314,23 @@
           const pick = document.getElementById('swMeetingPick');
           const urgentBox = document.getElementById('swUrgentToggle');
           function syncAuto() {
-            const meetings = meetingsOpenForPopup(urgentBox.checked);
+            const meetings = meetingsOpenForPopup();
             const m = meetings.find(x => String(x.trc_id) === pick.value);
             document.getElementById('swMeetDateAuto').value = m ? ECMIS.thaiDate(m.date) : '';
             document.getElementById('swAgendaNoAuto').value = m ? nextAgendaNoForPopup(m) : '';
           }
-          function renderPick() {
-            const meetings = meetingsOpenForPopup(urgentBox.checked);
-            pick.innerHTML = meetings.map(m =>
-              `<option value="${m.trc_id}">ครั้งที่ ${m.no} — วันที่ ${ECMIS.thaiDate(m.date)} (บรรจุแล้ว ${m.agendaCount} วาระ)</option>`
-            ).join('') || '<option value="">— ไม่มีครั้งประชุมที่เปิดรับวาระ —</option>';
+          function syncHint() {
             document.getElementById('swMeetingHint').textContent = urgentBox.checked
-              ? 'โหมดวาระเร่งด่วน: แสดงทุกครั้งประชุมรวมถึงที่ใกล้ปิดรับวาระ'
-              : 'แสดงเฉพาะครั้งประชุมที่ยังเปิดรับวาระตามปกติ (เหลือเวลามากกว่า 3 วัน)';
+              ? 'บรรจุเป็นวาระเร่งด่วน — ข้ามการตรวจลำดับวาระปกติ · รายการคือทุกครั้งประชุมที่รอประชุมในทะเบียน'
+              : 'รายการคือทุกครั้งประชุมที่รอประชุมในทะเบียน (ตรงกับตาราง "ครั้งที่ประชุม") — ครั้งที่ใกล้ปิดรับ/เลยวันประชุมมีป้ายกำกับ';
+          }
+          function renderPick() {
+            const meetings = meetingsOpenForPopup();
+            const def = defaultMeetingForPopup(meetings);
+            pick.innerHTML = meetings.map(m =>
+              `<option value="${m.trc_id}"${def && m.trc_id === def.trc_id ? ' selected' : ''}>ครั้งที่ ${m.no} — วันที่ ${ECMIS.thaiDate(m.date)} (บรรจุแล้ว ${m.agendaCount} วาระ)${meetingTagForPopup(m)}</option>`
+            ).join('') || '<option value="">— ไม่มีครั้งประชุมที่รอประชุมในทะเบียน —</option>';
+            syncHint();
             syncAuto();
           }
           function syncMode() {
@@ -317,7 +340,7 @@
           }
           document.querySelectorAll('input[name="swAgendaMode"]').forEach(r => r.addEventListener('change', syncMode));
           pick.addEventListener('change', syncAuto);
-          urgentBox.addEventListener('change', renderPick);
+          urgentBox.addEventListener('change', syncHint); // สวิตช์ด่วนติดธงวาระด่วนอย่างเดียว ไม่กรองรายการแล้ว (Task 193)
           renderPick();
 
           /* แถวเลขที่เรื่องแบบเพิ่มได้ — pattern เดียวกับ "เพิ่มวาระ" ใน
@@ -337,7 +360,7 @@
             else btn.closest('.case-ref-row').querySelector('.case-ref-input').value = '';
           });
           document.getElementById('swBtnAddCaseRow').addEventListener('click', () => addCaseRow());
-          addCaseRow(c.id);
+          addCaseRow(caseRef);
         },
         preConfirm: () => {
           const existingMode = document.querySelector('input[name="swAgendaMode"]:checked').value === 'EXISTING';
@@ -351,7 +374,7 @@
           if (dupes.length) { Swal.showValidationMessage(`กรอกเลขที่เรื่องซ้ำกัน: ${dupes.join(', ')}`); return false; }
           let trcId = null, meetNo, meetDate, agendaNo;
           if (existingMode) {
-            const meetings = meetingsOpenForPopup(urgent);
+            const meetings = meetingsOpenForPopup();
             const m = meetings.find(x => String(x.trc_id) === document.getElementById('swMeetingPick').value);
             if (!m) { Swal.showValidationMessage('กรุณาเลือกครั้งที่ประชุม'); return false; }
             trcId = m.trc_id; meetNo = m.no; meetDate = m.date; agendaNo = nextAgendaNoForPopup(m);
@@ -361,6 +384,11 @@
             agendaNo = document.getElementById('swAgendaNo').value.trim();
             if (!meetNo || !meetDate || !agendaNo) {
               Swal.showValidationMessage('กรุณากรอกครั้งที่ประชุม วันที่ประชุม และวาระที่ให้ครบถ้วน');
+              return false;
+            }
+            /* ค่าเริ่มต้นคือครั้งถัดจากครั้งล่าสุดของปีนี้ (nextMeetName) — ถ้าแก้เป็นเลขที่มีอยู่แล้ว ให้ไปใช้โหมดเข้าวาระที่มีอยู่แล้ว (Task 192) */
+            if (AR.MEETINGS.some(m => String(m.trc_name).trim() === meetNo)) {
+              Swal.showValidationMessage(`มีครั้งที่ประชุม ${meetNo} อยู่แล้วในทะเบียน — ใช้ "เข้าวาระที่มีอยู่แล้ว" แทน`);
               return false;
             }
           }
@@ -388,7 +416,7 @@
           trc_id, trci_number: form.agendaNo,
           category: resolvedLike ? 'finding' : 'preliminary',
           trci_topic: form.topic,
-          case_ref: form.caseNos.length ? form.caseNos.join(', ') : c.id,
+          case_ref: form.caseNos.length ? form.caseNos.join(', ') : caseRef,
           remark: form.urgent ? 'วาระเร่งด่วน' : '-'
         });
         if (form.urgent && c.trr_id) {
@@ -627,6 +655,10 @@
       ECMIS.toastWarn('โหลดข้อมูลจากฐานข้อมูลไม่สำเร็จ');
     });
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

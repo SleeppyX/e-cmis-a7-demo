@@ -13,9 +13,10 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="../assets/ecmis-app.css" rel="stylesheet">
+  <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <div class="page-head">
@@ -268,7 +269,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="../assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="../assets/report-export.js"></script>
   <script>
     ECMIS.renderShell('register.html');
@@ -787,6 +793,7 @@
       try {
         const live = await loadAllCasesFromSupabase();
         ALL_CASES = (live && live.length) ? live : ECMIS.CASES.slice();
+    ALL_CASES = window.ECMISJunctionBridgeA7?.mergeLinkedCases?.(ALL_CASES) || ALL_CASES;
       } catch (err) {
         console.error('โหลดทะเบียนสำนวนจากฐานข้อมูลไม่สำเร็จ:', err);
         ALL_CASES = ECMIS.CASES.slice();
@@ -794,6 +801,10 @@
       render(false);
     })();
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

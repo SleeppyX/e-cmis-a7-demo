@@ -14,6 +14,7 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="../assets/ecmis-app.css" rel="stylesheet">
   <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
   <style>
     .mode-switch{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.9rem}
     .mode-switch button{border:1px solid #c9d3dd;background:#fff;color:#3D495E;border-radius:999px;
@@ -25,7 +26,7 @@
   </style>
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <div class="page-head">
@@ -398,7 +399,7 @@
 
               <!-- Right Group: Zoom Stepper Controls -->
               <div class="toolbar-group ms-auto">
-                <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                <div class="d-flex align-items-center bg-dark rounded px-1" style="height:26px;">
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                   <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -422,7 +423,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
-  <script src="../assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="../assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('order.html');
@@ -432,10 +438,34 @@
     if (!kase) throw new Error('ECMIS_CASE_NOT_FOUND');
     const role = ECMIS.currentRole();
     const resCode = params.get('res') || 'ACCEPT_S24P1';
+    /* ผู้ลงนามคำสั่ง ม.24 ตัดสินจากรหัสมติของเคส: ACCEPT_S24P3 (ว.3 คณะอนุกรรมการไต่สวน) → ประธานฯ,
+       อื่น (ว.1 องค์คณะพนักงาน) → เลขาธิการฯ — ใช้ ?res= เฉพาะเมื่อเคสยังไม่มีรหัสมติ
+       เดิมดู kase.subCommittee ซึ่งคือคณะอนุกลั่นกรองที่สำนวนผ่านมา ทำให้มติ ว.1 ไปให้ประธานฯ ลงนาม (Task 170) */
+    /* คำสั่งแต่งตั้ง ม.24 (โหมด appoint / amend) ออกได้เฉพาะมติรับไว้ไต่สวน — มติอื่น (ส่ง ป.ป.ช., ไม่รับ ฯลฯ)
+       ไม่ต้องออกคำสั่งแต่งตั้ง (Task 173) เคสที่ยังไม่มีรหัสมติ (ข้อมูลสาธิตเก่า) ปล่อยผ่านตามเดิม
+       โหมด memo (บันทึกข้อความเสนอลงนาม เช่น แจ้งเขต/ขาดอายุความ) ไม่อยู่ใต้กฎนี้ */
+    function orderResCode(k) {
+      return k.code || (k.resolutionData && k.resolutionData.code) || (typeof k.resolution === 'string' ? k.resolution : '');
+    }
+    function appointOrderAllowed(k) {
+      const r = orderResCode(k);
+      return !r || r.startsWith('ACCEPT');
+    }
+    function appointNotAllowedBar(k) {
+      const r = orderResCode(k);
+      const res = (ECMIS.RESOLUTIONS || []).find(x => x.code === r);
+      return `<div class="action-bar" id="caseActionBar"><div class="no-permission">
+        <i class="fa-solid fa-circle-info me-1"></i>มติของเรื่องนี้คือ <strong>${ECMIS.escapeHtml(res ? res.label : r)}</strong>
+        — ไม่ต้องออกคำสั่งแต่งตั้ง ม.24 (ออกคำสั่งได้เฉพาะมติรับไว้ไต่สวน)</div></div>`;
+    }
+    function orderIsSubLevel(k, fallbackRes) {
+      const caseRes = k.code || (k.resolutionData && k.resolutionData.code) || (typeof k.resolution === 'string' ? k.resolution : '');
+      return (caseRes || fallbackRes) === 'ACCEPT_S24P3';
+    }
     /* ไม่มีลิงก์จริงในระบบที่ส่ง ?res= มาเลย (มีไว้ทดสอบเองด้วยมือเท่านั้น) — เส้นทางจริงต้องมาจาก
        kase.subCommittee (ผ่านอนุกลั่นกรองคณะฯ = สาย "sub" เสนอตรงเลขาธิการฯ = สาย "base") หรือ
        kase.code === 'ACCEPT_S24P3' จากมติบอร์ด ซึ่งใช้ดึงองค์ประกอบอนุกรรมการอัตโนมัติ */
-    let isSub = !!kase.subCommittee || resCode === 'ACCEPT_S24P3' || kase.code === 'ACCEPT_S24P3' || (kase.resolutionData && kase.resolutionData.code === 'ACCEPT_S24P3');
+    let isSub = orderIsSubLevel(kase, resCode);
     const M = ECMIS.mergeField;
 
     const SUPABASE_URL = 'https://ljhabbwjxnoucrcrsoii.supabase.co';
@@ -499,7 +529,7 @@
       applyZoom();
     }
 
-    document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status);
+    document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status);
     document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase);
 
     function accusedTextFromBoard(source) {
@@ -773,7 +803,7 @@
 
       const btns = [];
       if (!isSignerViewing) {
-        if (!sent) {
+        if (!sent && appointOrderAllowed(kase)) {
           if (ECMIS.can('order24.draft', role.id))
             btns.push({ act: 'draft', label: 'บันทึกร่างคำสั่ง', icon: 'fa-floppy-disk', cls: 'btn-outline-secondary' });
           btns.push({ act: 'send_order', label: 'ส่งออกเพื่อลงนาม', icon: 'fa-paper-plane', cls: 'btn-gold' });
@@ -788,6 +818,7 @@
       }
       document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(
         Object.assign({}, kase, { status: 'RESOLVED' }), role.id, btns, { forceAllowed: btns.length > 0 });
+      if (!isSignerViewing && !appointOrderAllowed(kase)) document.getElementById('actionBarSlot').innerHTML = appointNotAllowedBar(kase);
       document.querySelectorAll('.action-bar [data-act]').forEach(b =>
         b.addEventListener('click', () => handle(b.dataset.act)));
     }
@@ -945,7 +976,7 @@
       ด้วยคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ ในการประชุมครั้งที่
       ${M(kase.meetingNo || '38/2569')} เมื่อวันที่ ${M(ECMIS.thaiDate(kase.meetingDate || '2569-06-02'))}
       วาระที่ ${M(kase.agendaNo || '5.12')} ได้มีมติ<strong>รับไว้ไต่สวน</strong>
-      สำนวนเรื่องที่ ${M(kase.id)} กรณีกล่าวหา ${M(accusedNamesText, accused.name || 'รายชื่อผู้ถูกกล่าวหา')}
+      สำนวนเรื่องที่ ${M(ECMIS.caseNo(kase))} กรณีกล่าวหา ${M(accusedNamesText, accused.name || 'รายชื่อผู้ถูกกล่าวหา')}
       ว่ากระทำการทุจริตในภาครัฐ โดยมีพฤติการณ์กล่าวโดยสรุปว่า
     </div>
 
@@ -1079,8 +1110,11 @@
     }
     function refreshMemoSigner() {
       const s = MEMO_SIGNER[isSub ? 'sub' : 'base'];
-      document.getElementById('memoSignerName').textContent = `${s.name} — ${s.title}`;
-      document.getElementById('memoSigHint').textContent = role.id === s.roleId
+      /* #memoSigHint อยู่ใน #memoSigBox ซึ่งถูกเขียนทับเมื่อลงนามแล้ว — setMode() เรียกฟังก์ชันนี้ซ้ำได้ จึงต้องกัน null (Task 165) */
+      const signerNameEl = document.getElementById('memoSignerName');
+      if (signerNameEl) signerNameEl.textContent = `${s.name} — ${s.title}`;
+      const sigHintEl = document.getElementById('memoSigHint');
+      if (sigHintEl) sigHintEl.textContent = role.id === s.roleId
         ? 'กดปุ่ม "เห็นชอบและลงนาม" ที่แถบด้านล่าง'
         : `ต้องสลับบทบาทเป็น "${s.title}" จึงจะลงนามได้`;
 
@@ -1140,13 +1174,13 @@
     <div class="doc-memo-hdr"><span class="doc-memo-lbl">ส่วนราชการ</span> กลุ่มงานกิจการคณะกรรมการ กองบริหารคดี โทร. ๔๓๑๓</div>
     <div class="doc-memo-hdr"><span class="doc-memo-lbl">ที่</span> ${M(no, 'ปป ๐๐๐๔/')}&nbsp;&nbsp;&nbsp;&nbsp;<span class="doc-memo-lbl" style="min-width:auto">วันที่</span> ${M(dt, '……………………')}</div>
     <div class="doc-memo-hdr"><span class="doc-memo-lbl">เรื่อง</span> คำสั่ง${isSub ? 'คณะกรรมการ' : 'สำนักงาน'} ป.ป.ท. เรื่อง แต่งตั้ง${orderKind} กรณีเจ้าหน้าที่ของรัฐกระทำการทุจริตในภาครัฐ</div>
-    <div class="doc-indent" style="text-indent:6.2em">เรื่องที่ ${M(kase.id)}</div>
+    <div class="doc-indent" style="text-indent:6.2em">เรื่องที่ ${M(ECMIS.caseNo(kase))}</div>
     <div class="doc-memo-hdr" style="margin-top:6px"><span class="doc-memo-lbl">เรียน</span> ${isSub ? 'ประธานกรรมการ ป.ป.ท.' : 'เลขาธิการคณะกรรมการ ป.ป.ท.'} (ผ่านกบค.กลุ่มงานบริหารคดีและบริหารทั่วไป)</div>
 
     <div class="doc-h" style="margin-top:10px">๑. เรื่องเดิม</div>
     <div class="doc-indent">
       ${M(origOffice, '(กอง/สำนัก)')} ได้มีหนังสือ ลับ ที่ ${M(origDoc, '……………………')} เรื่อง รายงานผลการไต่สวนเบื้องต้น
-      เรื่องที่ ${M(kase.id)} เพื่อเข้าสู่การพิจารณาของที่ประชุมคณะกรรมการ ป.ป.ท.
+      เรื่องที่ ${M(ECMIS.caseNo(kase))} เพื่อเข้าสู่การพิจารณาของที่ประชุมคณะกรรมการ ป.ป.ท.
     </div>
 
     <div class="doc-h" style="margin-top:10px">๒. ข้อเท็จจริง</div>
@@ -1293,11 +1327,14 @@
       if (isSignerViewing) {
         btns.push({ act: 'amendSign', label: 'ลงนามดิจิทัลและส่งต่อ', icon: 'fa-signature', cls: 'btn-gold' });
       } else {
-        btns.push({ act: 'amendDraft', label: 'บันทึกร่าง', icon: 'fa-floppy-disk', cls: 'btn-outline-secondary' });
-        btns.push({ act: 'send_order', label: 'ส่งออกเพื่อลงนาม', icon: 'fa-paper-plane', cls: 'btn-gold' });
+        if (appointOrderAllowed(kase)) {
+          btns.push({ act: 'amendDraft', label: 'บันทึกร่าง', icon: 'fa-floppy-disk', cls: 'btn-outline-secondary' });
+          btns.push({ act: 'send_order', label: 'ส่งออกเพื่อลงนาม', icon: 'fa-paper-plane', cls: 'btn-gold' });
+        }
       }
       document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(
         Object.assign({}, kase, { status: 'RESOLVED' }), role.id, btns, { forceAllowed: btns.length > 0 });
+      if (!isSignerViewing && !appointOrderAllowed(kase)) document.getElementById('actionBarSlot').innerHTML = appointNotAllowedBar(kase);
       document.querySelectorAll('.action-bar [data-act]').forEach(b =>
         b.addEventListener('click', () => handle(b.dataset.act)));
     }
@@ -1501,6 +1538,9 @@
       }
 
       if (act === 'send_order') {
+        if (currentMode !== 'memo' && !appointOrderAllowed(kase)) {
+          ECMIS.toastWarn('มติของเรื่องนี้ไม่ต้องออกคำสั่งแต่งตั้ง ม.24 — ออกคำสั่งได้เฉพาะมติรับไว้ไต่สวน'); return;
+        }
         let targetStatus = isSub ? 'PENDING_SIGN_ORDER_CHAIRMAN' : 'PENDING_SIGN_ORDER_SECGEN';
         let targetSignerTitle = SIGNER.title;
         let docWord = 'คำสั่ง';
@@ -1722,7 +1762,7 @@
             icon: 'success',
             title: 'เห็นชอบและลงนามบันทึกเรียบร้อย',
             html: `<div class="text-start">
-                     สำนวนเรื่องที่ <strong>${kase.id}</strong><br>
+                     สำนวนเรื่องที่ <strong>${ECMIS.caseNo(kase)}</strong><br>
                      ${isSub ? 'ส่งเรื่องให้ <strong>ประธานกรรมการ ป.ป.ท.</strong> ลงนามคำสั่งแต่งตั้ง (ปปท. ๕-๐๒) ต่อไป' : 'บันทึกคำสั่งและส่งต่อเรียบร้อยแล้ว'}
                    </div>`,
             confirmButtonColor: '#0F2A62',
@@ -1802,7 +1842,7 @@
             icon: 'success',
             title: 'ลงนามคำสั่งแก้ไขเรียบร้อย',
             html: `<div class="text-start">
-                     สำนวนเรื่องที่ <strong>${kase.id}</strong><br>
+                     สำนวนเรื่องที่ <strong>${ECMIS.caseNo(kase)}</strong><br>
                      บันทึกคำสั่งแก้ไขเพิ่มเติมเรียบร้อยแล้ว
                    </div>`,
             confirmButtonColor: '#0F2A62',
@@ -2002,10 +2042,10 @@
       }
       if (!live) return;
       Object.assign(kase, live);
-      isSub = !!kase.subCommittee || resCode === 'ACCEPT_S24P3' || kase.code === 'ACCEPT_S24P3' || (kase.resolutionData && kase.resolutionData.code === 'ACCEPT_S24P3');
+      isSub = orderIsSubLevel(kase, resCode);
       refreshSignerConfig();
 
-      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` + ECMIS.statusBadge(kase.status);
+      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status);
       populateBoardResolutionFields(kase, false);
 
       // ดึงเลขที่คำสั่งและวันที่จากฐานข้อมูล / ค่าที่บันทึกไว้
@@ -2044,6 +2084,10 @@
       if (typeof renderDoc === 'function') renderDoc();
     })();
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

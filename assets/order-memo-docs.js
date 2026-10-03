@@ -32,7 +32,7 @@ window.ECMIS.OrderMemoDocs["notify_zone"] = {
       "id": "case_no",
       "label": "เรื่องที่ (เลขสำนวน)",
       "type": "text",
-      "hint": "เช่น 111674/2560",
+      "hint": "เช่น 1116/2560",
       "placeholder": "เรื่องที่ (เลขสำนวน)"
     },
     {
@@ -219,7 +219,7 @@ window.ECMIS.OrderMemoDocs["transmit_kbc"] = {
       "id": "case_no",
       "label": "เรื่องที่ (เลขสำนวน)",
       "type": "text",
-      "hint": "เช่น 111674/2560",
+      "hint": "เช่น 1116/2560",
       "placeholder": "เรื่องที่ (เลขสำนวน)"
     },
     {
@@ -446,7 +446,7 @@ window.ECMIS.OrderMemoDocs["timebar_report"] = {
       "id": "case_no",
       "label": "เรื่องที่ (เลขสำนวน)",
       "type": "text",
-      "hint": "เช่น 111674/2560",
+      "hint": "เช่น 1116/2560",
       "placeholder": "เรื่องที่ (เลขสำนวน)"
     },
     {
@@ -548,7 +548,7 @@ window.ECMIS.OrderMemoDocs["notify_discipline"] = {
       "id": "case_no",
       "label": "เรื่องที่ (เลขสำนวน)",
       "type": "text",
-      "hint": "เช่น 111674/2560",
+      "hint": "เช่น 1116/2560",
       "placeholder": "เรื่องที่ (เลขสำนวน)"
     },
     {
@@ -774,7 +774,7 @@ window.ECMIS.OrderMemoDocs["submit_inquiry"] = {
       "id": "case_no",
       "label": "เรื่องที่ (เลขสำนวน)",
       "type": "text",
-      "hint": "เช่น 111674/2560",
+      "hint": "เช่น 1116/2560",
       "placeholder": "เรื่องที่ (เลขสำนวน)"
     },
     {
@@ -932,7 +932,7 @@ window.ECMIS.OrderMemoDocs["ruling_report"] = {
       "id": "case_no",
       "label": "เรื่องที่ (เลขสำนวน)",
       "type": "text",
-      "hint": "เช่น 111674/2560",
+      "hint": "เช่น 1116/2560",
       "placeholder": "เรื่องที่ (เลขสำนวน)"
     },
     {
@@ -1206,7 +1206,7 @@ window.ECMIS.OrderMemoDocs["timebar_secgen"] = {
       "id": "case_no",
       "label": "เรื่องที่ (เลขสำนวน)",
       "type": "text",
-      "hint": "เช่น 111674/2569",
+      "hint": "เช่น 1116/2569",
       "placeholder": "เรื่องที่ (เลขสำนวน)"
     },
     {

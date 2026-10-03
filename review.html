@@ -14,9 +14,10 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <div class="page-head">
@@ -38,7 +39,7 @@
 
         <div class="ws-card mb-3">
           <div class="card-header"><i class="fa-solid fa-list-ol"></i> ที่มาของสำนวน — การเสนอตามลำดับชั้นภายในกอง/เขต
-            (ต้นทาง กจ.5)</div>
+            (ต้นทาง กจ.5) <span class="chip ms-2" style="font-size:.7rem">ตัวอย่างประกอบ — ต้นทาง กจ.5</span></div>
           <div class="card-body">
             <ul class="tl mb-0" id="chain"></ul>
           </div>
@@ -233,7 +234,7 @@
 
               <!-- Right Group: Zoom Stepper Controls -->
               <div class="toolbar-group ms-auto">
-                <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                <div class="d-flex align-items-center bg-dark rounded px-1" style="height:26px;">
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                   <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
                   <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -257,7 +258,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('approval-review.html');
@@ -385,7 +391,7 @@
         `<i class="fa-solid fa-signature"></i> ลายมือชื่อดิจิทัลบน${docType.short}`;
       document.getElementById('docTitleBar').textContent = docType.label;
       document.getElementById('stBadge').innerHTML =
-        `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` +
+        `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` +
         `<span class="chip me-1">${docType.short}</span>` +
         ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
       document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase);
@@ -394,23 +400,20 @@
         owner: 'DRAFT', section_head: 'PENDING_SECTION', director: 'PENDING_DIRECTOR',
         deputy: 'PENDING_DEPUTY', secgen: 'PENDING_SECGEN'
       };
-      const FULL_CHAIN = ECMIS.UPSTREAM_CHAIN.concat(['secgen']);
+      const FULL_CHAIN = ECMIS.upstreamMockChain(kase).concat(['secgen']);
       const curIdx = FULL_CHAIN.findIndex(r => CHAIN_STATUS[r] === kase.status);
 
       const opByRole = Object.fromEntries((kase.chainOpinions || []).map(o => [o.roleId, o]));
       const divSplit = g1.divergence.split;
 
-      const MOCK_STEP_SLA = {
-        owner: { used: 2, limit: 5 },
-        section_head: { used: 1, limit: 5 },
-        director: { used: 8, limit: 5 },
-        deputy: { used: 3, limit: 5 }
-      };
+      const MOCK_STEP_SLA = ECMIS.UPSTREAM_MOCK_SLA;
 
       document.getElementById('chain').innerHTML = FULL_CHAIN.map((rid, i) => {
         const r = ECMIS.getRole(rid);
         const upstream = r.scope === 'UPSTREAM';
         const op = opByRole[rid];
+        /* แถวชั้นกอง/เขตที่ไม่มีความเห็นจริง (ระบบสร้างเอง) = ตัวอย่างประกอบ: ชื่อตำแหน่งต้นทาง ไม่มีชื่อบุคคล/ป้ายความเห็น (Task 179) */
+        const mockRow = rid !== 'secgen' && (!op || op.mock); // ไม่ใช้ r.scope — role ต้นทางใน ROLES ของ A7 ถูกผูกกับ affairs/secgen
 
         const stepData = (op && op.daysUsed)
           ? { used: op.daysUsed, limit: op.slaLimit || 5 }
@@ -422,7 +425,7 @@
           note = `ผ่านขั้นตอนนี้แล้ว · <span class="text-success fw-medium"><i class="fa-solid fa-clock me-1"></i>ใช้ไป ${stepData.used}/${stepData.limit} วัน</span>`;
         } else if (i === curIdx) {
           cls = 'now';
-          note = `<strong>อยู่ระหว่างพิจารณา</strong> · ${ECMIS.slaLabel(kase.slaDays, ECMIS.effectiveSlaLimit(kase))}`;
+          note = `<strong>อยู่ระหว่างพิจารณา</strong> · ${(u => ECMIS.slaLabel(u.used, u.lim))(ECMIS.slaUsedLimit(kase))}`;
         } else if (i > curIdx) {
           cls = '';
           note = 'รอคิว';
@@ -430,9 +433,9 @@
           cls = 'ok';
           const isOver = stepData.used > stepData.limit;
           if (isOver) {
-            note = `เห็นชอบแล้ว · <span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i>ใช้ไป ${stepData.used}/${stepData.limit} วัน <span class="badge bg-danger ms-1">เกินกำหนด ${stepData.used - stepData.limit} วัน</span></span>`;
+            note = `${mockRow ? 'ผ่านแล้ว' : 'เห็นชอบแล้ว'} · <span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i>ใช้ไป ${stepData.used}/${stepData.limit} วัน <span class="badge bg-danger ms-1">เกินกำหนด ${stepData.used - stepData.limit} วัน</span></span>`;
           } else {
-            note = `เห็นชอบแล้ว · <span class="text-success fw-medium"><i class="fa-solid fa-clock me-1"></i>ใช้ไป ${stepData.used}/${stepData.limit} วัน</span>`;
+            note = `${mockRow ? 'ผ่านแล้ว' : 'เห็นชอบแล้ว'} · <span class="text-success fw-medium"><i class="fa-solid fa-clock me-1"></i>ใช้ไป ${stepData.used}/${stepData.limit} วัน</span>`;
           }
         }
 
@@ -441,7 +444,7 @@
 
         /* ความเห็นของชั้นนี้ + ทำเครื่องหมายชั้นที่ความเห็นเริ่มแตกจากชั้นก่อนหน้า */
         let opHtml = '';
-        if (op) {
+        if (op && !mockRow && rid !== 'deputy') { // แถวรองเลขาฯ แสดงข้อความความเห็นจริงแทนป้ายประเภท (Task 190)
           const isSplit = divSplit && divSplit.to.roleId === rid;
           opHtml = `<div class="tl-m mt-1">
       <span class="st ${op.type === 'ACCEPT' ? 'st-done' : (op.type === 'MORE' ? 'st-review' : 'st-returned')}"
@@ -450,24 +453,28 @@
     </div>`;
         }
 
+        /* ความเห็นจริงของรองเลขาธิการฯ (Task 190) แสดงข้อความเต็มใต้แถว */
+        const deputyNote = (rid === 'deputy' && op && !mockRow && op.note)
+          ? `<div class="tl-m mt-1" style="white-space:pre-line">ความเห็น: ${ECMIS.escapeHtml(op.note)}${op.date ? ` <span class="text-muted">(${ECMIS.toThaiDigits(ECMIS.thaiDate(op.date))})</span>` : ''}</div>` : '';
         return `<li class="${cls}" ${upstream ? 'style="opacity:.85"' : ''}><span class="tl-dot"></span>
-    <div class="tl-t">${r.title} ${tag} ${isMe ? '<span class="chip ms-1">คุณ</span>' : ''}</div>
-    <div class="tl-m">${r.name} · ${note}</div>${opHtml}</li>`;
+    <div class="tl-t">${mockRow ? ECMIS.upstreamMockTitle(rid, kase) : r.title} ${tag} ${isMe ? '<span class="chip ms-1">คุณ</span>' : ''}</div>
+    <div class="tl-m">${mockRow ? note : `${r.name} · ${note}`}</div>${opHtml}${deputyNote}</li>`;
       }).join('');
 
       /* ---------- สรุปสำนวน ----------
          "ฐานการรับเรื่อง" เป็นข้อมูลที่มาจากต้นทาง (ตอนรับสำนวนเข้าระบบ) ไม่ใช่ฟิลด์ที่
          เลขาธิการฯ เลือก/แก้ไขเองในขั้นตอนนี้ — แสดงเป็น text อ่านอย่างเดียวเสมอ */
       document.getElementById('summary').innerHTML = [
-        ['เลขสำนวน', kase.id],
+        ['เลขสำนวน', ECMIS.caseNo(kase)],
         ['ฐานการรับเรื่อง', kase.legalBase], ['เจ้าของสำนวน', kase.owner],
         ['หน่วยงาน', kase.ownerOrg], ['วันที่รับเรื่อง', ECMIS.thaiDate(kase.receivedDate)],
         ['ต้องเริ่มไต่สวนภายใน (ม.23)', ECMIS.thaiDate(kase.deadline60)],
         ['ครบกำหนด 2 ปี (ม.23)', ECMIS.thaiDate(kase.deadline2y)]
-      ].map(([k, v]) => `<div class="col-md-6"><span class="k">${k}:</span> <span class="v">${v}</span></div>`).join('');
+      ].map(([k, v]) => `<div class="col-md-6"><span class="k">${k}:</span> <span class="v">${(v === null || v === undefined || v === '') ? '—' : v}</span></div>`).join('');
       document.getElementById('sAllegation').textContent = kase.allegation;
+      /* 7.3 (เรื่องทั่วไป/ข้อกฎหมาย) ไม่มีความเห็น "รับไว้ไต่สวน" ของผู้รับผิดชอบ — แสดง "—" (Task 179) */
       const ownerOp = opByRole['owner'];
-      document.getElementById('sOpinion').innerHTML = ownerOp
+      document.getElementById('sOpinion').innerHTML = ECMIS.isCase73(kase) ? '—' : ownerOp
         ? `<span class="chip">${ECMIS.OPINION_TYPES[ownerOp.type].label}</span> — ${ownerOp.note}`
         : '<span class="text-muted">— ยังไม่มีการบันทึกความเห็นของผู้รับผิดชอบสำนวน —</span>';
 
@@ -660,7 +667,7 @@
   <div class="doc-secret">ลับ</div>
   <div class="doc-title">${docType.label}</div>
   <div class="doc-sub">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
-  <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+  <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
   <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
   <div class="doc-row"><span class="k">ผู้รับผิดชอบ</span> ${M(kase.owner)}</div>
   <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
@@ -940,7 +947,7 @@
           const nextStatus = CHAIN_STATUS[nextRoleId];
           ECMIS.confirmAction({
             title: 'เห็นชอบและเสนอตามลำดับชั้น',
-            html: `<p>เสนอสำนวน <strong>${kase.id}</strong> ต่อไปยัง <strong>${nextRoleTitle()}</strong></p>`,
+            html: `<p>เสนอสำนวน <strong>${ECMIS.caseNo(kase)}</strong> ต่อไปยัง <strong>${nextRoleTitle()}</strong></p>`,
             confirmText: 'ยืนยันเห็นชอบ'
           }).then(async r => {
             if (r.isConfirmed) {
@@ -966,7 +973,7 @@
           const reasonText = (document.getElementById('g1reason')?.value || '').trim();
           ECMIS.confirmAction({
             title: 'ส่งเรื่องซับซ้อนให้ ผอ.กบค.',
-            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งพร้อม <strong>ใบบันทึกซับซ้อน</strong> ไปยัง
+            html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกส่งพร้อม <strong>ใบบันทึกซับซ้อน</strong> ไปยัง
             <strong>ผู้อำนวยการกองบริหารคดี (ผอ.กบค.)</strong> เพื่อออกเลขทะเบียนคุมและมอบหมาย
             <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ</strong></p>`,
             confirmText: 'ยืนยันส่ง ผอ.กบค.'
@@ -994,7 +1001,7 @@
               icon: 'success',
               title: 'ส่งเรื่องให้ ผอ.กบค. เรียบร้อย',
               html: `<div class="text-start">
-              สำนวน <strong>${kase.id}</strong> ถูกส่งไปยัง <strong>ผู้อำนวยการกองบริหารคดี (ผอ.กบค.)</strong> แล้ว<br>
+              สำนวน <strong>${ECMIS.caseNo(kase)}</strong> ถูกส่งไปยัง <strong>ผู้อำนวยการกองบริหารคดี (ผอ.กบค.)</strong> แล้ว<br>
               <div style="font-size:.82rem;color:#7C8CA3;margin-top:.6rem">ขั้นถัดไป: ผอ.กบค. ออกเลขทะเบียนคุมและมอบหมายคณะอนุสนับสนุนฯ → คณะอนุสนับสนุนฯ กลั่นกรอง → กลับมาเลขาธิการฯ</div>
             </div>`,
               confirmButtonColor: '#0F2A62',
@@ -1070,7 +1077,7 @@
             icon: 'success',
             title: 'บันทึกและเปลี่ยนสถานะเรียบร้อย',
             html: `<div class="text-start">
-            สำนวน <strong>${kase.id}</strong> ถูกบันทึกสถานะเป็น
+            สำนวน <strong>${ECMIS.caseNo(kase)}</strong> ถูกบันทึกสถานะเป็น
             <span class="st st-done" style="font-size:0.85rem"><i class="fa-solid fa-signature me-1"></i>เลขาลงนามแล้ว</span><br>
             และส่งต่อไปยัง <strong>${dest}</strong> เรียบร้อยแล้ว
             <div style="font-size:.82rem;color:#7C8CA3;margin-top:.6rem">เส้นทางที่ระบบกำหนด: ${path}</div>
@@ -1099,7 +1106,7 @@
               ECMIS.toastWarn('กรุณาเลือกมาตราที่ใช้อ้างอิงก่อนลงนามคำสั่ง'); return;
             }
             const order = ECMIS.m28Order(m28);
-            ECMIS.signDialog(`คำสั่งเลขาธิการฯ ตาม ${order.lawRef} เรื่องที่ ${kase.id}`,
+            ECMIS.signDialog(`คำสั่งเลขาธิการฯ ตาม ${order.lawRef} เรื่องที่ ${ECMIS.caseNo(kase)}`,
               'นายอภิชาติ สุจริตกุล — เลขาธิการคณะกรรมการ ป.ป.ท.')
               .then(res => {
                 if (!res.isConfirmed) return;
@@ -1124,7 +1131,7 @@
           }
 
           const SEC = { name: 'นายอภิชาติ สุจริตกุล', title: 'เลขาธิการคณะกรรมการ ป.ป.ท.' };
-          const signPromise = ECMIS.signDialog(`${docType.label} เรื่องที่ ${kase.id}`, `${SEC.name} — ${SEC.title}`);
+          const signPromise = ECMIS.signDialog(`${docType.label} เรื่องที่ ${ECMIS.caseNo(kase)}`, `${SEC.name} — ${SEC.title}`);
 
           signPromise.then(res => {
             if (!res.isConfirmed) return;
@@ -1157,7 +1164,7 @@
         `<i class="fa-solid fa-signature"></i> ลายมือชื่อดิจิทัลบน${docType.short}`;
       document.getElementById('docTitleBar').textContent = docType.label;
       document.getElementById('stBadge').innerHTML =
-        `<span class="chip me-1">เลขสำนวน ${kase.id}</span>` +
+        `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` +
         `<span class="chip me-1">${docType.short}</span>` +
         ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
       document.getElementById('stepper').innerHTML =
@@ -1182,7 +1189,15 @@
         else { prevDate = null; }
       });
 
-      document.getElementById('chain').innerHTML = CHAIN_72.map((rid, i) => {
+      const mockRows72 = curIdx === -1 && !isReturned && (kase.chainOpinions || []).every(o => o.mock);
+      /* ความเห็นชั้นกอง/เขตเป็นข้อมูลที่ระบบสร้างเอง → แสดงเป็นตัวอย่างประกอบ 4 ชั้นตามต้นทาง กจ.5 (Task 179) */
+      const mockRowsHtml72 = () => ECMIS.upstreamMockChain(kase).map(rid => {
+        const s = ECMIS.UPSTREAM_MOCK_SLA[rid] || { used: 2, limit: 5 };
+        return `<li class="ok" style="opacity:.85"><span class="tl-dot"></span>
+          <div class="tl-t">${ECMIS.upstreamMockTitle(rid, kase)}</div>
+          <div class="tl-m">ผ่านแล้ว · <span class="text-success fw-medium"><i class="fa-solid fa-clock me-1"></i>ใช้ไป ${s.used}/${s.limit} วัน</span></div></li>`;
+      }).join('');
+      document.getElementById('chain').innerHTML = (mockRows72 ? mockRowsHtml72() : CHAIN_72.map((rid, i) => {
         const r = ECMIS.getRole(rid);
         const op = opByRole[rid];
         const usedDays = daysUsedByRole[rid];
@@ -1205,21 +1220,21 @@
         return `<li class="${cls}"><span class="tl-dot"></span>
           <div class="tl-t">${r.title} ${isMe ? '<span class="chip ms-1">คุณ</span>' : ''}</div>
           <div class="tl-m">${r.name} · ${note}</div>${opHtml}</li>`;
-      }).join('') + `
+      }).join('')) + `
         <li><span class="tl-dot"></span>
           <div class="tl-t">เลขาธิการคณะกรรมการ ป.ป.ท.</div>
           <div class="tl-m">พิจารณา/ลงนาม/ชี้สำนวนซับซ้อน-เร่งด่วน</div></li>`;
 
       /* ---------- สรุปสำนวน — ไม่มี ม.23 (60 วัน/2 ปี) ในชั้นวินิจฉัยชี้มูล ใช้รอบการไต่สวนแทน ---------- */
       document.getElementById('summary').innerHTML = [
-        ['เลขสำนวน', kase.id],
+        ['เลขสำนวน', ECMIS.caseNo(kase)],
         ['ฐานการรับเรื่อง', kase.legalBase], ['ผู้รับผิดชอบสำนวน', kase.owner],
         ['หน่วยงาน', kase.ownerOrg], ['วันที่รับเรื่อง', ECMIS.thaiDate(kase.receivedDate)],
         ['รอบการไต่สวน', `ครั้งที่ ${kase.round72 || 1}`]
-      ].map(([k, v]) => `<div class="col-md-6"><span class="k">${k}:</span> <span class="v">${v}</span></div>`).join('');
+      ].map(([k, v]) => `<div class="col-md-6"><span class="k">${k}:</span> <span class="v">${(v === null || v === undefined || v === '') ? '—' : v}</span></div>`).join('');
       document.getElementById('sAllegation').textContent = kase.allegation;
       document.getElementById('sOpinion').innerHTML = (kase.chainOpinions || []).length
-        ? (kase.chainOpinions || []).map(o => `<span class="chip me-1">${ECMIS.getRole(o.roleId).title}</span>`).join('')
+        ? (kase.chainOpinions || []).map(o => `<span class="chip me-1">${o.mock ? ECMIS.upstreamMockTitle(o.roleId, kase) : ECMIS.getRole(o.roleId).title}</span>`).join('')
         : '<span class="text-muted">— ยังไม่มีการบันทึกความเห็นตามสายอนุมัติ —</span>';
 
       /* opinionCard แสดงต่างกัน 3 แบบตามบทบาท:
@@ -1295,7 +1310,7 @@
           <div class="doc-secret">ลับ</div>
           <div class="doc-title">${docType.label}</div>
           <div class="doc-sub">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
-          <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+          <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
           <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
           <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(kase.owner)}</div>
           <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
@@ -1390,7 +1405,7 @@
           const nextTitle = nextRoleTitle();
           ECMIS.confirmAction({
             title: 'เห็นชอบและเสนอตามลำดับชั้น',
-            html: `<p>เสนอสำนวน <strong>${kase.id}</strong> ต่อไปยัง <strong>${nextTitle}</strong></p>`,
+            html: `<p>เสนอสำนวน <strong>${ECMIS.caseNo(kase)}</strong> ต่อไปยัง <strong>${nextTitle}</strong></p>`,
             confirmText: 'ยืนยันเห็นชอบ'
           }).then(async res => {
             if (!res.isConfirmed) return;
@@ -1451,7 +1466,7 @@
         if (act === 'resubmit') {
           ECMIS.confirmAction({
             title: 'ยืนยันเสนอใหม่',
-            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกเสนอกลับเข้าสายอนุมัติ 3 ชั้นอีกครั้ง เริ่มที่ <strong>หัวหน้ากลุ่มงาน</strong></p>`,
+            html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกเสนอกลับเข้าสายอนุมัติ 3 ชั้นอีกครั้ง เริ่มที่ <strong>หัวหน้ากลุ่มงาน</strong></p>`,
             confirmText: 'ยืนยันเสนอใหม่'
           }).then(async res => {
             if (!res.isConfirmed) return;
@@ -1490,7 +1505,7 @@
 
           ECMIS.confirmAction({
             title: 'เห็นชอบและส่งต่อ',
-            html: `<p>สำนวน <strong>${kase.id}</strong> จะถูกส่งต่อไปยัง <strong>${ECMIS.STATUS[next.to].label}</strong></p>`,
+            html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> จะถูกส่งต่อไปยัง <strong>${ECMIS.STATUS[next.to].label}</strong></p>`,
             confirmText: 'ยืนยันเห็นชอบ'
           }).then(async res => {
             if (!res.isConfirmed) return;
@@ -1669,6 +1684,10 @@
     const mayEdit = ECMIS.canEditMaster(role.id) || ['secgen', 'director', 'deputy', 'section_head', 'affairs'].includes(role.id);
     ECMIS.initDocEditor({ stageId: 'docPaper', mayEdit: mayEdit });
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

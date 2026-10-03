@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "mode": "independent-presentation",
+  "cases": [
+    {
+      "key": "A",
+      "caseNo": "0001/2569",
+      "complaintNo": "0005/2569",
+      "srrNo": "0021/2569",
+      "trackingNo": "690005",
+      "pin": "891097",
+      "complainant": "ตรีรุด หล่อจัง",
+      "accused": "ณัฐกานต์ แพนดอร่า",
+      "subject": "สูบบุหรี่ในที่ทำงาน",
+      "agency": "สำนักงานเขตบางรัก กรุงเทพมหานคร",
+      "legalBasis": "18/1ก",
+      "receivedAt": "2026-09-01",
+      "outgoingSrr": "0004.2/0022",
+      "outgoingCaseAdmin": "0004/0031",
+      "activities": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        12,
+        13
+      ],
+      "officers": {
+        "caseClerk": "สมชาย ใจดี",
+        "intakeOfficer": "ดวงใจ ชอบกินผัก",
+        "srrDirector": "นายเจษฎา ร้อนเงิน",
+        "caseAdminDirector": "กรรชัย กำเนิดทอง"
+      }
+    },
+    {
+      "key": "B",
+      "caseNo": "",
+      "complaintNo": "0007/2569",
+      "srrNo": "0023/2569",
+      "trackingNo": "690007",
+      "pin": "654783",
+      "complainant": "ตรีรุด หล่อจัง",
+      "accused": "",
+      "subject": "น้ำป่าไหลหลากในหมู่บ้าน A",
+      "agency": "องค์การบริหารส่วนตำบลบ้านเอ",
+      "legalBasis": "58/2",
+      "receivedAt": "2026-09-03",
+      "outgoingSrr": "0004.2/0023",
+      "outgoingCaseAdmin": "0004/0032",
+      "activities": [
+        4,
+        5,
+        12,
+        13
+      ],
+      "referenceNo": "690007",
+      "officers": {
+        "caseClerk": "สมชาย ใจดี",
+        "intakeOfficer": "ดวงใจ ชอบกินผัก",
+        "srrDirector": "นายเจษฎา ร้อนเงิน",
+        "caseAdminDirector": "กรรชัย กำเนิดทอง"
+      }
+    },
+    {
+      "key": "C",
+      "caseNo": "0005/2569",
+      "complaintNo": "0010/2569",
+      "srrNo": "0026/2569",
+      "trackingNo": "690010",
+      "pin": "041812",
+      "complainant": "นายสมชาย รักความยุติธรรม",
+      "accused": "นายสมศักดิ์ หาผลประโยชน์",
+      "subject": "เรียกรับเงิน “แป๊ะเจี๊ยะ” จากผู้ปกครองโดยไม่ออกใบเสร็จ และนำเงินเข้ากองทุนส่วนตัว เพื่อแลกกับสิทธิ์ในการรับนักเรียนเข้าศึกษาต่อ",
+      "agency": "โรงเรียนตัวอย่างวิทยา สำนักงานเขตพื้นที่การศึกษามัธยมศึกษากรุงเทพมหานคร เขต 1",
+      "legalBasis": "18/1ก",
+      "receivedAt": "2026-09-08",
+      "outgoingSrr": "0004.2/0026",
+      "outgoingCaseAdmin": "0004/0035",
+      "activities": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        13
+      ],
+      "officers": {
+        "caseClerk": "สมชาย ใจดี",
+        "intakeOfficer": "ดวงใจ ชอบกินผัก",
+        "srrDirector": "นายเจษฎา ร้อนเงิน",
+        "caseAdminDirector": "กรรชัย กำเนิดทอง"
+      },
+      "sourcePin": "41812"
+    }
+  ]
+}

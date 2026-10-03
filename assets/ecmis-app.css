@@ -1877,6 +1877,8 @@ body.dark-mode .att-row, body.dark-mode .att-btn, body.dark-mode .att-drop{ back
    (chairman-agenda, affairs-case-detail, affairs-opinion, case-admin-detail) โค้ด/ข้อมูล LAW_PACC ยังอยู่ครบ
    ต้องการแสดงกลับ: ลบกฎนี้ออก */
 .ws-card:has(#lawBox), .card-ecmis:has(#lawBox){ display:none !important; }
+/* แถบขั้นตอนว่าง (เคสยังอยู่กิจกรรมที่ 5 — caseStepperHtml คืนค่าว่าง) ซ่อนการ์ดทั้งใบ (Task 162) */
+.ws-card:has(> #stepper:empty){ display:none !important; }
 
 /* แถบขั้นตอนตามเส้นทางจริงของเคส (ECMIS.stepperHtml(kase) — 2026-10-01) */
 .flow-stepper-case .fstep{ min-width:108px; }

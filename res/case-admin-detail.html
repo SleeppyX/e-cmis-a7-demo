@@ -13,6 +13,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="../assets/ecmis-app.css" rel="stylesheet">
+  <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
   <style>
     .kv { display: grid; grid-template-columns: 150px 1fr; gap: .3rem .8rem; font-size: .86rem; }
     .kv dt { color: var(--ecmis-muted); font-weight: 600; }
@@ -25,7 +26,7 @@
   </style>
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <div class="page-head d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -90,7 +91,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="../assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="../assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('case-admin-inbox.html');
@@ -208,7 +214,7 @@
       Swal.fire({
         title: 'ส่งเข้าคณะอนุกลั่นกรองฯ',
         html: `<div class="text-start small">
-            <div class="mb-2">สำนวน <strong>${kase.id}</strong> — ${ECMIS.isCase72(kase) ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</div>
+            <div class="mb-2">สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — ${ECMIS.isCase72(kase) ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</div>
             <label class="form-label fw-semibold">เลือกคณะอนุกลั่นกรองฯ</label>
             <select id="swTeam" class="form-select form-select-sm mb-2">${opts}</select>
             <div class="text-muted mb-2">ระบบเสนอ <strong>${suggested}</strong> — คณะที่มีสำนวนค้างระหว่างกลั่นกรองน้อยที่สุด</div>
@@ -222,20 +228,35 @@
           if (team !== suggested && !reason) { Swal.showValidationMessage('กรุณาระบุเหตุผลเมื่อเลือกคณะที่ไม่ใช่คณะที่ระบบเสนอ'); return false; }
           return { team, reason };
         }
-      }).then(res => {
+      }).then(async res => {
         if (!res.isConfirmed) return;
         const { team, reason } = res.value;
+        /* บันทึกคณะลง Supabase ด้วย (เดิมเก็บแค่ sessionStorage — คนอื่นไม่เห็นว่าส่งเข้าคณะไหน, Task 163)
+           ใช้รูปแบบเดียวกับ case-admin-inbox.html แต่รอผลและแจ้งเตือนถ้าบันทึกไม่สำเร็จ */
+        const sb = ECMIS.getSupabaseClient();
+        if (sb && kase.trr_id) {
+          const { error } = await sb.from('tbl_res_request').update({ trr_sub_committee: team }).eq('trr_id', kase.trr_id);
+          if (error) {
+            console.warn('บันทึกคณะที่มอบหมายลง Supabase ไม่สำเร็จ:', error);
+            ECMIS.toastWarn(`บันทึกการส่งเข้า ${team} ลงฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่`);
+            return;
+          }
+        }
         ECMIS.pushCaseHistory(kase, {
           event: 'ROUTE_TO_SUBCOMMITTEE', from: kase.status, to: kase.status, team,
           note: `กระจายสำนวนเข้า ${team}${team === suggested ? ' (Round-Robin)' : ' (เลือกโดย กบค.)'}${reason ? ' — ' + reason : ''}`
         });
         ECMIS.Model.CaseStore.update(kase.id, { subCommittee: team, routedByCaseAdminAt: new Date().toISOString(), history: kase.history });
         kase = ECMIS.getCase(kase.id);
-        ECMIS.toastOk(`ส่งสำนวน ${kase.id} เข้า ${team} เรียบร้อย`);
+        ECMIS.toastOk(`ส่งสำนวน ${ECMIS.caseNo(kase)} เข้า ${team} เรียบร้อย`);
         renderDetail();
       });
     }
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

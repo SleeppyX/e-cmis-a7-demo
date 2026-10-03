@@ -14,6 +14,7 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
   <style>
     .kpi-card {
       transition: all 0.2s ease;
@@ -27,7 +28,7 @@
   </style>
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
 
@@ -136,7 +137,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script>
     ECMIS.renderShell('subcommittee-inbox.html');
 
@@ -175,7 +181,7 @@
        และ ส่งคืน/กลั่นกรองเสร็จ (RETURNED/_72, AGENDA_SET, PENDING_INVITE_72) เฉพาะที่มี subOutcome
        บันทึกไว้แล้ว เพื่อให้แถวยังค้างอยู่ในแท็บของตัวเอง (audit trail) */
     const ACTIVE_SCREEN = ['IN_SCREENING', 'IN_SCREENING_72', 'SCREENING_MORE_INFO', 'SCREENING_MORE_INFO_72'];
-    const CARRIED_SCREEN = ['RETURNED', 'RETURNED_72', 'AGENDA_SET', 'PENDING_INVITE_72'];
+    const CARRIED_SCREEN = ['RETURNED', 'RETURNED_72', 'PENDING_SIGN_AGENDA', 'AGENDA_SET', 'PENDING_INVITE_72'];
     function computeTeamCases() {
       teamCases = CASES.filter(c =>
         c.subCommittee === selectedTeam &&
@@ -214,22 +220,10 @@
         { key: 'DONE', n: cnt('DONE'), l: 'กลั่นกรองแล้วเสร็จ', i: 'fa-circle-check', c: '#15803D' }
       ];
 
-      document.getElementById('kpiRow').innerHTML = kpis.map(k => `
-        <div class="col">
-          <div class="card card-ecmis kpi-card h-100" data-kpi="${k.key}">
-            <div class="card-body p-3 d-flex align-items-center justify-content-between">
-              <div>
-                <div class="text-muted small mb-1">${k.l}</div>
-                <div class="h3 fw-bold mb-0" style="color:${k.c}">${k.n}</div>
-              </div>
-              <div class="rounded-circle p-3 d-flex align-items-center justify-content-center"
-                   style="background: ${k.c}15; width:48px; height:48px;">
-                <i class="fa-solid ${k.i} fs-5" style="color:${k.c}"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-      `).join('');
+      const activeKey = $('#statusFilter').val() || 'ALL';
+      document.getElementById('kpiRow').innerHTML = kpis.map(k => ECMIS.kpiCardHtml({
+        n: k.n, l: k.l, active: activeKey === k.key, attrs: `data-kpi="${k.key}"`
+      })).join('');
 
       $('#kpiRow .kpi-card').on('click', function () {
         const key = $(this).data('kpi');
@@ -242,6 +236,8 @@
       const q = ($('#searchInput').val() || '').trim().toLowerCase();
       const type = $('#typeFilter').val() || 'ALL';
       const status = $('#statusFilter').val() || 'ALL';
+      const kpiRowEl = document.getElementById('kpiRow');
+      ECMIS.setActiveKpi(kpiRowEl, kpiRowEl && kpiRowEl.querySelector(`.a7-kpi[data-kpi="${status}"]`));
 
       let filtered = teamCases.filter(c => {
         if (type !== 'ALL' && c.procType !== type) return false;
@@ -355,6 +351,10 @@
       });
     });
   </script>
+
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

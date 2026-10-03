@@ -14,13 +14,14 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
   <style>
     .kv .k { color: var(--ecmis-muted); font-weight: 600; }
     .is-invalid-ecmis { border-color: #DB2626 !important; box-shadow: 0 0 0 .15rem rgba(219,38,38,.15); }
   </style>
 </head>
 
-<body>
+<body class="ws-std">
 
   <main class="app-main">
     <!-- 2026-09-30: จัดหน้าตาม format เดียวกับ chairman-agenda.html / approval-review.html (stepper + การ์ดซ้าย + แผงเอกสารขวา + แถบลงนามล่าง) -->
@@ -125,7 +126,7 @@
                   </div>
                 </div>
                 <div class="toolbar-group ms-auto">
-                  <div class="d-flex align-items-center bg-dark rounded px-1" style="background:#06182c !important; border:1px solid #1a3d66; height:26px;">
+                  <div class="d-flex align-items-center bg-dark rounded px-1" style="height:26px;">
                     <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomOut" title="ย่อขนาด"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                     <span style="font-size:0.75rem; width:34px; text-align:center; font-weight:600;" id="zoomLevelText">75%</span>
                     <button type="button" class="btn btn-link btn-xs text-light p-1 text-decoration-none" id="btnZoomIn" title="ขยายขนาด"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -150,7 +151,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
-  <script src="assets/ecmis-app.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+  <script src="../shared-assets/handoff.js"></script>
+  <script src="../shared-assets/junctions.js"></script>
+  <script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('inbox.html');
@@ -186,7 +192,7 @@
     /* ---------- สรุปสำนวน / เส้นทางความเห็น (รูปแบบเดียวกับ chairman-agenda.html) ---------- */
     function refreshCaseView() {
       const k = kase;
-      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${esc(k.id)}</span>` + ECMIS.statusBadge(k.status) + ' ' + ECMIS.slaBadge(k);
+      document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${esc(ECMIS.caseNo(k))}</span>` + ECMIS.statusBadge(k.status) + ' ' + ECMIS.slaBadge(k);
       document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(k, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
 
       const FULL_CHAIN = ECMIS.UPSTREAM_CHAIN.concat(['secgen']);
@@ -210,7 +216,7 @@
         <div class="tl-m"><strong>อยู่ระหว่างทำความเห็นเสนอประธานฯ (ประธานฯ คัดกรองและลงนามมอบหมายแล้ว)</strong></div></li>`;
 
       document.getElementById('summary').innerHTML = [
-        ['เลขสำนวน', k.id],
+        ['เลขสำนวน', ECMIS.caseNo(k)],
         ['ฐานการรับเรื่อง', k.legalBase || 'ม.18/4'],
         ['เจ้าของสำนวน', k.owner],
         ['หน่วยงาน', k.ownerOrg],
@@ -241,7 +247,7 @@
             <div><strong>เรื่อง</strong>&nbsp; เสนอความเห็นของกลุ่มงานกิจการคณะกรรมการ เพื่อโปรดพิจารณาสั่งบรรจุวาระการประชุม</div>
           </div>
           <div style="margin-top:12px;font-size:16pt;">เรียน&nbsp; ประธานกรรมการ ป.ป.ท.</div>
-          <div class="doc-indent" style="${DOC_P}">ตามที่ประธานกรรมการ ป.ป.ท. ได้คัดกรองสำนวนเรื่องเสร็จที่ <strong>${M(kase.id)}</strong> เรื่อง ${M(kase.subject)}
+          <div class="doc-indent" style="${DOC_P}">ตามที่ประธานกรรมการ ป.ป.ท. ได้คัดกรองสำนวนเรื่องเสร็จที่ <strong>${M(ECMIS.caseNo(kase))}</strong> เรื่อง ${M(kase.subject)}
             ซึ่งมี ${M(kase.ownerOrg || '')} เป็นผู้รับผิดชอบสำนวน แล้วเห็นว่าไม่เป็นเรื่องยุ่งยากซับซ้อน${scr.opinion ? ' (' + M(scr.opinion) + ')' : ''}
             และมอบหมายให้กลุ่มงานกิจการคณะกรรมการทำความเห็นเสนอ นั้น</div>
           <div class="doc-indent" style="${DOC_P}">กลุ่มงานกิจการคณะกรรมการพิจารณาแล้ว มีความเห็นว่า ${M(op, '……………………………………')}</div>
@@ -298,7 +304,7 @@
         Object.assign(k, rest);
         ECMIS.Model.CaseStore.update(k.id, rest);
         await ECMIS.updateCaseStatus(k, nextStatus, sb);
-        ECMIS.toastOk(`ส่งความเห็นสำนวน ${k.id} เสนอประธานฯ เรียบร้อย`);
+        ECMIS.toastOk(`ส่งความเห็นสำนวน ${ECMIS.caseNo(k)} เสนอประธานฯ เรียบร้อย`);
         location.href = 'inbox.html';
       })();
     }
@@ -371,6 +377,9 @@
     }
     })();
   </script>
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
 </body>
 
 </html>

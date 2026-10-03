@@ -4,6 +4,12 @@
 'use strict';
 
 const ROLES = [
+  /* รองเลขาธิการฯ — ขั้นแรกของทุกสาย 7.1/7.2/7.3 ก่อนเลขาธิการฯ (Plan_A7_Deputy_Role, Task 190):
+     ลงความเห็น (บังคับ + ลงนามดิจิทัล) แล้วเสนอเลขาธิการฯ หรือตีกลับต้นทาง กจ.5 — ไม่มีอำนาจชี้ซับซ้อน/เร่งด่วน */
+  { id:'deputy', login:'Prasert.T', row:1, group:'เลขาธิการฯ/รองเลขาธิการ', title:'รองเลขาธิการคณะกรรมการ ป.ป.ท.',
+    name:'นายประเสริฐ ธรรมพิทักษ์', org:'สำนักงาน ป.ป.ท.', lane:'L1', flow:'S0 — ขั้นแรก กจ.7', act:'7.1, 7.2, 7.3',
+    perms:['view.all','download','deputy.opinion','return'] },
+
   { id:'secgen', login:'Apichat.S', row:1, group:'เลขาธิการฯ/รองเลขาธิการ', title:'เลขาธิการคณะกรรมการ ป.ป.ท.',
     name:'นายอภิชาติ สุจริตกุล', org:'สำนักงาน ป.ป.ท.', lane:'L1', flow:'S1 / G1 — จุดเริ่ม กจ.7', act:'7.1, 7.2, 7.3',
     perms:['view.all','download','sign.report213','decide.complex','sign.order24p1','approve.general','return'] },
@@ -165,7 +171,8 @@ const STATUS = {
   RETURNED:         { label:'ส่งคืน กจ.5 — รอแก้ไข',        cls:'st-returned', owner:'owner',        scope:'UPSTREAM' },
   PENDING_SECTION:  { label:'รอหัวหน้ากลุ่มงาน (ในกอง/เขต)', cls:'st-pending',  owner:'section_head', scope:'UPSTREAM' },
   PENDING_DIRECTOR: { label:'รอ ผอ.กอง / ผอ.เขต',           cls:'st-pending',  owner:'director',     scope:'UPSTREAM' },
-  PENDING_DEPUTY:   { label:'รอผู้ช่วย / รองเลขาธิการฯ',     cls:'st-pending',  owner:'deputy',       scope:'UPSTREAM' },
+  /* Task 190: ย้ายจากชั้นต้นทาง กจ.5 มาเป็นขั้นแรกของ กจ.7 (ไม่มี scope UPSTREAM แล้ว) */
+  PENDING_DEPUTY:   { label:'รอรองเลขาธิการฯ พิจารณา',       cls:'st-pending',  owner:'deputy' },
 
   PENDING_SECGEN:   { label:'รอเลขาธิการฯ ลงนาม',         cls:'st-pending',  owner:'secgen' },
   /* 2026-09-28: สำนวนซับซ้อนต้องผ่าน ผอ.กบค. ออกเลขทะเบียนคุม + มอบหมายคณะอนุสนับสนุนก่อน (เดิมเลขาฯ
@@ -181,6 +188,8 @@ const STATUS = {
   PENDING_CHAIRMAN: { label:'รอประธานฯ สั่งการ',           cls:'st-pending',  owner:'chairman' },
   IN_SCREENING:     { label:'อยู่อนุกลั่นกรองฯ',           cls:'st-review',   owner:'subcommittee' },
   SCREENING_MORE_INFO: { label:'อนุกลั่นกรองฯ ขอข้อมูลเพิ่มเติม', cls:'st-review', owner:'subcommittee' },
+  /* 7.1 หลังคณะอนุกลั่นกรองฯ พิจารณาเสร็จ ต้องให้ประธานฯ ลงนามสั่งบรรจุวาระก่อน (drawio V3.0 กล่อง p1_n6c, Task 164) */
+  PENDING_SIGN_AGENDA: { label:'รอประธานฯ ลงนามสั่งบรรจุวาระ', cls:'st-pending', owner:'chairman' },
   AGENDA_SET:       { label:'รอบรรจุวาระ',                cls:'st-agenda',   owner:'board_sec' },
 
   IN_MEETING:       { label:'อยู่ระหว่างประชุมบอร์ด',      cls:'st-review',   owner:'board_sec' },
@@ -203,7 +212,7 @@ const STATUS = {
 
   PENDING_SECTION_72:  { label:'รอหัวหน้ากลุ่มงาน (รายงานวินิจฉัยชี้มูล)',      cls:'st-pending', owner:'section_head' },
   PENDING_DIRECTOR_72: { label:'รอ ผอ.กอง / ผอ.เขต (รายงานวินิจฉัยชี้มูล)',      cls:'st-pending', owner:'director' },
-  PENDING_DEPUTY_72:   { label:'รอผู้ช่วย / รองเลขาธิการฯ (รายงานวินิจฉัยชี้มูล)', cls:'st-pending', owner:'deputy' },
+  PENDING_DEPUTY_72:   { label:'รอรองเลขาธิการฯ พิจารณา (รายงานวินิจฉัยชี้มูล)', cls:'st-pending', owner:'deputy' },
   RETURNED_72:         { label:'ตีกลับเจ้าของสำนวน (รายงานวินิจฉัยชี้มูล)',      cls:'st-returned', owner:'owner' },
   PENDING_SECGEN_72:   { label:'รอเลขาธิการฯ พิจารณา / ลงนาม (วินิจฉัยชี้มูล)',   cls:'st-pending', owner:'secgen' },
   PENDING_SUPPORT_ASSIGN_72: { label:'รอ ผอ.กบค. ออกเลขทะเบียนคุม / มอบหมายคณะอนุสนับสนุน (วินิจฉัยชี้มูล)', cls:'st-pending', owner:'dir_case' },
@@ -225,8 +234,8 @@ const STATUS = {
   IN_MEETING_72:       { label:'อยู่ระหว่างประชุมบอร์ด (วินิจฉัยชี้มูล)',         cls:'st-review',  owner:'board_sec' },
   RESOLVED_PENDING_72: { label:'มีมติแล้ว รอจัดทำรายงานวินิจฉัยชี้มูล',          cls:'st-pending', owner:'affairs' },
   PENDING_SIGN_RULING_72: { label:'รอประธานฯ ลงนามรายงานวินิจฉัยชี้มูล',         cls:'st-pending', owner:'chairman' },
-  PENDING_AREA_NOTICE_72: { label:'รอพื้นที่บันทึกรับมติ / แจ้งผล (ม.32)',       cls:'st-pending', owner:'owner' },
-  DISPATCHING_NACC_72:    { label:'รอส่งเรื่องให้ ป.ป.ช. (นอกอำนาจ ม.19)',       cls:'st-pending', owner:'owner' },
+  PENDING_AREA_NOTICE_72: { label:'รอพื้นที่บันทึกรับมติ / แจ้งผล (ม.32)',       cls:'st-pending', owner:'affairs' },
+  DISPATCHING_NACC_72:    { label:'รอส่งเรื่องให้ ป.ป.ช. (นอกอำนาจ ม.19)',       cls:'st-pending', owner:'affairs' },
   PENDING_DISPATCH_GUILTY_72: { label:'ชี้มูลความผิดแล้ว รอส่งดำเนินคดี',        cls:'st-review',  owner:'affairs' },
   CLOSED_72: { label:'ปิดสำนวน — จบกระบวนการ',                      cls:'st-closed',  owner:null }
 };
@@ -240,6 +249,7 @@ const STATUS_CODE = {
   RESOLVED_PENDING:'014', RESOLVED:'015', DISPATCHING:'016', CLOSED:'017',
   PENDING_SIGN_ORDER_CHAIRMAN:'018', PENDING_SIGN_ORDER_SECGEN:'019', UNDER_INVESTIGATION:'020',
   SCREENING_MORE_INFO:'021', PENDING_SECGEN_URGENT_CONFIRM:'022', PENDING_SUPPORT_ASSIGN:'025',
+  PENDING_SIGN_AGENDA:'026',
   // 023/024 (PENDING_CASE_ADMIN_SCREEN/PENDING_CHAIRMAN_ASSIGN, สาย 7.1) เลิกใช้แล้วตั้งแต่ 2026-09-23
   // (ดู docs/memory/plans/2026-09-23-scope-complexity-gate-to-72-only.md) — โค้ดคีย์ถูกลบออก แต่ไม่ต้อง
   // แตะ Supabase CHECK constraint เพราะไม่มีผลเสีย
@@ -258,6 +268,13 @@ const STATUS_CODE = {
 const CODE_STATUS = Object.fromEntries(Object.entries(STATUS_CODE).map(([k, v]) => [v, k]));
 
 const TRANSITIONS = [
+
+  /* รองเลขาธิการฯ ขั้นแรกของ กจ.7 (Task 190) — ใช้ร่วมกันทั้งสาย 7.1 และ 7.3 */
+  { from:'PENDING_DEPUTY', to:'PENDING_SECGEN', event:'DEPUTY_PROPOSE', actor:'deputy',
+    ref:'ลงความเห็นและเสนอเลขาธิการฯ', guard:k => !!String(k.deputyOpinion || '').trim(),
+    note:'รองเลขาธิการฯ ลงความเห็น (บังคับ) และลงนามดิจิทัล แล้วเสนอเลขาธิการฯ' },
+  { from:'PENDING_DEPUTY', to:'RETURNED', event:'DEPUTY_RETURN', actor:'deputy',
+    ref:'ตีกลับต้นทาง (กจ.5)', note:'รองเลขาธิการฯ ตีกลับสายงานต้นทางพร้อมเหตุผล' },
 
   { from:'PENDING_SECGEN', to:'PENDING_SUPPORT_ASSIGN', event:'SIGN_COMPLEX', actor:'secgen',
     ref:'เสนอเลขาธิการฯ', guard:k => g1Triggers(k).required,
@@ -309,10 +326,14 @@ const TRANSITIONS = [
     ref:'ประธานฯ สั่งบรรจุวาระ (เรื่องทั่วไป/กกม.)', guard:k => isCase73(k),
     note:'เรื่องทั่วไป/กกม. (7.3) ไม่มีคณะอนุกลั่นกรองฯ — ตรงเข้าสู่ขั้นบรรจุวาระทันทีหลังประธานฯ ลงนามมอบหมาย' },
 
-  { from:'IN_SCREENING', to:'AGENDA_SET', event:'SCREENING_RESOLVED', actor:'subcommittee',
-    ref:'กลั่นกรองแล้วเสร็จ',
+  { from:'IN_SCREENING', to:'PENDING_SIGN_AGENDA', event:'SCREENING_RESOLVED', actor:'subcommittee',
+    ref:'กลั่นกรองแล้วเสร็จ — เสนอประธานฯ ลงนามสั่งบรรจุวาระ',
     guard:k => !k.subOutcome || (SUB_OUTCOME_MAP[k.subOutcome] || {}).localStatus === 'DONE',
     note:'อนุญาตเมื่อ subOutcome เป็นกลุ่ม DONE (เสนอ กก. / ยุติ) เท่านั้น — "ให้ไต่สวนเพิ่มเติม" ต้องใช้ SCREENING_RETURN' },
+  { from:'PENDING_SIGN_AGENDA', to:'AGENDA_SET', event:'SIGN_AGENDA', actor:'chairman',
+    ref:'ประธานฯ ลงนามสั่งบรรจุระเบียบวาระการประชุมคณะกรรมการ ป.ป.ท.' },
+  { from:'PENDING_SIGN_AGENDA', to:'IN_SCREENING', event:'CHAIRMAN_RETURN_SCREENING', actor:'chairman',
+    ref:'ประธานฯ ตีกลับให้คณะอนุกลั่นกรองฯ ทบทวนความเห็น' },
   { from:'IN_SCREENING', to:'SCREENING_MORE_INFO', event:'REQUEST_MORE_INFO', actor:'subcommittee',
     ref:'ขอข้อมูล/เอกสารเพิ่มเติมจากเจ้าของสำนวน', note:'หยุดนับ SLA จนกว่าเจ้าของสำนวนส่งข้อมูลกลับ' },
   { from:'SCREENING_MORE_INFO', to:'IN_SCREENING', event:'MORE_INFO_SUPPLIED', actor:'subcommittee',
@@ -346,6 +367,16 @@ const TRANSITIONS = [
     note:'ต้องอัปโหลดไฟล์สแกนฉบับลงนาม และ (ถ้าปลายทางบังคับ) ต้องคัดสำเนาสำนวนเก็บไว้เป็นหลักฐานตาม ม.18/1' },
   { from:'RESOLVED', to:'CLOSED', event:'CLOSE_CASE', actor:'owner',
     ref:'บันทึกมติการไต่สวน', note:'รับไว้ไต่สวน (ยิงกลับ กจ.5) หรือไม่รับไว้ไต่สวน (ปิดสำนวน)' },
+  /* ขั้นหลังมติสาย 7.3 (เรื่องทั่วไป/กกม.) — ผัง "มติเรื่องทั่วไป": ทุกมติจบที่กลุ่มงานกิจการฯ ส่งเอกสาร
+     ให้ผู้รับผิดชอบดำเนินการตามอำนาจหน้าที่; มติส่งกองกฎหมายก่อน → รอความเห็น → เข้าวาระใหม่หรือปิด (B10 / Task 178) */
+  { from:'RESOLVED', to:'CLOSED', event:'NOTIFY_CLOSE_73', actor:'affairs',
+    ref:'แจ้งมติ / ส่งเอกสารให้ผู้รับผิดชอบดำเนินการ', guard:k => isCase73(k) && !!k.notifyLetterNo73 && !!k.notifyTo73 },
+  { from:'RESOLVED', to:'DISPATCHING', event:'SEND_LEGAL_73', actor:'affairs',
+    ref:'ส่งกองกฎหมายพิจารณาก่อนมีมติ', guard:k => isCase73(k) && k.code === 'LEGAL_DIVISION_73' && !!k.legalLetterNo73 },
+  { from:'DISPATCHING', to:'AGENDA_SET', event:'LEGAL_OPINION_REAGENDA_73', actor:'affairs',
+    ref:'ได้รับความเห็นกองกฎหมาย — เสนอเข้าวาระใหม่', guard:k => isCase73(k) && !!k.legalOpinion73 },
+  { from:'DISPATCHING', to:'CLOSED', event:'LEGAL_OPINION_CLOSE_73', actor:'affairs',
+    ref:'ได้รับความเห็นกองกฎหมาย — ปิดเรื่อง', guard:k => isCase73(k) && !!k.legalOpinion73 },
   { from:'RESOLVED', to:'AGENDA_SET', event:'REVISE_RESOLUTION', actor:'affairs',
     ref:'ขอทบทวนมติ', guard:k => !!k.newAgendaNo,
     note:'ขอแก้ไข/ทบทวนมติ — มติเดิมไม่ถูกลบ ผูกคู่กับมติใหม่' },
@@ -358,8 +389,9 @@ const TRANSITIONS = [
   { from:'PENDING_SECTION_72', to:'RETURNED_72', event:'RETURN_72', actor:'section_head', ref:'ส่งคืนเสนอตามลำดับชั้น' },
   { from:'PENDING_DIRECTOR_72', to:'PENDING_DEPUTY_72', event:'PROPOSE_72', actor:'director', ref:'เสนอตามลำดับชั้น' },
   { from:'PENDING_DIRECTOR_72', to:'RETURNED_72', event:'RETURN_72', actor:'director', ref:'ส่งคืนเสนอตามลำดับชั้น' },
-  { from:'PENDING_DEPUTY_72', to:'PENDING_SECGEN_72', event:'PROPOSE_72', actor:'deputy', ref:'เสนอตามลำดับชั้น' },
-  { from:'PENDING_DEPUTY_72', to:'RETURNED_72', event:'RETURN_72', actor:'deputy', ref:'ส่งคืนเสนอตามลำดับชั้น' },
+  { from:'PENDING_DEPUTY_72', to:'PENDING_SECGEN_72', event:'PROPOSE_72', actor:'deputy', ref:'ลงความเห็นและเสนอเลขาธิการฯ',
+    guard:k => !!String(k.deputyOpinion || '').trim() },
+  { from:'PENDING_DEPUTY_72', to:'RETURNED_72', event:'RETURN_72', actor:'deputy', ref:'ตีกลับต้นทาง (กจ.5)' },
   { from:'RETURNED_72', to:'PENDING_SECTION_72', event:'RESUBMIT_72', actor:'owner', ref:'ส่งคืนแก้ไขและเสนอใหม่' },
 
   { from:'PENDING_SECGEN_72', to:'PENDING_SUPPORT_ASSIGN_72', event:'SIGN_COMPLEX_72', actor:'secgen',
@@ -449,10 +481,11 @@ const TRANSITIONS = [
   { from:'PENDING_SIGN_RULING_72', to:'PENDING_DISPATCH_GUILTY_72', event:'SIGN_GUILTY_72', actor:'chairman',
     ref:'วินิจฉัยชี้มูลความผิด · ม.17(3)(4)·ม.38·ม.44', guard:k => k.resolution72 === 'GUILTY_72' },
 
-  { from:'PENDING_AREA_NOTICE_72', to:'CLOSED_72', event:'NOTICE_RECORDED_72', actor:'owner',
+  /* B7 / Task 177: ผู้บันทึกขั้นปิดงาน 7.2 ทุกทางคือกลุ่มงานกิจการคณะกรรมการ (affairs) — owner เข้า ruling-report.html ไม่ได้ */
+  { from:'PENDING_AREA_NOTICE_72', to:'CLOSED_72', event:'NOTICE_RECORDED_72', actor:'affairs',
     ref:'แจ้งผลผู้ถูกกล่าวหา · ม.32', guard:k => !!k.noticeSentDate72,
     note:'บันทึกรับมติ + แจ้งผู้ถูกกล่าวหาแล้วไม่ช้ากว่า 15 วันนับแต่วันที่คณะกรรมการ ป.ป.ท. มีมติ' },
-  { from:'DISPATCHING_NACC_72', to:'CLOSED_72', event:'NACC_DISPATCHED_72', actor:'owner',
+  { from:'DISPATCHING_NACC_72', to:'CLOSED_72', event:'NACC_DISPATCHED_72', actor:'affairs',
     ref:'ส่งมอบสำนวนให้ ป.ป.ช. · ม.19(ข)(1)', guard:k => !!k.signedScanUploaded72,
     note:'ส่งเรื่องพร้อมสำนวนให้ ป.ป.ช. ภายใน 15 วันนับแต่วันที่ได้รับเรื่อง — ต้องอัปโหลดไฟล์สแกนฉบับนำส่งกลับ' },
 
@@ -691,7 +724,7 @@ function renderSecgenReportDoc(kase, opts){
   <div class="doc-secret">ลับ</div>
   <div class="doc-title">${dt.label}</div>
   <div class="doc-sub">คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
-  <div class="doc-row"><span class="k">เรื่องที่</span> ${M(kase.id)}</div>
+  <div class="doc-row"><span class="k">เรื่องที่</span> ${M(caseNo(kase))}</div>
   <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
   <div class="doc-row"><span class="k">ผู้รับผิดชอบ</span> ${M(kase.owner)}</div>
   <div class="doc-row"><span class="k">สังกัด</span> ${M(kase.ownerOrg)}</div>
@@ -746,10 +779,26 @@ function nextStates(from, kase){
 }
 
 const UPSTREAM_CHAIN = ['owner','section_head','director','deputy'];
+/* การ์ด "ที่มาของสำนวน — ตัวอย่างประกอบ ต้นทาง กจ.5" (Task 179): role owner/section_head/director ใน ROLES ของ A7
+   ผูกกับบุคคลเดียวกับ affairs และ deputy ผูกกับเลขาธิการฯ ทำให้การ์ดแสดงชื่อผิด — การ์ดใช้ชื่อตำแหน่งต้นทางชุดนี้แทน
+   (ไม่ระบุชื่อบุคคล) สาย 7.3 ตามผัง "มติเรื่องทั่วไป": ผู้รับผิดชอบเรื่อง → ผอ.กบค. → ผู้ช่วย/รองเลขาธิการฯ */
+const UPSTREAM_MOCK_TITLES = {
+  owner:'ผู้รับผิดชอบสำนวน', section_head:'หัวหน้ากลุ่มงาน',
+  director:'ผู้อำนวยการกองบริหารคดี (ผอ.กบค.)', deputy:'ผู้ช่วยเลขาธิการ / รองเลขาธิการฯ'
+};
+const UPSTREAM_MOCK_SLA = {
+  owner:{ used:2, limit:5 }, section_head:{ used:1, limit:5 }, director:{ used:3, limit:5 }, deputy:{ used:2, limit:5 }
+};
+function upstreamMockChain(kase){ return isCase73(kase) ? ['owner','director','deputy'] : UPSTREAM_CHAIN.slice(); }
+function upstreamMockTitle(rid, kase){
+  if (rid === 'owner' && isCase73(kase)) return 'ผู้รับผิดชอบเรื่อง';
+  return UPSTREAM_MOCK_TITLES[rid] || getRole(rid).title;
+}
 
 const APPROVAL_CHAIN = ['secgen'];
 
 const FLOW_STEPS = [
+  { key:'deputy',    label:'รองเลขาธิการฯ พิจารณา',      ref:'รองเลขาธิการฯ ลงความเห็น' },
   { key:'secgen',    label:'เลขาธิการฯ พิจารณา / ลงนาม', ref:'เสนอเลขาธิการฯ' },
   { key:'urgent',    label:'ใบด่วน / กบค.',           ref:'รับรองเหตุผลเร่งด่วน' },
   { key:'chairman',  label:'ประธานฯ สั่งการ',            ref:'ประธานฯ สั่งการ' },
@@ -762,11 +811,11 @@ const FLOW_STEPS = [
 const STATUS_STEP = {
 
   DRAFT:'secgen', RETURNED:'secgen',
-  PENDING_SECTION:'secgen', PENDING_DIRECTOR:'secgen', PENDING_DEPUTY:'secgen',
+  PENDING_SECTION:'secgen', PENDING_DIRECTOR:'secgen', PENDING_DEPUTY:'deputy',
   PENDING_SECGEN:'secgen', PENDING_SUPPORT_ASSIGN:'secgen', IN_SUPPORT_SUB:'secgen',
   PENDING_URGENT:'urgent', PENDING_SECGEN_URGENT_CONFIRM:'urgent',
   PENDING_CHAIRMAN:'chairman',
-  IN_SCREENING:'screening', SCREENING_MORE_INFO:'screening',
+  IN_SCREENING:'screening', SCREENING_MORE_INFO:'screening', PENDING_SIGN_AGENDA:'screening',
   AGENDA_SET:'agenda',
   RESOLVED:'resolution', PENDING_SIGN_ORDER_CHAIRMAN:'order', PENDING_SIGN_ORDER_SECGEN:'order', UNDER_INVESTIGATION:'order', CLOSED:'order'
 };
@@ -810,7 +859,6 @@ function isCase73(kase){
     kase.procType === '7.3' ||
     kase.docType === 'GENERAL' ||
     kase.docType === 'GENERAL_MEMO' ||
-    String(kase.id || '').startsWith('กจ.') ||
     String(kase.legalBase || '').includes('ม.33') ||
     String(kase.legalBase || '').includes('ระเบียบ') ||
     String(kase.legalBase || '').includes('นโยบาย')
@@ -833,7 +881,8 @@ const PAGE_FOR_72 = {
   IN_SCREENING_72:'subcommittee-screening.html',
   SCREENING_MORE_INFO_72:'subcommittee-screening.html',
   PENDING_INVITE_72:'agenda-registry.html',
-  IN_MEETING_72:'board-resolution.html',
+  /* มติ 7.2 ต้องบันทึกที่ resolution-72.html (เขียน RESOLVED_PENDING_72) — board-resolution.html เป็นของ 7.1 (เขียน RESOLVED) (Task 166) */
+  IN_MEETING_72:'resolution-72.html',
   RESOLVED_PENDING_72:'ruling-report.html',
   PENDING_SIGN_RULING_72:'ruling-report.html',
   PENDING_AREA_NOTICE_72:'ruling-report.html',
@@ -854,11 +903,15 @@ function pageForCaseByStatus(kase) {
   if (st === 'PENDING_SUPPORT_ASSIGN') return resolvePage('dir-case-support-assign.html');
   if (st === 'IN_SUPPORT_SUB') return resolvePage('support-subcommittee.html');
   if (st === 'IN_SCREENING' || st === 'SCREENING_MORE_INFO') return resolvePage('subcommittee-screening.html');
-  if (st === 'PENDING_CHAIRMAN') {
+  if (st === 'PENDING_CHAIRMAN' || st === 'PENDING_SIGN_AGENDA') {
     return resolvePage('chairman-agenda.html');
   }
   if (st === 'AGENDA_SET') return resolvePage('agenda-registry.html');
   if (st === 'PENDING_SIGN_ORDER_CHAIRMAN' || st === 'PENDING_SIGN_ORDER_SECGEN') return resolvePage('order.html');
+  /* DISPATCHING (7.1): ส่งเรื่องออกนอกองค์กรแล้ว รอฉบับลงนามกลับ — กลุ่มงานกิจการฯ แนบ/ปิดที่แผงดำเนินการหลังมติของ order.html (Task 175) */
+  if (st === 'DISPATCHING') return resolvePage('order.html');
+  /* 7.3 หลังมติ: แจ้งมติ/ส่ง กกม./ปิดเรื่อง ที่แผงในหน้ามติ 7.3 (Task 178) */
+  if (isCase73(kase) && ['RESOLVED', 'DISPATCHING', 'CLOSED'].includes(st)) return resolvePage('resolution.html');
   if (['IN_MEETING', 'RESOLVED_PENDING', 'RESOLVED', 'DEFERRED', 'CLOSED'].includes(st)) {
     return resolvePage('board-resolution.html');
   }
@@ -1065,6 +1118,9 @@ function getAct7Status(c) {
   if (st === 'IN_SCREENING') {
     return 'อยู่ระหว่างกลั่นกรองโดยอนุกรรมการฯ';
   }
+  if (st === 'PENDING_SIGN_AGENDA') {
+    return 'รอประธานฯ ลงนามสั่งบรรจุวาระ';
+  }
   if (st === 'RESOLVED') {
     if (c.resolutionStage && c.resolutionStage < 6) {
       const stageLabel = resolutionStageLabel(c.resolutionStage);
@@ -1138,6 +1194,8 @@ function act7Badge(statusName, list) {
 }
 
 const CASES = [
+  {"id": "0001/2569", "subject": "สูบบุหรี่ในที่ทำงาน", "legalBase": "ม.18/1 (ก)", "status": "IN_SCREENING", "procType": "7.1", "owner": "ดวงใจ ชอบกินผัก (เจ้าหน้าที่รับเรื่อง ศรร.)", "ownerOrg": "ศูนย์รับเรื่องร้องเรียน กองบริหารคดี", "complainant": "ตรีรุด หล่อจัง (ผู้ร้อง)", "accused": [{"no": 1, "name": "ณัฐกานต์ แพนดอร่า", "pos": "นักจัดการงานทั่วไปชำนาญการ", "idcard": "3-XXXX-XXXXX-XX-X", "agency": "สำนักงานเขตบางรัก กรุงเทพมหานคร"}], "allegation": "ผู้ถูกร้องสูบบุหรี่ภายในอาคารสำนักงานระหว่างเวลาราชการเป็นประจำ ทั้งที่เป็นเขตปลอดบุหรี่ตามกฎหมาย และไม่ปฏิบัติตามคำตักเตือนของผู้บังคับบัญชา", "receivedDate": "2569-09-01", "deadline60": "2569-11-07", "deadline2y": "2571-09-01", "prescription": "2574-09-01", "docRef": "ปป 0004/0031 ลงวันที่ 1 กันยายน 2569", "urgent": false, "complex": false, "dupWarning": false, "slaDays": 10, "slaLimit": 15, "subCommittee": "คณะที่ 1", "docType": "213", "signPhase": "WAIT", "scenario": true},
+  {"id": "0005/2569", "subject": "เรียกรับเงิน “แป๊ะเจี๊ยะ” จากผู้ปกครองโดยไม่ออกใบเสร็จ และนำเงินเข้ากองทุนส่วนตัว เพื่อแลกกับสิทธิ์ในการรับนักเรียนเข้าศึกษาต่อ", "legalBase": "ม.18/1 (ก)", "status": "PENDING_SECGEN", "procType": "7.1", "owner": "ดวงใจ ชอบกินผัก (เจ้าหน้าที่รับเรื่อง ศรร.)", "ownerOrg": "ศูนย์รับเรื่องร้องเรียน กองบริหารคดี", "complainant": "นายสมชาย รักความยุติธรรม (ผู้ร้อง)", "accused": [{"no": 1, "name": "นายสมศักดิ์ หาผลประโยชน์", "pos": "ผู้อำนวยการโรงเรียน", "idcard": "3-XXXX-XXXXX-XX-X", "agency": "โรงเรียนตัวอย่างวิทยา สำนักงานเขตพื้นที่การศึกษามัธยมศึกษากรุงเทพมหานคร เขต 1"}], "allegation": "ผู้ถูกร้องเรียกรับเงิน “แป๊ะเจี๊ยะ” จากผู้ปกครองโดยไม่ออกใบเสร็จรับเงิน และนำเงินเข้ากองทุนส่วนตัว เพื่อแลกกับสิทธิ์ในการรับนักเรียนเข้าศึกษาต่อ", "receivedDate": "2569-09-08", "deadline60": "2569-11-07", "deadline2y": "2571-09-01", "prescription": "2574-09-01", "docRef": "ปป 0004/0035 ลงวันที่ 8 กันยายน 2569", "urgent": false, "complex": false, "dupWarning": false, "slaDays": 10, "slaLimit": 15, "subCommittee": null, "docType": "213", "signPhase": "WAIT", "scenario": true},
   {
     /* เคสสาธิตสำหรับ order.html?case=3027/2569 (บันทึกเสนอลงนาม + แท็บเอกสาร 7.x
        ที่มาจาก tools/pdf-template-pipeline) — ข้อมูลจำลองชุดเต็มให้ prefill เห็นผล */
@@ -1145,7 +1203,7 @@ const CASES = [
     subject:'กล่าวหาเจ้าหน้าที่ของรัฐแห่งหนึ่ง สนับสนุนการจัดซื้อจัดจ้างโดยมิชอบ (บางฐานความผิดขาดอายุความ)',
     legalBase:'ม.18/4',
     status:'RESOLVED',
-    procType:'7.2',
+    procType:'7.1',
     owner:'นางสาวชัญญาพัชญ์ อุปหล้า', ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 6',
     complainant:'นายเกรียงไกร มั่นคง (ผู้ร้อง)',
     accused:[
@@ -1160,14 +1218,14 @@ const CASES = [
     docType:'213', signPhase:'DRAFT'
   },
   {
-    /* เคสสาธิต order.html?case=111674/2560&mode=memo — โครงเรื่อง/ข้อกฎหมาย/
+    /* เคสสาธิต order.html?case=1116/2560&mode=memo — โครงเรื่อง/ข้อกฎหมาย/
        จำนวนเงิน อิงสำนวนจริง แต่ปกชื่อบุคคล เลขบัตร ชื่อหน่วยงาน/ร้านค้า เป็น
        นามสมมติทั้งหมด (นาง ก., ร้านค้าแห่งหนึ่ง ฯลฯ) ให้ prefill เอกสาร 7.x ทั้ง 4 ร่าง */
-    id:'111674/2560',
+    id:'1116/2560',
     subject:'กล่าวหาพนักงานพัสดุของสถาบันอุดมศึกษาแห่งหนึ่ง เบิกจ่ายเงินค่าพัสดุโดยทุจริตผ่านร้านค้าที่จัดตั้งขึ้น (บางกรรม/บางฐานความผิดขาดอายุความ)',
     legalBase:'ม.18/4',
     status:'RESOLVED',
-    procType:'7.2',
+    procType:'7.1',
     owner:'นาง ง. (พนักงาน ป.ป.ท. เจ้าของสำนวน)',
     ownerOrg:'สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ เขต 6',
     complainant:'ส่วนราชการต้นสังกัด (ผู้กล่าวหา)',
@@ -1413,7 +1471,7 @@ const CASES = [
     docType:'RULING', signPhase:'COMPLETE'
   },
   {
-    id:'กจ.101/2569',
+    id:'9422/2569',
     subject:'บันทึกขอความเห็นทางข้อกฎหมายกรณีการบังคับใช้มาตรา ๑๘/๑ แห่ง พ.ร.บ. มาตรการของฝ่ายบริหารฯ',
     legalBase:'ม.18/1',
     status:'AGENDA_SET',
@@ -1430,7 +1488,7 @@ const CASES = [
     meetingNo:'37/2569', agendaNo:'4.1', meetingDate:'2569-08-20'
   },
   {
-    id:'กจ.102/2569',
+    id:'9423/2569',
     subject:'บันทึกขอทบทวนมติพนักงานอัยการสั่งไม่ฟ้องผู้ถูกกล่าวหาในคดีทุจริตจัดซื้อจัดจ้างโครงการก่อสร้างระบบประปา (ม.33)',
     legalBase:'ม.33',
     status:'RESOLVED',
@@ -1451,7 +1509,7 @@ const CASES = [
     generalType:'PROSECUTOR_NO_INDICT'
   },
   {
-    id:'กจ.103/2569',
+    id:'9424/2569',
     subject:'บันทึกขออนุมัติแต่งตั้งคณะทำงานเฉพาะกิจตรวจสอบข้อเท็จจริงกรณีโครงการเร่งด่วนเพื่อความโปร่งใส',
     legalBase:'ระเบียบฯ',
     status:'IN_MEETING',
@@ -1469,7 +1527,7 @@ const CASES = [
     generalType:'SPECIAL_TASK_73'
   },
   {
-    id:'กจ.104/2569',
+    id:'9404/2569',
     subject:'บันทึกขอให้คณะกรรมการ ป.ป.ท. พิจารณาจัดให้มีมาตรการคุ้มครองพยานในคดีทุจริตจัดซื้อจัดจ้าง',
     legalBase:'ระเบียบฯ',
     status:'AGENDA_SET',
@@ -1487,7 +1545,7 @@ const CASES = [
     generalType:'WITNESS_PROTECTION'
   },
   {
-    id:'กจ.105/2569',
+    id:'9405/2569',
     subject:'บันทึกขออนุมัติแยกเลขสำนวน กรณีผู้ถูกกล่าวหาหลายคนและหลายพฤติการณ์',
     legalBase:'ระเบียบฯ',
     status:'RESOLVED',
@@ -1506,7 +1564,7 @@ const CASES = [
     generalType:'SPLIT_CASE'
   },
   {
-    id:'กจ.106/2569',
+    id:'9406/2569',
     subject:'บันทึกขอให้พิจารณากรณี ก.พ.ค. ส่งคำวินิจฉัยอุทธรณ์ เพื่อทบทวนมติชี้มูลความผิดวินัยตามมาตรา ๔๓',
     legalBase:'ระเบียบฯ',
     status:'IN_MEETING',
@@ -1636,7 +1694,7 @@ const CASES = [
     docType:'644', signPhase:'WAIT'
   },
   {
-    id:'กจ.201/2569',
+    id:'9427/2569',
     subject:'ขออนุมัติแต่งตั้งคณะทำงานเฉพาะกิจตรวจสอบข้อเท็จจริงกรณีร้องเรียนหน่วยงานภาครัฐจัดซื้อจัดจ้างล่าช้าผิดปกติ (กิจกรรม 7.3)',
     legalBase:'ระเบียบฯ',
     status:'PENDING_SECGEN',
@@ -2565,7 +2623,7 @@ const CASES = [
     ]
   },
   {
-    id:'กจ.107/2569',
+    id:'9407/2569',
     subject:'ขอความเห็นชอบร่างระเบียบคณะกรรมการ ป.ป.ท. ว่าด้วยการคุ้มครองพยานในคดีทุจริตในภาครัฐ พ.ศ. .... (กิจกรรม 7.3)',
     legalBase:'ระเบียบฯ',
     status:'PENDING_SECGEN',
@@ -2712,7 +2770,7 @@ const CASES = [
     ]
   },
   {
-    id:'กจ.108/2569',
+    id:'9408/2569',
     subject:'ขอความเห็นชอบแต่งตั้งคณะอนุกรรมการเฉพาะกิจเพื่อตรวจสอบคดีทุจริตการเงินและบัญชีทรัพย์สินภาครัฐ (กิจกรรม 7.3)',
     legalBase:'ระเบียบฯ',
     status:'PENDING_SECGEN',
@@ -2735,7 +2793,7 @@ const CASES = [
     ]
   },
   {
-    id:'กจ.109/2569',
+    id:'9409/2569',
     subject:'ขออนุมัติมาตรการคุ้มครองพยานบุคคลและครอบครัวในคดีทุจริตจัดซื้อจัดจ้างโครงการก่อสร้างขนาดใหญ่ ตามมาตรา ๕๔ (กิจกรรม 7.3)',
     legalBase:'ระเบียบฯ',
     status:'PENDING_SECGEN',
@@ -2758,7 +2816,7 @@ const CASES = [
     ]
   },
   {
-    id:'กจ.110/2569',
+    id:'9410/2569',
     subject:'รายงานพิจารณาทบทวนมติกรณีพนักงานอัยการมีคำสั่งเด็ดขาดไม่ฟ้องคดีอาญาตามมาตรา ๓๓ (กิจกรรม 7.3)',
     legalBase:'ม.33',
     status:'PENDING_SECGEN',
@@ -2781,7 +2839,7 @@ const CASES = [
     ]
   },
   {
-    id:'กจ.111/2569',
+    id:'9425/2569',
     subject:'รายงานติดตามผลและทบทวนมติการลงโทษทางวินัยตามคำวินิจฉัยอุทธรณ์ของ ก.พ.ค. ตามมาตรา ๔๓ (กิจกรรม 7.3)',
     legalBase:'ระเบียบฯ',
     status:'PENDING_SECGEN',
@@ -2804,7 +2862,7 @@ const CASES = [
     ]
   },
   {
-    id:'กจ.112/2569',
+    id:'9426/2569',
     subject:'ข้อหารือเชิงนโยบายและแนวทางปฏิบัติเกี่ยวกับการประสานส่งต่อสำนวนคดีกับสำนักงาน ป.ป.ช. (กิจกรรม 7.3)',
     legalBase:'นโยบาย',
     status:'PENDING_SECGEN',
@@ -2863,13 +2921,23 @@ function chainStepsDone(status) {
 }
 
 function buildChainOpinions(c) {
-  if (!c.receivedDate) return [];
+  /* ไม่มีวันที่รับเรื่อง = สร้างแถวตัวอย่างไม่ได้ แต่ความเห็นจริงของรองเลขาฯ (Task 190) ยังต้องแสดง */
+  if (!c.receivedDate) {
+    return c.deputyOpinion
+      ? [{ roleId: 'deputy', type: 'ACCEPT', mock: false, date: c.deputySignedAt || '', note: c.deputyOpinion, name: c.deputyName || '' }]
+      : [];
+  }
   const steps = chainStepsDone(c.status);
-  return CHAIN_ROLE_ORDER.slice(0, steps).map((roleId, i) => ({
-    roleId, type: 'ACCEPT',
-    date: addDaysToDateStr(c.receivedDate, CHAIN_STEP_OFFSET_DAYS[i]),
-    note: CHAIN_ROLE_NOTE[roleId]
-  }));
+  /* mock:true — ความเห็นชุดนี้ระบบสร้างขึ้นเองจากสถานะ (ไม่มีข้อมูลจริงของชั้นกอง/เขต ต้นทาง กจ.5)
+     การ์ด "ที่มาของสำนวน" จึงแสดงเป็นตัวอย่างประกอบ ไม่แสดงป้ายความเห็น (Task 179) */
+  return CHAIN_ROLE_ORDER.slice(0, steps).map((roleId, i) => (roleId === 'deputy' && c.deputyOpinion)
+    /* ความเห็นรองเลขาธิการฯ เป็นข้อมูลจริงของ กจ.7 (Task 190) — ชั้นก่อนหน้ายังเป็นตัวอย่างประกอบ */
+    ? { roleId, type: 'ACCEPT', mock: false, date: c.deputySignedAt || '', note: c.deputyOpinion, name: c.deputyName || '' }
+    : {
+      roleId, type: 'ACCEPT', mock: true,
+      date: addDaysToDateStr(c.receivedDate, CHAIN_STEP_OFFSET_DAYS[i]),
+      note: CHAIN_ROLE_NOTE[roleId]
+    });
 }
 
 CASES.forEach(c => {
@@ -2954,8 +3022,11 @@ function supabaseRowToCase(row) {
     else if (isCase72(kase)) kase.procType = '7.2';
     else kase.procType = '7.1';
   }
+  /* tbl_cmp_case_doc_type_check รับแค่ 213/644/RULING จึงเก็บ GENERAL ใน DB ไม่ได้ — เคส 7.3 ที่ไม่มี docType
+     (หรือเป็นค่าเริ่มต้น 213) ใช้เอกสารเรื่องทั่วไป ไม่ใช่รายงาน 213 (Task 160, 9413/2569) */
+  if (kase.procType === '7.3' && (!cc.tcc_doc_type || kase.docType === '213')) kase.docType = 'GENERAL';
   kase.chainOpinions = buildChainOpinions(kase);
-  return kase;
+  return rootLinkedCase(kase);
 }
 
 /* ---------- แจ้งเตือนล่วงหน้าก่อนครบกำหนด 60 วัน / 2 ปี (deadline60/deadline2y) ----------
@@ -3065,9 +3136,21 @@ function __hubBridgeCases() {
   const activeId = (typeof hub.activeCaseId === 'function') ? hub.activeCaseId() : null;
   const shared = activeId && (typeof hub.getCase === 'function') ? hub.getCase(activeId) : null;
   if (!shared) return;
+  /* ทะเบียนกลาง (cases.js) เก็บเคสทุกกิจกรรมในรูปแบบของตัวเอง — สถานะที่ไม่ใช่ของ ก7 (เช่น ข้อความไทยของกิจกรรมอื่น)
+     ทำให้หน้า ก7 พัง จึงรับเฉพาะเคสที่สถานะเป็นของ ก7 (Task 155) ส่วน accused ที่เป็นข้อความแปลงเป็นรายการด้านล่าง
+     (ตัวแปลงของ main f93ae44 — ตกลงรวมตอน merge main เข้า activity-7, Task 181) */
+  if (!STATUS[shared.status]) return;
   const index = CASES.findIndex(item => (typeof hub.normId === 'function' ? hub.normId(item.id) === hub.normId(shared.id) : item.id === shared.id));
-  if (index === -1) CASES.push({ ...shared });
-  else Object.assign(CASES[index], shared);
+  // Hub เก็บผู้ถูกกล่าวหาเป็นข้อความ แต่ ก7 ใช้เป็นรายการ — ไม่ให้ข้อความทับรายการ
+  const accused = Array.isArray(shared.accused) ? shared.accused
+    : index !== -1 && Array.isArray(CASES[index].accused) ? CASES[index].accused
+    : (shared.accused && shared.accused !== '-' ? [{ no:1, name:String(shared.accused), pos:'', idcard:'', agency:shared.agency || '' }] : []);
+  if (index === -1) CASES.push({ ...shared, accused });
+  else {
+    const native = CASES[index];
+    Object.entries(shared).forEach(([key,value])=>{if(native[key]===undefined||native[key]===null||native[key]==='')native[key]=value;});
+    native.accused=accused;
+  }
 }
 
 const CASES_VERSION = '2026-09-16-72-demo-cases-9211-9222';
@@ -3274,6 +3357,7 @@ function generalType73(code){ return GENERAL_TYPES_73.find(t => t.code === code)
    (ผอ.กอง/ผอ.สำนักงาน ป.ป.ท. เขต/รองเลขาธิการฯ) เป็นขั้นก่อนหน้านั้น จึงไม่แยก
    เป็นสเต็ปของตัวเอง ให้สเต็ปที่ 1 เริ่มที่ "เลขาธิการฯ ลงนาม" เลย */
 const FLOW_STEPS_72 = [
+  { key:'deputy72',  label:'รองเลขาธิการฯ พิจารณา',          ref:'รองเลขาธิการฯ ลงความเห็น' },
   { key:'secgen72',  label:'เลขาธิการฯ ลงนาม',               ref:'เลขาธิการฯ ลงนาม' },
   { key:'agenda72',  label:'กลั่นกรอง / บรรจุวาระ',          ref:'กลั่นกรองและบรรจุวาระ' },
   { key:'meeting72', label:'ประชุม / บันทึกมติ',             ref:'ประชุมและบันทึกมติ' },
@@ -3286,6 +3370,7 @@ const FLOW_STEPS_72 = [
    ม.24" (ม.24 เป็นคำสั่งแต่งตั้งองค์คณะไต่สวน ใช้เฉพาะสาย 7.1 เท่านั้น) — เพิ่มชุดสเต็ปแยกสำหรับ
    7.3 ตามรูปแบบเดียวกับ FLOW_STEPS_72 ด้านบน */
 const FLOW_STEPS_73 = [
+  { key:'deputy73',    label:'รองเลขาธิการฯ พิจารณา',      ref:'รองเลขาธิการฯ ลงความเห็น' },
   { key:'secgen73',    label:'เลขาธิการฯ พิจารณา / ลงนาม', ref:'เสนอเลขาธิการฯ' },
   { key:'chairman73',  label:'ประธานฯ สั่งการ',            ref:'ประธานฯ สั่งการ' },
   { key:'agenda73',    label:'บรรจุวาระ',                 ref:'บรรจุวาระการประชุม' },
@@ -3294,7 +3379,7 @@ const FLOW_STEPS_73 = [
 ];
 const STATUS_STEP_73 = {
   DRAFT:'secgen73', RETURNED:'secgen73',
-  PENDING_SECTION:'secgen73', PENDING_DIRECTOR:'secgen73', PENDING_DEPUTY:'secgen73',
+  PENDING_SECTION:'secgen73', PENDING_DIRECTOR:'secgen73', PENDING_DEPUTY:'deputy73',
   PENDING_SECGEN:'secgen73', PENDING_SUPPORT_ASSIGN:'secgen73', IN_SUPPORT_SUB:'secgen73',
   PENDING_URGENT:'secgen73', PENDING_SECGEN_URGENT_CONFIRM:'secgen73', IN_SCREENING:'chairman73', // ไม่ควรเกิดกับเคส 7.3 จริง กันไว้เผื่อข้อมูลผิดสาย
   PENDING_CHAIRMAN:'chairman73',
@@ -3304,7 +3389,7 @@ const STATUS_STEP_73 = {
 };
 
 const STATUS_STEP_72 = {
-  PENDING_SECTION_72:'secgen72', PENDING_DIRECTOR_72:'secgen72', PENDING_DEPUTY_72:'secgen72', RETURNED_72:'secgen72',
+  PENDING_SECTION_72:'secgen72', PENDING_DIRECTOR_72:'secgen72', PENDING_DEPUTY_72:'deputy72', RETURNED_72:'secgen72',
   PENDING_SECGEN_72:'secgen72',
   PENDING_SUPPORT_ASSIGN_72:'agenda72', IN_SUPPORT_SUB_72:'agenda72', PENDING_URGENT_72:'agenda72', PENDING_SECGEN_URGENT_CONFIRM_72:'agenda72', PENDING_CHAIRMAN_URGENT_72:'agenda72', PENDING_CHAIRMAN_72:'agenda72', IN_SCREENING_72:'agenda72', SCREENING_MORE_INFO_72:'agenda72', PENDING_SIGN_AGENDA_72:'agenda72',
   PENDING_CASE_ADMIN_SCREEN_72:'agenda72', PENDING_CHAIRMAN_ASSIGN_72:'agenda72', PENDING_AFFAIRS_OPINION_72:'agenda72',
@@ -3442,6 +3527,10 @@ function slaLabel(used, limit){
   if(used > limit) return `เกินกำหนด ${used - limit} วัน`;
   return `ใช้ไป ${used}/${limit} วัน`;
 }
+/* เลขสำนวนที่แสดงให้ผู้ใช้เห็น: เคสที่รับจากกระบวนการไต่สวนใช้ id ของทะเบียนกลางเป็น key จึงต้องแสดงเลขสำนวนจาก payload */
+function caseNo(kase){
+  return (kase && (kase.junction?.payload?.caseNumber || kase.id)) || '';
+}
 function getCase(id){
   if (!id) return undefined;
   let found = CASES.find(c => c.id === id);
@@ -3499,8 +3588,12 @@ function getCase(id){
   return undefined;
 }
 
+function rootLinkedCase(kase) {
+  return window.ECMISJunctionBridgeA7?.applyLinkedCase?.(kase) || kase;
+}
 function cacheLiveCases(list) {
   if (!Array.isArray(list) || !list.length) return;
+  list = list.map(rootLinkedCase);
   try {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('ecmis_live_cases', JSON.stringify(list));
@@ -3541,12 +3634,13 @@ function getRole(id){
   if (id === 'board_ex') return ROLES.find(r => r.id === 'board') || ROLES[0];
   if (id === 'sup_chair' || id === 'sup_sec' || id === 'sup_asst') return ROLES.find(r => r.id === 'support_sub') || ROLES[0];
   if (id === 'board_sec') return ROLES.find(r => r.id === 'board_sec') || ROLES[0];
-  if (id === 'secgen' || id === 'deputy_sg' || id === 'deputy') return ROLES.find(r => r.id === 'secgen') || ROLES[0];
+  if (id === 'secgen' || id === 'deputy_sg') return ROLES.find(r => r.id === 'secgen') || ROLES[0];
   return ROLES.find(r => r.id === 'affairs') || ROLES[0];
 }
 
 // ผู้ใช้งานที่ได้รับอนุญาตให้เข้าสู่ระบบ (Cleansed 6 Users)
 const LOGIN_ALLOWED_ROLE_IDS = [
+  'deputy',
   'secgen',
   'support_sub',
   'subcommittee',
@@ -3675,6 +3769,9 @@ function logout(){
   sessionStorage.removeItem('ecmis_role');
   sessionStorage.removeItem('ecmis_username');
   sessionStorage.removeItem('ecmis_flash_toast');
+  window.ECMISAuth?.logout?.();
+  localStorage.removeItem('ecmis-transform-auth-v1');
+  localStorage.removeItem('ecmis-auth');
   location.href = resolvePage('login.html');
 }
 
@@ -3693,7 +3790,7 @@ function canAct(kase, roleId){
 
 function canRecall(kase, roleId){
   if(roleId !== 'owner') return false;
-  return ['PENDING_SECTION','PENDING_DIRECTOR','PENDING_DEPUTY'].includes(kase.status);
+  return ['PENDING_SECTION','PENDING_DIRECTOR'].includes(kase.status);
 }
 
 function inResFolder() {
@@ -3772,6 +3869,124 @@ async function logRequestEvent(trrId, fromStatus, toStatus, opts) {
 /* Shared status-write helper (เดิมโค้ดซ้ำอยู่ใน resolution-inbox.html/inbox.html แยกกัน) — เขียน
    trr_status จริงถ้ามี sb+trr_id แล้ว log audit event ทันทีที่เขียนสำเร็จ, mutate kase.status ในหน่วย
    ความจำเสมอ (แม้ไม่มี sb/trr_id) เพื่อให้ UI ในหน้าปัจจุบันอัปเดตทันทีเหมือนพฤติกรรมเดิม */
+/* ---------- เริ่มเคสใหม่ (เล่นซ้ำ) — กด R สามครั้งบนหน้าที่มี ?case= (Task 191) ----------
+   คืนเคสไปต้นสายของ กจ.7 (รองเลขาธิการฯ: 004 สาย 7.1/7.3, 102 สาย 7.2) โดยเก็บเฉพาะข้อมูลต้นทาง
+   (procType, scenarioSource, junction*, source* ยกเว้น sourceReturn) ล้างทุกอย่างที่เกิดระหว่างเล่น
+   ไม่แตะข้อมูล Hub/กิจกรรมอื่น · เคสจริงที่ใช้ร่วมกับ main/กจ.8 (RESET_PROTECTED_CASES) รีเซ็ตไม่ได้ */
+const RESET_PROTECTED_CASES = ['0001/2569', '0005/2569'];
+const resetKeepKey = k => k === 'procType' || k === 'scenarioSource' || /^junction/.test(k) || (/^source/.test(k) && k !== 'sourceReturn');
+
+function resetTargetStatus(kase) {
+  return isCase72(kase) ? 'PENDING_DEPUTY_72' : 'PENDING_DEPUTY';
+}
+
+async function resetCaseFlow(caseNo) {
+  const sb = getSupabaseClient();
+  if (!sb) throw new Error('เชื่อมต่อฐานข้อมูลไม่ได้');
+  if (RESET_PROTECTED_CASES.includes(caseNo)) throw new Error(`สำนวน ${caseNo} เป็นเคสจริงที่ใช้ร่วมกับกิจกรรมอื่น — รีเซ็ตไม่ได้`);
+  const { data: cc, error: ccErr } = await sb.from('tbl_cmp_case').select('*').eq('tcc_no', caseNo).eq('is_deleted', false).maybeSingle();
+  if (ccErr || !cc) throw new Error(`ไม่พบสำนวน ${caseNo} ในฐานข้อมูล`);
+  const { data: req, error: reqErr } = await sb.from('tbl_res_request').select('*').eq('tcc_id', cc.tcc_id).eq('is_deleted', false).maybeSingle();
+  if (reqErr || !req) throw new Error(`ไม่พบคำขอของสำนวน ${caseNo}`);
+
+  const kase = supabaseRowToCase({ ...req, tbl_cmp_case: cc });
+  const fromStatus = kase.status;
+  const toStatus = resetTargetStatus(kase);
+  const kept = Object.fromEntries(Object.entries(req.trr_resolution_data || {}).filter(([k]) => resetKeepKey(k)));
+  if (!kept.procType) kept.procType = kase.procType;
+
+  const { error: upErr } = await sb.from('tbl_res_request').update({
+    trr_status: STATUS_CODE[toStatus], trr_resolution_data: kept,
+    trr_signed_secgen: false, trr_urgent: false, trr_sub_committee: null,
+    trr_subcmt_meeting_date: null, trr_subcmt_resolved_date: null, trr_subcmt_sent_board_date: null,
+    trr_resolution_stage: null, trr_recorded_doc_html: null,
+    trr_meeting_no: null, trr_agenda_no: null, trr_meeting_date: null
+  }).eq('trr_id', req.trr_id);
+  if (upErr) throw new Error('บันทึกสถานะใหม่ไม่สำเร็จ: ' + upErr.message);
+  await sb.from('tbl_cmp_case').update({ tcc_urgent: false, tcc_complex: false }).eq('tcc_id', cc.tcc_id);
+
+  /* ถอดออกจากวาระการประชุม / ซ่อนไฟล์แนบ — soft-delete เท่าที่ DB อนุญาต แล้วรายงานผลตามจริง */
+  const notes = [];
+  /* สิทธิ์ของ DB บางตารางบล็อก UPDATE แบบเงียบ (ไม่มี error แต่ได้ 0 แถว) — นับก่อน/หลังเพื่อรายงานตามจริง */
+  const softDelete = async (table, idCol, col, val, label) => {
+    const { data: before } = await sb.from(table).select(idCol).eq(col, val).eq('is_deleted', false);
+    if (!before || !before.length) return;
+    const { data: done, error } = await sb.from(table).update({ is_deleted: true }).eq(col, val).eq('is_deleted', false).select(idCol);
+    const n = (!error && done) ? done.length : 0;
+    if (n === before.length) notes.push(`${label} ${n} รายการ`);
+    else notes.push(`${label}ได้ ${n}/${before.length} รายการ (ฐานข้อมูลไม่อนุญาตส่วนที่เหลือ)`);
+  };
+  await softDelete('tbl_res_calendar_item_case', 'trcic_id', 'trr_id', req.trr_id, 'ถอดออกจากวาระเดิม');
+  await softDelete('tbl_res_attachment', 'trat_id', 'tcc_id', cc.tcc_id, 'ซ่อนไฟล์แนบ');
+
+  await logRequestEvent(req.trr_id, fromStatus, toStatus, {
+    type: 'RESET', actorRole: currentRoleId(), note: 'เริ่มเคสใหม่ (เล่นซ้ำ)', data: { from: fromStatus, kept: Object.keys(kept) }
+  });
+
+  /* ล้าง cache ของเคสนี้ในเบราว์เซอร์ */
+  const memCase = (Array.isArray(CASES) ? CASES : []).find(x => x.id === caseNo);
+  if (memCase) {
+    Object.keys(memCase).forEach(k => { if (!['id', 'subject', 'legalBase', 'owner', 'ownerOrg', 'complainant', 'accused', 'allegation', 'receivedDate', 'deadline60', 'deadline2y', 'prescription', 'docRef', 'docType', 'procType', 'scenario'].includes(k) && !resetKeepKey(k)) delete memCase[k]; });
+    memCase.status = toStatus; memCase.urgent = false; memCase.complex = false; memCase.subCommittee = null;
+    memCase.chainOpinions = buildChainOpinions(memCase);
+    saveCases();
+  }
+  ['localStorage', 'sessionStorage'].forEach(store => {
+    try {
+      const st = typeof window !== 'undefined' && window[store];
+      const raw = st && st.getItem('ecmis_live_cases');
+      if (raw) st.setItem('ecmis_live_cases', JSON.stringify(JSON.parse(raw).filter(x => x && x.id !== caseNo)));
+    } catch (e) { /* cache เสียหาย — ข้ามได้ หน้าถัดไปโหลดจาก DB อยู่แล้ว */ }
+  });
+  return { caseNo, fromStatus, toStatus, linked: !!kase.junction, notes };
+}
+
+function openResetCaseDialog() {
+  const caseNo = new URLSearchParams(location.search).get('case');
+  if (!caseNo || typeof Swal === 'undefined') return;
+  if (RESET_PROTECTED_CASES.includes(caseNo)) {
+    Swal.fire({ icon: 'info', title: 'รีเซ็ตเคสนี้ไม่ได้', text: `สำนวน ${caseNo} เป็นเคสจริงที่ใช้ร่วมกับกิจกรรมอื่น`, confirmButtonColor: '#082b50' });
+    return;
+  }
+  const known = (Array.isArray(CASES) ? CASES : []).find(x => x.id === caseNo) || {};
+  const is72 = isCase72(known);
+  const target = is72 ? 'PENDING_DEPUTY_72' : 'PENDING_DEPUTY';
+  const line = isCase73(known) ? '7.3' : (is72 ? '7.2' : '7.1');
+  Swal.fire({
+    icon: 'warning', title: 'เริ่มเคสใหม่ (เล่นซ้ำ)',
+    html: `<div class="text-start" style="font-size:.92rem">
+      <p class="mb-2">สำนวน <strong>${escapeHtml(caseNo)}</strong>${known.status ? ` · สาย ${line} · สถานะตอนนี้ ${escapeHtml(STATUS[known.status] ? STATUS[known.status].label : known.status)}` : ''}</p>
+      <p class="mb-2">จะกลับไปเริ่มที่ <strong>${escapeHtml(STATUS[target].label)}</strong> และล้างความเห็น มติ คำสั่ง ลายเซ็น เลขวาระ ที่บันทึกระหว่างเล่น
+        (เก็บไว้เฉพาะข้อมูลต้นทางของสำนวน) · ถอดออกจากวาระประชุมและซ่อนไฟล์แนบเท่าที่ทำได้</p>
+      ${known.junction ? '<div class="ws-callout mb-0" style="font-size:.85rem"><i class="fa-solid fa-triangle-exclamation me-1"></i>เคสนี้เชื่อมกับกิจกรรมอื่นผ่าน Hub — ผลที่เคยส่งให้ กจ.5 / กจ.8 ยังค้างอยู่ฝั่งนั้น ระบบรีเซ็ตเฉพาะฝั่ง กจ.7</div>' : ''}
+    </div>`,
+    showCancelButton: true, confirmButtonText: 'ยืนยันเริ่มใหม่', cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#a52c25', cancelButtonColor: '#7C8CA3', reverseButtons: true, focusCancel: true,
+    showLoaderOnConfirm: true, allowOutsideClick: () => !Swal.isLoading(),
+    preConfirm: () => resetCaseFlow(caseNo).catch(err => { Swal.showValidationMessage(err.message || String(err)); return false; })
+  }).then(res => {
+    if (!res.isConfirmed || !res.value) return;
+    const r = res.value;
+    toastOk(`เริ่มเคส ${r.caseNo} ใหม่แล้ว — ${STATUS[r.toStatus].label}${r.notes.length ? ' · ' + r.notes.join(' · ') : ''}`);
+    setTimeout(() => { location.href = resolvePage('approval-review.html') + '?case=' + encodeURIComponent(r.caseNo); }, 1200);
+  });
+}
+
+/* R สามครั้งภายใน 1.5 วินาที — ไม่นับตอนพิมพ์ในช่องกรอก หรือกดพร้อมปุ่ม modifier */
+if (typeof document !== 'undefined') {
+  let rHits = [];
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'r' && e.key !== 'R' && e.key !== 'ร') { rHits = []; return; }
+    if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (document.querySelector('.swal2-container')) return;
+    const now = Date.now();
+    rHits = rHits.filter(x => now - x < 1500).concat(now);
+    if (rHits.length >= 3) { rHits = []; openResetCaseDialog(); }
+  });
+}
+
 async function updateCaseStatus(kase, newStatus, sb) {
   const fromStatus = kase.status;
   kase.status = newStatus;
@@ -3784,7 +3999,9 @@ async function updateCaseStatus(kase, newStatus, sb) {
       if (!error) await logRequestEvent(kase.trr_id, fromStatus, newStatus);
     }
   }
-  saveCases();
+  const stored = CASES.find(c => c.id === kase.id);
+  if (stored && stored !== kase) Object.assign(stored, kase);
+  global.ECMIS.saveCases();
 }
 
 const NAV = [
@@ -3794,6 +4011,7 @@ const NAV = [
     label: role => {
       if (!role) return 'รายการพิจารณา/ลงนาม';
       if (role.id === 'board_sec') return 'ทะเบียนวาระการประชุม';
+      if (role.id === 'deputy') return 'รายการพิจารณา/ลงความเห็น';
       if (role.id === 'board' || role.id === 'board_ex') return 'รอบการประชุมและอ่านวาระล่วงหน้า';
       if (role.id === 'affairs') return 'รายการเรื่องที่ต้องจัดทำ';
       if (role.id === 'case_admin') return 'รายการคดี (กองบริหารคดี)';
@@ -3826,6 +4044,25 @@ const NAV = [
   { href:'dashboard.html',                icon:'fa-chart-pie',        label:'Dashboard สถิติมติ',
     visible: role => !!role && ['affairs','board_sec','chairman','board','secgen','case_admin'].includes(role.id) }
 ];
+
+/* ไอคอนเมนู sidebar แบบเส้น (stroke) ตามต้นแบบ ก4/ก5 (ecmis-sidebar.js ICONS) — Task 180
+   ใช้ <i> (ไม่ใช่ <span>) เพื่อไม่ให้ถูกซ่อนตอนพับเมนู (body.sidebar-collapsed ซ่อน .nav-link span)
+   ไอคอนที่ไม่มีในชุดนี้ใช้ Font Awesome เดิม */
+const NAV_ICON_SVG = {
+  'fa-inbox': '<path d="M4 4h16v16H4z"/><path d="M4 14h4l2 3h4l2-3h4"/>',
+  'fa-folder-open': '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1H3z"/><path d="M3 10h18l-2 9H5z"/>',
+  'fa-scale-balanced': '<path d="M12 3v18M7 21h10M5 7h14"/><path d="m5 7-3 6a3 3 0 0 0 6 0zM19 7l-3 6a3 3 0 0 0 6 0z"/>',
+  'fa-file-contract': '<path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 12h8M8 16h5"/>',
+  'fa-table-list': '<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 9v11"/>',
+  'fa-diagram-project': '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="8.5" y="14" width="7" height="7" rx="1"/><path d="M6.5 10v2h11v-2M12 12v2"/>',
+  'fa-chart-pie': '<path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/>'
+};
+function navIconHtml(faIcon){
+  const path = NAV_ICON_SVG[faIcon];
+  return path
+    ? `<i class="a7-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${path}</svg></i>`
+    : `<i class="fa-solid ${faIcon}"></i>`;
+}
 
 function navLabel(navItem, role){
   return typeof navItem.label === 'function' ? navItem.label(role) : navItem.label;
@@ -4029,7 +4266,7 @@ function renderShell(activeHref){
   const ROLE_SWITCHER_GROUPS = [
     {
       group: 'เลขาธิการฯ/รองเลขาธิการ',
-      roles: ['secgen']
+      roles: ['deputy', 'secgen']
     },
     {
       group: 'คณะอนุกรรมการสนับสนุนเลขาธิการฯ',
@@ -4080,24 +4317,23 @@ function renderShell(activeHref){
   /* ---- topbar ---- */
   const topbar = `
   <header class="app-topbar no-print">
-    <button class="btn btn-sm text-secondary d-lg-none border-0" id="sbToggle" aria-label="เปิด/ปิดเมนู">
+    <!-- โครง topbar ตามต้นแบบ ก4/ก5 (ws-topbar) — Task 180: ช่องค้นหาเปิด Command Palette เดิม (Ctrl+K) -->
+    <button class="a7-topbar-icon d-lg-none" type="button" id="sbToggle" aria-label="เปิด/ปิดเมนู">
       <i class="fa-solid fa-bars"></i>
     </button>
-    <button class="btn btn-sm text-secondary d-none d-lg-inline-flex border-0" id="sbCollapseToggle" aria-label="ย่อ/ขยายเมนูด้านข้าง" title="ย่อ/ขยายเมนูด้านข้าง">
-      <i class="fa-solid fa-bars"></i>
+    <button class="a7-topbar-search" type="button" onclick="ECMIS.openCommandPalette()" aria-label="ค้นหาสำนวน เมนู หรือฟังก์ชัน (Ctrl+K)">
+      <span>ค้นหาสำนวน เมนู ฟังก์ชัน...</span><kbd>Ctrl K</kbd>
     </button>
 
-    <div class="ms-auto d-flex align-items-center gap-2">
-      <!-- Font Size Controls -->
-      <span class="text-muted small d-none d-sm-inline ms-2" style="font-size:0.8rem">ขนาดตัวอักษร:</span>
-      <div class="btn-group btn-group-sm border rounded-pill overflow-hidden bg-light" role="group" aria-label="ขนาดตัวอักษร">
-        <button type="button" class="btn btn-sm btn-light border-end px-2 py-0 text-secondary" onclick="ECMIS.changeFont(-1)" title="อักษรเล็กลง" style="font-size:0.78rem">A-</button>
-        <button type="button" class="btn btn-sm btn-light border-end px-2 py-0 text-secondary" onclick="ECMIS.changeFont(0)" title="ขนาดปกติ" style="font-size:0.78rem">A</button>
-        <button type="button" class="btn btn-sm btn-light px-2 py-0 text-secondary" onclick="ECMIS.changeFont(1)" title="อักษรใหญ่ขึ้น" style="font-size:0.78rem">A+</button>
+    <div class="a7-topbar-profile">
+      <div class="a7-font-controls" role="group" aria-label="ขนาดตัวอักษร">
+        <button type="button" data-font-step="-1" onclick="ECMIS.changeFont(-1)" title="อักษรเล็กลง">A−</button>
+        <button type="button" data-font-step="0" onclick="ECMIS.changeFont(0)" title="ขนาดปกติ">A</button>
+        <button type="button" data-font-step="1" onclick="ECMIS.changeFont(1)" title="อักษรใหญ่ขึ้น">A+</button>
       </div>
 
       <!-- Color mode: วนสามโหมด ปกติ (Light) → มืด (Dark) → คอนทราสต์สูง (High Contrast) -->
-      <button id="colorModeToggle" class="btn btn-sm btn-light border rounded-pill px-3 py-1 text-secondary d-inline-flex align-items-center gap-1" onclick="ECMIS.toggleColorMode()" title="ปรับสี" style="font-size:0.8rem">
+      <button id="colorModeToggle" type="button" class="a7-topbar-tool" onclick="ECMIS.toggleColorMode()" title="ปรับสี">
         <i class="fa-solid fa-circle-half-stroke"></i> <span>ปรับสี</span>
       </button>
 
@@ -4125,8 +4361,8 @@ function renderShell(activeHref){
 
       <!-- Notification Bell -->
       <div class="dropdown">
-        <button class="btn btn-sm btn-light border-0 rounded-circle position-relative p-2 ms-1" data-bs-toggle="dropdown" aria-expanded="false" title="การแจ้งเตือน" style="width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center">
-          <i class="fa-solid fa-bell text-secondary"></i>
+        <button type="button" class="a7-topbar-icon position-relative" data-bs-toggle="dropdown" aria-expanded="false" title="การแจ้งเตือน" aria-label="การแจ้งเตือน">
+          <i class="fa-regular fa-bell"></i>
           <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-danger ${unreadNotifCount ? '' : 'd-none'}" style="font-size:.58rem; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; padding:0">${unreadNotifCount}</span>
         </button>
         <ul class="dropdown-menu dropdown-menu-end p-0" style="width:290px; max-height:360px; overflow-y:auto">
@@ -4138,8 +4374,9 @@ function renderShell(activeHref){
       </div>
 
       <!-- User Profile Dropdown Pill -->
-      <div class="dropdown user-profile ms-1">
-        <button class="btn btn-sm btn-light border rounded-pill px-3 py-1 dropdown-toggle user-pill text-secondary d-inline-flex align-items-center gap-1" data-bs-toggle="dropdown" aria-expanded="false" style="font-size:0.82rem" title="ข้อมูลผู้ใช้งาน">
+      <span class="a7-role-label d-none d-xl-inline">สิทธิ์การทำงาน</span>
+      <div class="dropdown user-profile">
+        <button type="button" class="a7-role-select dropdown-toggle user-pill" data-bs-toggle="dropdown" aria-expanded="false" title="ข้อมูลผู้ใช้งาน">
           <i class="fa-solid fa-user"></i>
           <span>${role.name} — ${role.title}</span>
         </button>
@@ -4162,7 +4399,7 @@ function renderShell(activeHref){
     const active = href === activeHref;
     const showBadge = typeof n.badge === 'function' ? n.badge(role) : n.badge;
     const badge = showBadge && inboxCount ? `<span class="badge bg-danger rounded-pill">${inboxCount}</span>` : '';
-    const step  = n.step ? `<span class="step-no">${n.step}</span>` : `<i class="fa-solid ${n.icon}"></i>`;
+    const step  = n.step ? `<span class="step-no">${n.step}</span>` : navIconHtml(n.icon);
     const label = navLabel(n, role);
     return `<a class="nav-link ${active?'active':''}" href="${href}" title="${label}" ${n.muted?'style="opacity:.7"':''}>
       ${step}<span>${label}</span>${badge}
@@ -4195,18 +4432,24 @@ function renderShell(activeHref){
   const sidebar = `
   <nav class="app-sidebar no-print" id="appSidebar">
     <a class="brand text-decoration-none" href="${homeHref(role.id)}">
-      <img src="${brandLogoSrc}" onerror="this.onerror=null;this.src='pacc_logo.png';" alt="ตราสำนักงาน ป.ป.ท.">
+      <i class="a7-brand-logo"><img src="${brandLogoSrc}" onerror="this.onerror=null;this.src='${isResPage ? 'assets' : '../assets'}/pacc_logo.png';" alt="ตราสำนักงาน ป.ป.ท."></i>
       <span>E-CMIS
-        <small>สำนักงาน ป.ป.ท.</small>
+        <small>ระบบมติคณะกรรมการ ป.ป.ท.</small>
       </span>
     </a>
     <div class="sidebar-nav-scroll">${navHtml}</div>
-    ${userChip}
+    <div class="a7-sidebar-footer">
+      ${userChip}
+      <button type="button" class="a7-sidebar-toggle d-none d-lg-grid" id="sbCollapseToggle" aria-label="ย่อ/ขยายเมนูด้านข้าง" title="ย่อ/ขยายเมนูด้านข้าง">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <button type="button" class="a7-sidebar-logout" id="btnLogoutSidebarFooter"><i class="fa-solid fa-right-from-bracket"></i><b>ออกจากระบบ</b></button>
+    </div>
   </nav>`;
 
   document.body.insertAdjacentHTML('afterbegin', topbar + sidebar);
 
-  ['btnLogout', 'btnLogoutSidebar'].forEach(id => {
+  ['btnLogout', 'btnLogoutSidebar', 'btnLogoutSidebarFooter'].forEach(id => {
     const btn = document.getElementById(id);
     if(btn) btn.addEventListener('click', e => { e.preventDefault(); logout(); });
   });
@@ -4214,6 +4457,21 @@ function renderShell(activeHref){
   if(tog) tog.addEventListener('click', () => document.getElementById('appSidebar').classList.toggle('open'));
   const collapseTog = document.getElementById('sbCollapseToggle');
   if(collapseTog) collapseTog.addEventListener('click', () => toggleSidebarCollapse());
+
+  /* kicker เหนือหัวเรื่องหน้า (ws-kicker ของ ก4/ก5) — ใช้ชื่อหมวดเมนูของหน้านี้ หรือชื่อระบบ ก7 (Task 180) */
+  (function addPageKicker(){
+    const h1 = document.querySelector('.page-head h1');
+    if (!h1 || document.querySelector('.page-head .ws-kicker')) return;
+    let section = '';
+    for (const n of visibleNavFor(role)) {
+      if (n.section) { section = n.section; continue; }
+      if (navHref(n, role) === activeHref) break;
+      if (n === visibleNavFor(role).slice(-1)[0]) section = '';
+    }
+    const isListPage = visibleNavFor(role).some(n => !n.section && navHref(n, role) === activeHref);
+    const text = isListPage && section ? section : 'บริหารจัดการและติดตามสำนวนคดี / มติ';
+    h1.insertAdjacentHTML('beforebegin', `<p class="ws-kicker">${text}</p>`);
+  })();
 
   initA11yAndPref();
   initCommandPalette();
@@ -4396,14 +4654,10 @@ function caseFlowSteps(kase){
   const complexSup = hasSupport || ['PENDING_SUPPORT_ASSIGN' + X, 'IN_SUPPORT_SUB' + X].includes(s);
   const urgentSt = ['PENDING_URGENT' + X, 'PENDING_SECGEN_URGENT_CONFIRM' + X, 'PENDING_CHAIRMAN_URGENT_72'];
   const urgent = !!(kase.urgent || kase.urgentCertified) || urgentSt.includes(s);
-  const warnReturn = st => st === 'RETURNED' + X ? 'ตีกลับ — รอแก้ไข' : null;
-  const chainSt = is72
-    ? ['PENDING_SECTION_72', 'PENDING_DIRECTOR_72', 'PENDING_DEPUTY_72', 'RETURNED_72']
-    : ['DRAFT', 'PENDING_SECTION', 'PENDING_DIRECTOR', 'PENDING_DEPUTY', 'RETURNED'];
+  /* การเสนอตามลำดับชั้นในกอง/เขตเป็นงานของกิจกรรมที่ 5 — แถบของ กจ.7 เริ่มที่เลขาธิการฯ (Task 162)
+     เคสที่ยังอยู่ในสถานะ UPSTREAM_STEPPER_ST ไม่แสดงแถบเลย (ดู caseStepperHtml) */
   const steps = [
-    step('chain', 'เสนอตามลำดับชั้น', 'เจ้าของสำนวน / ผู้บังคับบัญชา', chainSt, {
-      warn: st => warnReturn(st) || (is72 && kase.resolution72 && chainSt.includes(st) ? 'ให้ไต่สวนเพิ่มเติม' : null)
-    }),
+    step('deputy', 'พิจารณา / ลงความเห็น', 'รองเลขาธิการฯ', ['PENDING_DEPUTY' + X]),
     step('secgen', is72 ? 'พิจารณา / ลงนาม' : 'พิจารณา / ลงนาม', 'เลขาธิการฯ', ['PENDING_SECGEN' + X], {
       match: st => st === 'PENDING_SECGEN' + X && !(complexSup && hasSupport)
     })
@@ -4443,7 +4697,8 @@ function caseFlowSteps(kase){
         step('subcommittee', 'กลั่นกรองสำนวน', 'คณะอนุกลั่นกรองฯ', ['IN_SCREENING', 'SCREENING_MORE_INFO'], {
           match: st => st === 'SCREENING_MORE_INFO' || (st === 'IN_SCREENING' && !!kase.subCommittee),
           warn: st => st === 'SCREENING_MORE_INFO' ? 'ขอข้อมูลเพิ่มเติม' : null
-        })
+        }),
+        step('signAgenda', 'ลงนามสั่งบรรจุวาระ', 'ประธานฯ', ['PENDING_SIGN_AGENDA'])
       );
     }
     steps.push(
@@ -4481,10 +4736,12 @@ function caseFlowSteps(kase){
         step('signAgenda', 'ลงนามสั่งบรรจุวาระ', 'ประธานฯ', ['PENDING_SIGN_AGENDA_72'])
       );
     } else {
-      steps.push(
-        step('afterScreen', 'ดำเนินการตามผลคัดกรอง', 'กลุ่มงานกิจการฯ / คณะอนุกลั่นกรองฯ', []),
-        step('signAgenda', 'ลงนามสั่งบรรจุวาระ', 'ประธานฯ', [])
-      );
+      /* ยังไม่ทราบทาง: ก่อนคัดกรองเสร็จ → แสดงขั้นกลางเป็นตัวแทนไว้ก่อน; เคสเก่าที่เลยขั้นคัดกรองไปแล้วแต่ไม่มีข้อมูลทาง
+         (เช่น mock 1855/2568) → ตัดขั้นกลางออก เหลือขั้น "ลงนามสั่งบรรจุวาระ" ที่ทั้งสองทางใช้ร่วมกัน (2026-10-01 Task 159) */
+      const pastScreening = ['PENDING_INVITE_72', 'IN_MEETING_72', 'RESOLVED_PENDING_72', 'PENDING_SIGN_RULING_72',
+        'PENDING_AREA_NOTICE_72', 'DISPATCHING_NACC_72', 'PENDING_DISPATCH_GUILTY_72', 'CLOSED_72'].includes(s);
+      if (!pastScreening) steps.push(step('afterScreen', 'ดำเนินการตามผลคัดกรอง', 'กลุ่มงานกิจการฯ / คณะอนุกลั่นกรองฯ', []));
+      steps.push(step('signAgenda', 'ลงนามสั่งบรรจุวาระ', 'ประธานฯ', []));
     }
   }
   steps.push(
@@ -4537,18 +4794,64 @@ function annotateStepperDates(){
   });
 }
 
+/* การ์ด KPI หน้ารายการ — รูปแบบเดียวทั้ง ก7 ตามต้นแบบ inbox.html (เลขใหญ่ + ป้าย, การ์ดที่เลือก = พื้นกรม)
+   k = { n, l, active, attrs } · attrs คือ data-* / onclick ของหน้าเดิม เพื่อคงตรรกะการกรองของแต่ละหน้า */
+function kpiCardHtml(k){
+  return `<div class="col-12 col-sm-6 col-md-4 col-xl">
+    <div class="card card-ecmis kpi-card a7-kpi h-100 ${k.active ? 'border-2 shadow-sm' : ''}" role="button" tabindex="0"
+         aria-pressed="${k.active ? 'true' : 'false'}" ${k.attrs || ''}>
+      <div class="card-body"><div class="a7-kpi-num">${k.n}</div><div class="a7-kpi-label">${k.l}</div></div>
+    </div>
+  </div>`;
+}
+/* ตั้งการ์ดที่เลือกใหม่โดยไม่ render ซ้ำ (หน้าที่ผูก click ไว้กับ element เดิม) */
+function setActiveKpi(row, card){
+  if (!row) return;
+  row.querySelectorAll('.a7-kpi').forEach(el => {
+    const on = el === card;
+    el.classList.toggle('border-2', on); el.classList.toggle('shadow-sm', on);
+    el.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+if (typeof document !== 'undefined') document.addEventListener('keydown', e => {
+  const card = (e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('.a7-kpi');
+  if (card) { e.preventDefault(); card.click(); }
+});
+
+const UPSTREAM_STEPPER_ST = ['DRAFT', 'PENDING_SECTION', 'PENDING_DIRECTOR', 'RETURNED',
+  'PENDING_SECTION_72', 'PENDING_DIRECTOR_72', 'RETURNED_72']; // PENDING_DEPUTY(_72) เป็นขั้นแรกของ กจ.7 แล้ว (Task 190)
+/* แถบสรุป "ขั้นตอนปัจจุบัน / ขั้นตอนถัดไป / ขั้นตอน n/N" เหนือ track ตามต้นแบบ ws-stagebar ของ ก4/ก5 — Task 180
+   ข้อมูลมาจากชุดขั้นตอนเดิมของ stepper (ไม่เปลี่ยนลำดับขั้นหรือสถานะ) */
+function stageSummaryHtml(steps, idx, closedAll, warn){
+  if (idx < 0 || !steps.length) return '';
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const cur = steps[idx], next = closedAll ? null : steps[idx + 1];
+  const done = closedAll ? steps.length : idx;
+  return `<div class="a7-stage-summary">
+    <div><small>ขั้นตอนปัจจุบัน</small><strong>${esc(closedAll ? 'ดำเนินการเสร็จสิ้น' : cur.label)}</strong>${warn ? `<small class="a7-stage-warn">${esc(warn)}</small>` : (cur.role ? `<small>ผู้รับผิดชอบ: ${esc(cur.role)}</small>` : '')}</div>
+    <div class="a7-stage-next"><small>ขั้นตอนถัดไป</small><strong>${esc(next ? next.label : 'ไม่มีขั้นตอนถัดไป')}</strong></div>
+    <b>ขั้นตอน ${closedAll ? steps.length : idx + 1} / ${steps.length}</b>
+  </div>
+  <div class="a7-stage-caption">แสดงลำดับการดำเนินงานของเรื่องนี้ <strong>ผ่านแล้ว ${done} ขั้น · รออีก ${steps.length - done} ขั้น</strong></div>`;
+}
+
 function caseStepperHtml(kase){
-  const steps = caseFlowSteps(kase);
   const s = kase.status;
+  /* ยังอยู่ที่กิจกรรมที่ 5 (รวมทาง 7.2 ที่บอร์ดสั่งไต่สวนเพิ่ม) — คืนค่าว่าง แล้ว CSS ซ่อนการ์ดแถบทั้งใบ */
+  if (UPSTREAM_STEPPER_ST.includes(s)) return '';
+  const steps = caseFlowSteps(kase);
   const hit = st => (st.match ? st.match(s) : st.st.includes(s));
   let idx = steps.findIndex(hit);
   if (idx < 0 && /^CLOSED/.test(String(s))) idx = steps.length - 1;
   const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const html = `<div class="flow-stepper flow-stepper-case"${kase.trr_id ? ` data-trr="${esc(kase.trr_id)}"` : ''}>` + steps.map((st, i) => {
+  const closedAll = idx >= 0 && /^CLOSED/.test(String(s));
+  const html = stageSummaryHtml(steps.map(st => ({ label: st.label, role: st.role })), idx, closedAll,
+      idx >= 0 && steps[idx].warn ? steps[idx].warn(s) : null)
+    + `<div class="flow-stepper flow-stepper-case"${kase.trr_id ? ` data-trr="${esc(kase.trr_id)}"` : ''}>` + steps.map((st, i) => {
     const warn = i === idx && st.warn ? st.warn(s) : null;
     const closedNow = i === idx && /^CLOSED/.test(String(s));
     const cls = (i < idx || closedNow) ? 'done' : (i === idx ? 'active' + (warn ? (st.warnTone === 'info' ? ' info' : ' warn') : '') : '');
-    const mark = (i < idx || closedNow) ? '<i class="fa-solid fa-check"></i>' : (warn && st.warnTone !== 'info' ? '<i class="fa-solid fa-rotate-left"></i>' : (i + 1));
+    const mark = (warn && st.warnTone !== 'info' && !closedNow && i === idx) ? '<i class="fa-solid fa-rotate-left"></i>' : (i + 1); // เลขขั้นทุกวง (ไม่ใช้เครื่องหมายถูก) ตาม ws-stage-node ของ ก4/ก5
     const codes = st.st.map(k => STATUS_CODE[k]).filter(Boolean).join(',');
     const now = i === idx && !closedNow ? `<div class="fnow">${warn ? esc(warn) : 'กำลังดำเนินการ'}</div>` : '';
     return `<div class="fstep ${cls}" data-codes="${codes}">
@@ -4569,9 +4872,10 @@ function stepperHtml(statusKey, stepsArr, stepMap){
   stepMap = stepMap || STATUS_STEP;
   const cur = stepMap[statusKey] || 'report';
   const idx = stepsArr.findIndex(s => s.key === cur);
-  return `<div class="flow-stepper">` + stepsArr.map((s,i) => {
+  return stageSummaryHtml(stepsArr.map(st => ({ label: st.label, role: st.ref || '' })), idx, false, null)
+    + `<div class="flow-stepper">` + stepsArr.map((s,i) => {
     const cls = i < idx ? 'done' : (i === idx ? 'active' : '');
-    const mark = i < idx ? '<i class="fa-solid fa-check"></i>' : (i+1);
+    const mark = i + 1;
     return `<div class="fstep ${cls}">
       <div class="dot">${mark}</div>
       <div class="lbl">${s.label}</div>
@@ -4621,21 +4925,24 @@ function fakeSlaUsed(kase, limit){
 /* เคสที่ seed ตรงจาก script (ไม่ผ่าน supabaseRowToCase ครบ field) มักไม่มี trr_sla_days/
    trr_sla_limit ติดมา ทำให้ป้าย SLA ขึ้น "ใช้ไป null/null วัน" — แทนที่จะปล่อย null ให้เห็น
    ใช้เลขหลอก fakeSlaUsed() แทน และ "เพดาน" fallback ไปตามตาราง DOC_TYPES ของเรื่องนั้น */
-function slaBadge(kase){
-  const resSla = resolutionSlaInfo(kase);
-  if (resSla) {
-    return `<span class="sla ${slaClass(resSla.used, resSla.limit)}" title="กำหนดออกมติ 15 วันทำการนับจากวันที่บอร์ดมีมติ">
-      <i class="fa-solid fa-clock me-1"></i>${slaLabel(resSla.used, resSla.limit)} (ออกมติ)</span>`;
-  }
+/* วันที่ใช้ไป/เพดาน SLA ชุดเดียวกับป้าย slaBadge — กันข้อความ "ใช้ไป null/5 วัน" เมื่อเคสยังไม่มี trr_sla_days (Task 167) */
+function slaUsedLimit(kase){
   let lim = effectiveSlaLimit(kase);
   if (lim === null || lim === undefined) {
     const dt = DOC_TYPES[kase.docType] || DOC_TYPES['213'];
     lim = dt.sla.completeSign;
   }
   let used = kase.slaDays;
-  if (used === null || used === undefined) {
-    used = fakeSlaUsed(kase, lim);
+  if (used === null || used === undefined) used = fakeSlaUsed(kase, lim);
+  return { used, lim };
+}
+function slaBadge(kase){
+  const resSla = resolutionSlaInfo(kase);
+  if (resSla) {
+    return `<span class="sla ${slaClass(resSla.used, resSla.limit)}" title="กำหนดออกมติ 15 วันทำการนับจากวันที่บอร์ดมีมติ">
+      <i class="fa-solid fa-clock me-1"></i>${slaLabel(resSla.used, resSla.limit)} (ออกมติ)</span>`;
   }
+  const { used, lim } = slaUsedLimit(kase);
   return `<span class="sla ${slaClass(used, lim)}">
     <i class="fa-solid fa-clock me-1"></i>${slaLabel(used, lim)}</span>`;
 }
@@ -5645,11 +5952,27 @@ function toggleSidebarCollapse() {
 }
 
 let fontStep = 0;
+/* ตัวอักษรฐาน 1rem ≈ 17px ตามมาตรฐานกลาง E-CMIS (AGENTS.md §2) ทุกหน้าของ ก7 (Task 180)
+   ปุ่ม A−/A/A+ ยังเพิ่ม/ลดทีละ 2px เหมือนเดิม */
+function fontBaseSize() {
+  return 17;
+}
+/* ปุ่ม A−/A/A+ ที่ตรงกับขนาดปัจจุบันเป็นสีทอง (ws-font-controls button.active ของ ก4/ก5) */
+function syncFontButtons(step) {
+  if (typeof document === 'undefined') return;
+  const want = step < 0 ? '-1' : (step > 0 ? '1' : '0');
+  document.querySelectorAll('.a7-font-controls [data-font-step]').forEach(b => {
+    const on = b.dataset.fontStep === want;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
 function changeFont(dir) {
   if (dir === 0) fontStep = 0;
   else fontStep = Math.max(-2, Math.min(3, fontStep + dir));
-  const baseSize = 14.5 + fontStep * 2;
+  const baseSize = fontBaseSize() + fontStep * 2;
   document.documentElement.style.fontSize = baseSize + 'px';
+  syncFontButtons(fontStep);
   localStorage.setItem('ecmis_font_step', fontStep);
   toastOk(`ปรับขนาดตัวอักษรเป็น: ${dir > 0 ? 'ใหญ่ขึ้น' : dir < 0 ? 'เล็กลง' : 'ปกติ'}`);
 }
@@ -5658,8 +5981,9 @@ function initA11yAndPref() {
   if (typeof document === 'undefined') return;
 
   const fontStepVal = parseInt(localStorage.getItem('ecmis_font_step') || '0', 10);
-  const baseSize = 14.5 + fontStepVal * 2;
+  const baseSize = fontBaseSize() + fontStepVal * 2;
   document.documentElement.style.fontSize = baseSize + 'px';
+  syncFontButtons(fontStepVal);
 
   let colorMode = localStorage.getItem('ecmis_color_mode');
   if (colorMode === null) {
@@ -5681,6 +6005,11 @@ function initA11yAndPref() {
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     document.body.classList.add('reduced-motion');
   }
+}
+
+function openCommandPalette() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
 }
 
 function initCommandPalette() {
@@ -5798,7 +6127,7 @@ function initCommandPalette() {
         html += `
         <a class="cmd-palette-item ${activeClass}" href="${targetPage}?case=${encodeURIComponent(c.id)}">
           <i class="fa-solid fa-folder-closed"></i>
-          <span><strong>เลขสำนวน: ${c.id}</strong> — ${c.subject.substring(0, 50)}...</span>
+          <span><strong>เลขสำนวน: ${caseNo(c)}</strong> — ${c.subject.substring(0, 50)}...</span>
           <span class="cmd-palette-item-meta">สถานะ: ${STATUS[c.status]?.label || c.status}</span>
         </a>`;
       });
@@ -7917,7 +8246,19 @@ async function getAgendaContextForCase(kase) {
   const registry = typeof window !== 'undefined' ? window.AgendaRegistry : null;
   if (!registry || !kase) return null;
   try { await registry.ready; } catch (e) { return null; }
-  const matches = (registry.ITEMS || []).filter(item => String(item.case_ref || '').split(',').map(ref => ref.trim()).includes(kase.id));
+  const payload = kase.junction?.payload || {};
+  const sourceRefs = [kase.id, payload.caseNumber].filter(Boolean).map(String);
+  const sourceDocType = String(payload.docType || kase.docType || '');
+  const expectedCategory = sourceDocType === '644' ? 'finding' : sourceDocType === '213' ? 'preliminary' : '';
+  const isJunctionCase = Boolean(kase.junction);
+  const preferredItemId = kase.junction?.agenda?.trciId;
+  const items = registry.ITEMS || [];
+  const referencesCase = item => String(item.case_ref || '').split(',').map(ref => ref.trim()).some(ref => sourceRefs.includes(ref));
+  const preferred = preferredItemId
+    ? items.filter(item => String(item.trci_id) === String(preferredItemId) && referencesCase(item) && (!expectedCategory || item.category === expectedCategory))
+    : [];
+  const matches = (preferred.length ? preferred : items.filter(referencesCase))
+    .filter(item => !isJunctionCase || !expectedCategory || item.category === expectedCategory);
   const contexts = matches.map(item => {
     const meeting = registry.meetingOf ? registry.meetingOf(item) : (registry.MEETINGS || []).find(row => row.trc_id === item.trc_id);
     return meeting ? {
@@ -7927,7 +8268,13 @@ async function getAgendaContextForCase(kase) {
       agendaDetails:item.trci_detail || item.trci_description || (item.remark && item.remark !== '-' ? item.remark : '') || ''
     } : null;
   }).filter(Boolean);
-  contexts.sort((a, b) => String(b.meetingDate || '').localeCompare(String(a.meetingDate || '')) || Number(b.agendaItemId || 0) - Number(a.agendaItemId || 0));
+  contexts.sort((a, b) => {
+    const aCategory = items.find(item => String(item.trci_id) === String(a.agendaItemId))?.category || '';
+    const bCategory = items.find(item => String(item.trci_id) === String(b.agendaItemId))?.category || '';
+    const aMatch = expectedCategory && aCategory === expectedCategory ? 1 : 0;
+    const bMatch = expectedCategory && bCategory === expectedCategory ? 1 : 0;
+    return bMatch - aMatch || String(b.meetingDate || '').localeCompare(String(a.meetingDate || '')) || Number(b.agendaItemId || 0) - Number(a.agendaItemId || 0);
+  });
   return contexts[0] || null;
 }
 
@@ -7990,6 +8337,17 @@ function renderBackButton(opts) {
       });
 
       targetContainer = pageHead.querySelector('div:first-child');
+      /* หน้ารายละเอียดสำนวน (มี #stBadge) แสดงหัวหน้าเป็นการ์ดหัวเรื่องแบบ ws-case-head ของ ก4/ก5 —
+         ปุ่มกลับอยู่นอกการ์ด เหนือการ์ด (Task 180) */
+      if (pageHead.querySelector('#stBadge')) {
+        let row = pageHead.previousElementSibling;
+        if (!row || !row.classList.contains('a7-back-row')) {
+          row = document.createElement('div');
+          row.className = 'a7-back-row';
+          pageHead.parentNode.insertBefore(row, pageHead);
+        }
+        targetContainer = row;
+      }
       if (targetContainer) {
         // Ensure parent div is not forcing horizontal flex layout on h1
         targetContainer.classList.remove('d-flex', 'align-items-center');
@@ -8358,7 +8716,7 @@ if (typeof localStorage !== 'undefined') {
   }
 
   global.ECMIS = {
-  caseFlowSteps,
+  caseFlowSteps, kpiCardHtml, setActiveKpi, resetCaseFlow, openResetCaseDialog,
   initAttachmentCard, refreshAttachmentCard,
   ROLES, STATUS, STATUS_CODE, CODE_STATUS, STATUS_STEP, FLOW_STEPS, APPROVAL_CHAIN,
   buildChainOpinions, supabaseRowToCase, toBuddhistFakeIso, addDaysToDateStr, addYearsToDateStr,
@@ -8379,16 +8737,16 @@ if (typeof localStorage !== 'undefined') {
   BOARD_MIN_IN_OFFICE, boardQuorum,
   M24P1_MIN_PANEL, M24P1_STAFF_FREE, panelComposition,
   CONFIG, RETURN_SCOPES, MATERIAL_FIELDS, daysUntil,
-  UPSTREAM_CHAIN, isUpstreamRole, isUpstreamCase, isCase72, PAGE_FOR_72, pageForCase72, pageForCaseByStatus, homeHref, resolvePage,
+  UPSTREAM_CHAIN, UPSTREAM_MOCK_SLA, upstreamMockChain, upstreamMockTitle, isUpstreamRole, isUpstreamCase, isCase72, PAGE_FOR_72, pageForCase72, pageForCaseByStatus, homeHref, resolvePage,
   PAGE_PERMISSIONS, canAccessPage, inResFolder, assetUrl, getSupabaseClient, logRequestEvent, updateCaseStatus,
   PERM_DEFS, can, canEditMaster, canViewCase,
-  thaiDate, thaiDayName, toThaiDigits, slaClass, slaLabel, effectiveSlaLimit, getCase, requireCase, cacheLiveCases, getRole, roleIdForLogin, LOGIN_ALLOWED_ROLE_IDS,
+  thaiDate, thaiDayName, toThaiDigits, slaClass, slaLabel, effectiveSlaLimit, caseNo, getCase, requireCase, cacheLiveCases, getRole, roleIdForLogin, LOGIN_ALLOWED_ROLE_IDS,
   addBusinessDays, businessDaysBetween, resolutionSlaInfo, SUBCOMMITTEE_ROSTER, getLockedBoardAttendance, getAgendaContextForCase,
   currentRoleId, currentRole, setRole, inboxFor, canAct, canRecall,
   SUBCOMMITTEE_TEAMS, currentSubTeam, setSubTeam,
   SUPPORT_GROUPS, SUPPORT_GROUP_LABELS, currentSupportGroup, setSupportGroup,
   isAuthed, currentUsername, logout,
-  renderShell, stepperHtml, statusBadge, typeBadge, slaBadge, actionBar,
+  renderShell, stepperHtml, statusBadge, typeBadge, slaBadge, slaUsedLimit, actionBar,
   markNotifRead, getReadNotifIds, formatNotifReadAt, loadNotifReadReceipts, handleNotifLinkClick,
   mergeField, removePreviewEllipses, escapeHtml, fakeTodayIso, daysUntilFakeIso, paginateDoc, paginateResolutionDoc, exportDocToDocx, exportDocToPdf, printDoc, confirmAction, toastOk, toastWarn, signDialog, sequentialSignDialog,
 
@@ -8396,7 +8754,7 @@ if (typeof localStorage !== 'undefined') {
   ACT7_STATUSES_72, getAct7Status72,
   RESOLUTION_STAGES, resolutionStageLabel, resolutionStageBadge, computeResolutionStage,
 
-  saveCases, toggleColorMode, toggleSidebarCollapse, changeFont, toggleVoiceRecognition,
+  saveCases, toggleColorMode, toggleSidebarCollapse, changeFont, openCommandPalette, toggleVoiceRecognition,
   initSmartCombobox, initMultiSelectCombo, initRealTimeValidation, initVoiceInput, initSignaturePad,
   signaturePad: (window.ecmis && window.ecmis.signaturePad),
   initAutoSave, initCharCounterAndCopy,
@@ -8409,4 +8767,3 @@ if (typeof localStorage !== 'undefined') {
 };
 
 })(window);
-

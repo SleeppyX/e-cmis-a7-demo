@@ -13,7 +13,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="../assets/ecmis-app.css" rel="stylesheet">
-  <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
+  <link href="../assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
 </head>
 
 <body class="ws-std">
@@ -271,7 +271,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
 <script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
@@ -404,6 +404,7 @@
 
       // Apply Sorting
       const sorted = [...filtered].sort((a, b) => {
+        const pin = ECMIS.comparePinnedCases(a, b); if (pin) return pin; // Task 221: 0001/0005/9507 บนสุดเสมอ
         let valA = a[sortField];
         let valB = b[sortField];
 
@@ -433,7 +434,7 @@
 
         return `<tr>
       <td>
-        <span class="case-no">${c.id}</span>
+        <span class="case-no">${ECMIS.caseNoListHtml(c)}</span>
         ${procBadge}
         ${(c.urgent || c.urgent72) ? '<span class="st st-urgent ms-1">ด่วน</span>' : ''}
         ${c.dupWarning ? '<span class="st st-returned ms-1" title="ระบบตรวจพบสำนวนที่อาจซ้ำซ้อน"><i class="fa-solid fa-clone"></i> ซ้ำ?</span>' : ''}

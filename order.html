@@ -14,7 +14,7 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
-  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
   <style>
     .mode-switch{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.9rem}
     .mode-switch button{border:1px solid #c9d3dd;background:#fff;color:#3D495E;border-radius:999px;
@@ -438,7 +438,7 @@
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+  <script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
 <script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
@@ -830,7 +830,7 @@
         if (!sent && appointOrderAllowed(kase)) {
           if (ECMIS.can('order24.draft', role.id))
             btns.push({ act: 'draft', label: 'บันทึกร่างคำสั่ง', icon: 'fa-floppy-disk', cls: 'btn-outline-secondary' });
-          btns.push({ act: 'send_order', label: 'ส่งออกเพื่อลงนาม', icon: 'fa-paper-plane', cls: 'btn-gold' });
+          btns.push({ act: 'send_order', label: 'ออกคำสั่ง', icon: 'fa-circle-check', cls: 'btn-gold' });
         }
         /* sent && !isSignerViewing: ส่งไปแล้ว รอฝั่งลงนาม ไม่มีอะไรให้ผู้ร่างกดต่อ */
       } else if (signedAppoint) {
@@ -1250,7 +1250,7 @@
         }
       } else {
         btns.push({ act: 'memoDraft', label: 'บันทึกร่าง', icon: 'fa-floppy-disk', cls: 'btn-outline-secondary' });
-        btns.push({ act: 'send_order', label: 'ส่งออกเพื่อลงนาม', icon: 'fa-paper-plane', cls: 'btn-gold' });
+        btns.push({ act: 'send_order', label: 'ออกบันทึกเสนอ', icon: 'fa-circle-check', cls: 'btn-gold' });
       }
       document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(
         Object.assign({}, kase, { status: 'RESOLVED' }), role.id, btns, { forceAllowed: btns.length > 0 });
@@ -1611,7 +1611,7 @@
       } else {
         if (appointOrderAllowed(kase)) {
           btns.push({ act: 'amendDraft', label: 'บันทึกร่าง', icon: 'fa-floppy-disk', cls: 'btn-outline-secondary' });
-          btns.push({ act: 'send_order', label: 'ส่งออกเพื่อลงนาม', icon: 'fa-paper-plane', cls: 'btn-gold' });
+          btns.push({ act: 'send_order', label: 'ออกคำสั่งแก้ไข', icon: 'fa-circle-check', cls: 'btn-gold' });
         }
       }
       document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(
@@ -1833,19 +1833,15 @@
         if (currentMode !== 'memo' && !appointOrderAllowed(kase)) {
           ECMIS.toastWarn('มติของเรื่องนี้ไม่ต้องออกคำสั่งแต่งตั้ง ม.24 — ออกคำสั่งได้เฉพาะมติรับไว้ไต่สวน'); return;
         }
-        let targetStatus = isSub ? 'PENDING_SIGN_ORDER_CHAIRMAN' : 'PENDING_SIGN_ORDER_SECGEN';
-        let targetSignerTitle = SIGNER.title;
+        /* Task 213: เจ้าหน้าที่กลุ่มงานกิจการฯ ออกคำสั่ง ม.24 เองจบที่ขั้นนี้ — ไม่ส่งเข้าคิวเลขาธิการฯ/ประธานฯ ลงนามแล้ว
+           (ทั้งคำสั่งแต่งตั้ง บันทึกเสนอ และคำสั่งแก้ไข) ช่องลงนามในแบบพิมพ์คงชื่อผู้ลงนามตามแบบ ลงนามนอกระบบ */
+        const targetStatus = 'UNDER_INVESTIGATION';
+        const fromStatus = kase.status;
         let docWord = 'คำสั่ง';
 
         if (currentMode === 'memo') {
-          const s = MEMO_SIGNER[isSub ? 'sub' : 'base'];
-          targetSignerTitle = s.title;
-          targetStatus = isSub ? 'PENDING_SIGN_ORDER_CHAIRMAN' : 'PENDING_SIGN_ORDER_SECGEN';
           docWord = 'บันทึกเสนอ';
         } else if (currentMode === 'amend') {
-          const s = amendSigner();
-          targetSignerTitle = s.title;
-          targetStatus = amendLevel() === 'sub' ? 'PENDING_SIGN_ORDER_CHAIRMAN' : 'PENDING_SIGN_ORDER_SECGEN';
           docWord = 'คำสั่งแก้ไข';
         } else {
           if (!document.getElementById('orderNo').value.trim()) { ECMIS.toastWarn('กรุณากรอกเลขที่คำสั่งที่ขอจากงานสารบรรณ'); return; }
@@ -1876,6 +1872,9 @@
                   trr_resolution_data: updatedResData
                 }).eq('trr_id', kase.trr_id);
               if (error) throw error;
+              await ECMIS.logRequestEvent(kase.trr_id, fromStatus, targetStatus, {
+                type: 'ISSUE_ORDER_24', actorRole: role.id, data: { docType: docWord, orderNo: orderNoVal, orderMode: currentMode }
+              });
             }
           } catch (e) {
             console.error(e);
@@ -1897,7 +1896,7 @@
             memCase.order24OffenseBasis = kase.order24OffenseBasis;
           }
           ECMIS.saveCases();
-          ECMIS.toastOk(`ส่ง${docWord}ให้ ${targetSignerTitle} ลงนามเรียบร้อย`);
+          ECMIS.toastOk(`ออก${docWord}เรียบร้อย — สำนวนอยู่ระหว่างไต่สวนตามคำสั่ง ม.24`);
           setTimeout(() => location.href = ECMIS.homeHref(role.id), 1200);
         })();
         return;

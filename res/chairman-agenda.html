@@ -14,7 +14,7 @@
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link href="../assets/ecmis-app.css" rel="stylesheet">
     <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
-    <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
+    <link href="../assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
     <style>
         .document-workspace {
             display: grid !important;
@@ -77,6 +77,13 @@
         <div class="document-workspace" id="docWorkspace">
             <!-- Left Column: Signing Desk & Case Context -->
             <div id="docLeftCol">
+                <!-- การ์ดเส้นทางการเสนอความเห็นอยู่บนสุดของคอลัมน์ซ้ายเสมอ (Task 201) -->
+                <div class="ws-card mb-3">
+                    <div class="card-header"><i class="fa-solid fa-list-ol"></i> เส้นทางการเสนอความเห็นตามลำดับชั้น <span class="chip ms-2" id="chainMockChip" style="font-size:.7rem">ตัวอย่างประกอบ</span></div>
+                    <div class="card-body">
+                        <ul class="tl mb-0" id="chain"></ul>
+                    </div>
+                </div>
 
                 <!-- Card 2: Case Summary -->
                 <div class="ws-card mb-3">
@@ -94,14 +101,6 @@
                     </div>
                 </div>
 
-                <!-- Card 3: Upstream Chain Timeline -->
-                <div class="ws-card mb-3">
-                    <div class="card-header"><i class="fa-solid fa-list-ol"></i> เส้นทางการเสนอความเห็นตามลำดับชั้น
-                        (ต้นทาง กว.5 → เลขาธิการฯ)</div>
-                    <div class="card-body">
-                        <ul class="tl mb-0" id="chain"></ul>
-                    </div>
-                </div>
 
                 <!-- Card 3.4: เหตุผลเร่งด่วน (เฉพาะเรื่องด่วน 7.1/7.3 ที่ ผอ.กบค. รับรองและเลขาฯ ยืนยันมาแล้ว) -->
                 <div class="ws-card mb-3 d-none" id="urgentCard">
@@ -140,7 +139,7 @@
                         <div id="sigBox" class="sig-box">
                             <i class="fa-solid fa-file-signature fa-2x mb-2" style="color:#7C8CA3"></i>
                             <div class="sig-name">ยังไม่ได้ลงนาม</div>
-                            <div class="sig-meta">กดปุ่ม "ลงนามดิจิทัลคำสั่ง" ที่แถบด้านล่างเพื่อดำเนินการ</div>
+                            <div class="sig-meta">กดปุ่มลงนามที่แถบด้านล่างเพื่อดำเนินการ</div>
                         </div>
                     </div>
                 </div>
@@ -254,7 +253,7 @@
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
     <script src="../cases.js"></script>
-    <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+    <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
 <script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
@@ -294,49 +293,11 @@
             document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${ECMIS.caseNo(kase)}</span>` + ECMIS.statusBadge(kase.status) + ' ' + ECMIS.slaBadge(kase);
             document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase);
 
-            // Render Upstream Chain Timeline
-            const FULL_CHAIN = ECMIS.UPSTREAM_CHAIN.concat(['secgen', 'chairman']);
-            const opByRole = Object.fromEntries((kase.chainOpinions || []).map(o => [o.roleId, o]));
-            document.getElementById('chain').innerHTML = FULL_CHAIN.map(rid => {
-                const r = ECMIS.getRole(rid);
-                const op = opByRole[rid];
-                let cls = 'ok', note = '';
-
-                if (rid === 'chairman') {
-                    cls = 'now';
-                    note = '<strong>อยู่ระหว่างประธานกรรมการ ป.ป.ท. พิจารณาลงนาม (คุณ)</strong>';
-                } else if (op) {
-                    cls = 'ok';
-                    note = `เห็นชอบแล้ว · <span class="text-success fw-medium"><i class="fa-solid fa-check me-1"></i>ลงนามเมื่อ ${ECMIS.thaiDate(op.date)}</span>`;
-                } else if (rid === 'secgen') {
-                    cls = 'ok';
-                    note = `เห็นชอบแล้ว · <span class="text-success fw-medium"><i class="fa-solid fa-signature me-1"></i>ลงนามดิจิทัลโดย นายอภิชาติ สุจริตกุล (เลขาธิการฯ)</span>`;
-                } else {
-                    cls = 'ok';
-                    note = 'เห็นชอบแล้วตามลำดับชั้น';
-                }
-
-                let opHtml = '';
-                if (op) {
-                    opHtml = `<div class="tl-m mt-1">
-                        <span class="st st-done" style="font-size:.68rem">${ECMIS.OPINION_TYPES[op.type]?.label || 'เห็นชอบ'}</span>
-                        <span class="text-muted ms-1" style="font-size:.75rem">${op.note}</span>
-                    </div>`;
-                } else if (rid === 'secgen') {
-                    opHtml = `<div class="tl-m mt-1">
-                        <span class="st st-done" style="font-size:.68rem">เห็นชอบ</span>
-                        <span class="text-muted ms-1" style="font-size:.75rem">เสนอประธานกรรมการ ป.ป.ท. พิจารณาลงนามและส่งบรรจุวาระ</span>
-                    </div>`;
-                }
-
-                return `<li class="${cls}"><span class="tl-dot"></span>
-                    <div class="tl-t">${r.title} ${rid === 'chairman' ? '<span class="chip ms-1">คุณ</span>' : ''}</div>
-                    <div class="tl-m">${r.name} · ${note}</div>${opHtml}
-                </li>`;
-            }).join('');
+            /* ตัวอย่างประกอบชั้นกอง/เขต 2 แถว + ขั้นที่ผ่านแล้วจริงตามแถบขั้นตอน (Task 211) */
+            document.getElementById('chain').innerHTML = ECMIS.caseRouteChainHtml(kase);
 
             const sourceChain = window.ECMISJunctionBridgeA7?.renderSourceChain?.(kase);
-            if (sourceChain !== null && sourceChain !== undefined) document.getElementById('chain').innerHTML = sourceChain;
+            if (sourceChain !== null && sourceChain !== undefined) { document.getElementById('chain').innerHTML = sourceChain; document.getElementById('chainMockChip')?.classList.add('d-none'); }
 
             // Render Summary Card
             document.getElementById('summary').innerHTML = [
@@ -349,7 +310,7 @@
             ].map(([k, v]) => `<div class="col-md-6"><span class="k">${k}:</span> <span class="v">${v}</span></div>`).join('');
 
             document.getElementById('sAllegation').textContent = kase.allegation || kase.subject;
-            document.getElementById('sAccused').innerHTML = (kase.accused || []).map(a => `<div><strong>${a.no}. ${a.name}</strong> — ${a.pos} (${a.agency})</div>`).join('') || '—';
+            document.getElementById('sAccused').innerHTML = (kase.accused || []).map(a => `<div><strong>${a.no}. ${ECMIS.escapeHtml(a.name)}</strong> — ${ECMIS.escapeHtml(ECMIS.dash(a.pos))}${ECMIS.isBlankValue(a.agency) ? '' : ` (${ECMIS.escapeHtml(a.agency)})`}</div>`).join('') || '—'; // Task 230: ไม่แสดง null
 
             // Check if already signed
             if (kase.signedByChair) {
@@ -430,7 +391,12 @@
         }
 
         /* ---------- Live A4 Document Rendering ---------- */
+        function syncMainTabLabel() {
+            const t = document.getElementById('tabMainOrder');
+            if (t && ECMIS.isUrgentAgendaCase(kase)) t.innerHTML = '<i class="fa-solid fa-file-signature me-1"></i>บันทึกสั่งบรรจุวาระ (ด่วน)';
+        }
         function renderDoc() {
+            syncMainTabLabel();
             const M = ECMIS.mergeField;
             const is72 = ECMIS.isCase72(kase) || kase.status === 'PENDING_SIGN_RULING_72';
             const docPaperEl = document.getElementById('docPaper');
@@ -617,6 +583,9 @@
                             ${signed ? `<div style="font-size:0.8rem; color:#16A34A; margin-top:4px;"><i class="fa-solid fa-certificate me-1"></i>Digital Signature Verified (${pendingSigData?.certCode || SIGNER_CERT})</div>` : ''}
                         </div>
                     </div>`;
+            } else if (ECMIS.isUrgentAgendaCase(kase)) {
+                // Task 229: เคสด่วนสาย 7.1/7.3 ขั้น "สั่งการ" — ประธานฯ ลงนามบันทึกสั่งบรรจุวาระ (ด่วน) ไม่ใช่คำสั่งแต่งตั้ง ปปท. ๕-๐๒
+                docPaperEl.innerHTML = ECMIS.urgentAgendaMemoHtml(kase, { signed, sigImg: pendingSigData && pendingSigData.sig, signerName: SIGNER_NAME, signerTitle: SIGNER_TITLE, cert: (pendingSigData && pendingSigData.certCode) || SIGNER_CERT });
             } else {
                 // Tab 1: Main Order / Ruling Report (ปปท. ๕-๐๒ หรือ ปปท. ๗-๐๒)
                 if (is72) {
@@ -632,7 +601,7 @@
                         <div class="doc-indent" style="margin-top:16px;font-size:16pt;line-height:1.3;text-indent:2.5em;">
                             ในคราวการประชุมคณะกรรมการ ป.ป.ท. เพื่อพิจารณาและวินิจฉัยชี้มูลความผิด เรื่องที่ ${M(ECMIS.caseNo(kase))} 
                             ของคณะอนุกรรมการไต่สวน/คณะพนักงานไต่สวน ตามคำสั่งคณะกรรมการ ป.ป.ท./สำนักงาน ป.ป.ท. 
-                            กรณีกล่าวหา ${(kase.accused || []).map(a => `<strong>${a.name}</strong> ${a.pos}`).join(', ') || 'ผู้ถูกกล่าวหา'}
+                            กรณีกล่าวหา ${(kase.accused || []).map(a => `<strong>${M(a.name)}</strong> ${M(a.pos)}`).join(', ') || 'ผู้ถูกกล่าวหา'}
                         </div>
 
                         <div class="doc-h" style="font-size:16pt;font-weight:700;margin-top:14px;">ประเด็นการวินิจฉัยและข้อเท็จจริง</div>
@@ -674,7 +643,7 @@
 
                         <div class="doc-indent" style="margin-top:16px;font-size:16pt;line-height:1.3;text-indent:2.5em;">
                             ด้วยคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ (คณะกรรมการ ป.ป.ท.) ได้รับเรื่องกล่าวหา 
-                            สำนวนเรื่องที่ <strong>${M(ECMIS.caseNo(kase))}</strong> กรณีกล่าวหา ${(kase.accused || []).map(a => `<strong>${a.name}</strong> ตำแหน่ง ${a.pos} สังกัด ${a.agency}`).join(', ') || 'ผู้ถูกกล่าวหา'} 
+                            สำนวนเรื่องที่ <strong>${M(ECMIS.caseNo(kase))}</strong> กรณีกล่าวหา ${(kase.accused || []).map(a => `<strong>${M(a.name)}</strong> ตำแหน่ง ${M(a.pos)} สังกัด ${M(a.agency)}`).join(', ') || 'ผู้ถูกกล่าวหา'} 
                             ว่ากระทำความผิด ${M(kase.allegation || kase.subject)}
                         </div>
 
@@ -727,7 +696,7 @@
                 sigBoxEl.innerHTML = `
                     <i class="fa-solid fa-file-signature fa-2x mb-2" style="color:#7C8CA3"></i>
                     <div class="sig-name">ยังไม่ได้ลงนาม</div>
-                    <div class="sig-meta">กดปุ่ม "ลงนามดิจิทัลคำสั่ง" ที่แถบด้านล่างเพื่อดำเนินการ</div>`;
+                    <div class="sig-meta">กดปุ่มลงนามที่แถบด้านล่างเพื่อดำเนินการ</div>`;
             }
         }
 
@@ -756,12 +725,12 @@
                 return [
                     { act: 'edit_sign', label: 'แก้ไข / ลงนามใหม่', icon: 'fa-pen-to-square', cls: 'btn-outline-warning' },
                     { act: 'clear_sign', label: 'ลบลายเซ็น', icon: 'fa-trash-can', cls: 'btn-outline-danger' },
-                    { act: 'save_status', label: 'บันทึกคำสั่งและส่งบรรจุวาระ', icon: 'fa-paper-plane', cls: 'btn-success' }
+                    { act: 'save_status', label: ECMIS.isUrgentAgendaCase(kase) ? 'บันทึกและส่งบรรจุวาระด่วน' : 'บันทึกคำสั่งและส่งบรรจุวาระ', icon: 'fa-paper-plane', cls: 'btn-success' }
                 ];
             }
             return [
                 { act: 'return', label: 'ตีกลับให้แก้ไข', icon: 'fa-arrow-left-long', cls: 'btn-outline-danger' },
-                { act: 'sign', label: 'ลงนามดิจิทัลคำสั่ง (2-Step)', icon: 'fa-signature', cls: 'btn-gold' }
+                { act: 'sign', label: ECMIS.isUrgentAgendaCase(kase) ? 'ลงนามสั่งบรรจุวาระด่วน' : 'ลงนามดิจิทัลคำสั่ง (2-Step)', icon: 'fa-signature', cls: 'btn-gold' }
             ];
         }
 
@@ -1038,8 +1007,9 @@
                 return;
             }
             if (act === 'sign') {
-                const docTitle = ECMIS.isCase72(kase) ? 'รายงานการไต่สวนเพื่อวินิจฉัยชี้มูล (ปปท. ๗-๐๒)' : 'คำสั่งแต่งตั้งคณะอนุกรรมการไต่สวน (ปปท. ๕-๐๒)';
-                ECMIS.signDialog(`ลงนามคำสั่งประธานกรรมการ ป.ป.ท. — ${docTitle} (เรื่องที่ ${ECMIS.caseNo(kase)})`,
+                const urgentMemo = ECMIS.isUrgentAgendaCase(kase);
+                const docTitle = urgentMemo ? 'บันทึกสั่งบรรจุวาระการประชุม (ด่วน)' : ECMIS.isCase72(kase) ? 'รายงานการไต่สวนเพื่อวินิจฉัยชี้มูล (ปปท. ๗-๐๒)' : 'คำสั่งแต่งตั้งคณะอนุกรรมการไต่สวน (ปปท. ๕-๐๒)';
+                ECMIS.signDialog(urgentMemo ? `${docTitle} — เรื่องที่ ${ECMIS.caseNo(kase)}` : `ลงนามคำสั่งประธานกรรมการ ป.ป.ท. — ${docTitle} (เรื่องที่ ${ECMIS.caseNo(kase)})`,
                     `${SIGNER_NAME} — ${SIGNER_TITLE}`, SIGNER_CERT)
                     .then(res => {
                         if (!res.isConfirmed) return;

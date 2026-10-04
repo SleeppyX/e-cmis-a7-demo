@@ -10,7 +10,7 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 <link href="../assets/ecmis-app.css" rel="stylesheet">
-<link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
+<link href="../assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
 <style>
 .btn-xs { font-size: 0.76rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
 /* 7 การ์ด KPI — เดิมตั้งตายตัวที่ 5 ใบ/แถว ทำให้แถวสุดท้ายเหลือ 2 ใบลอยไม่สมมาตร
@@ -199,7 +199,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
 <script src="../cases.js"></script>
-<script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
 <script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
@@ -247,12 +247,14 @@ async function loadMeetingLinksFromSupabase() {
   try {
     const { data, error } = await sb
       .from('tbl_res_calendar_item_case')
-      .select('trr_id, tbl_res_calendar_item!inner(trci_number, is_deleted, tbl_res_calendar!inner(trc_name, trc_date, is_deleted))')
+      .select('trcic_id, trr_id, tbl_res_request(trr_resolution_data), tbl_res_calendar_item!inner(trci_number, is_deleted, tbl_res_calendar!inner(trc_name, trc_date, is_deleted))')
+      .eq('is_deleted', false)
       .eq('tbl_res_calendar_item.is_deleted', false)
       .eq('tbl_res_calendar_item.tbl_res_calendar.is_deleted', false);
     if (error) throw error;
     const map = {};
     (data || []).forEach(row => {
+      if (ECMIS.isStaleAgendaLink(row)) return; // แถวค้างจากการเล่นรอบก่อน (ปุ่มลัด R×3) — Task 196
       const item = row.tbl_res_calendar_item;
       const meeting = item && item.tbl_res_calendar;
       if (!meeting) return;
@@ -310,7 +312,7 @@ function matchesSearchTypeMeeting(c) {
   const is73 = ECMIS.isCase73(c);
 
   const matchQ = !q ||
-    c.id.toLowerCase().includes(q) ||
+    ECMIS.caseSearchText(c).includes(q) ||
     (c.subject && c.subject.toLowerCase().includes(q)) ||
     (c.ownerOrg && c.ownerOrg.toLowerCase().includes(q)) ||
     (c.owner && c.owner.toLowerCase().includes(q)) ||
@@ -497,7 +499,7 @@ function row(c){
   const statusBadgeHtml = getActionBadge(c);
 
   return `<tr>
-    <td class="case-no">${c.id}${(c.urgent || c.urgent72)?' <span class="st st-urgent ms-1">ด่วน</span>':''}</td>
+    <td class="case-no">${ECMIS.caseNoListHtml(c)}${(c.urgent || c.urgent72)?' <span class="st st-urgent ms-1">ด่วน</span>':''}</td>
     <td>${typeBadge(c, is72)}</td>
     <td>${agendaCell(c)}</td>
     <td style="max-width:320px">
@@ -553,6 +555,7 @@ function renderMyQueue(loading = false) {
   // เรียงตามเลขสำนวนแทน
   function sortByField(list) {
     return [...list].sort((a, b) => {
+      const pin = ECMIS.comparePinnedCases(a, b); if (pin) return pin; // Task 221: 0001/0005/9507 บนสุดเสมอ
       if (a.agendaNo && b.agendaNo) return compareAgendaNo(a.agendaNo, b.agendaNo);
       if (a.agendaNo && !b.agendaNo) return -1;
       if (!a.agendaNo && b.agendaNo) return 1;
@@ -649,7 +652,7 @@ function applyFilters() {
 
     // Search query match
     const matchQ = !q ||
-      c.id.toLowerCase().includes(q) ||
+      ECMIS.caseSearchText(c).includes(q) ||
       (c.subject && c.subject.toLowerCase().includes(q)) ||
       (c.ownerOrg && c.ownerOrg.toLowerCase().includes(q)) ||
       (c.owner && c.owner.toLowerCase().includes(q)) ||

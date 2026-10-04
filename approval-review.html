@@ -14,7 +14,7 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
-  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
 </head>
 
 <body class="ws-std">
@@ -278,7 +278,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+  <script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
 <script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
@@ -651,15 +651,16 @@
            <div class="ws-readonly">${kase.deputyOpinion ? esc(kase.deputyOpinion) : '<span class="text-muted">— ยังไม่ได้ลงความเห็น —</span>'}</div>
            ${role.id === 'deputy' ? '' : `<div class="text-muted mt-2" style="font-size:.8rem"><i class="fa-solid fa-lock me-1"></i>เฉพาะ${deputy.title}เท่านั้นที่ลงความเห็นในขั้นนี้ได้</div>`}`;
 
+      /* การ์ดที่มาของสำนวนอยู่บนสุดของคอลัมน์ซ้ายเสมอ (Task 201) */
       document.getElementById('docLeftCol').innerHTML = `
-        <div class="ws-card mb-3">
-          <div class="card-header"><i class="fa-solid fa-folder-open"></i> สรุปสำนวน</div>
-          <div class="card-body" style="font-size:.88rem">${summaryHtml}</div>
-        </div>
         <div class="ws-card mb-3">
           <div class="card-header d-flex align-items-center gap-2"><i class="fa-solid fa-sitemap"></i> ที่มาของสำนวน
             ${kase.junction ? '' : '<span class="chip ms-auto" style="font-size:.72rem">ชั้นต้นทางเป็นตัวอย่างประกอบ</span>'}</div>
           <div class="card-body"><ul class="tl mb-0" id="deputyChain">${sourceHtml}</ul></div>
+        </div>
+        <div class="ws-card mb-3">
+          <div class="card-header"><i class="fa-solid fa-folder-open"></i> สรุปสำนวน</div>
+          <div class="card-body" style="font-size:.88rem">${summaryHtml}</div>
         </div>
         <div class="ws-card mb-3">
           <div class="card-header"><i class="fa-solid fa-pen-to-square"></i> ความเห็นรองเลขาธิการฯ</div>
@@ -1342,11 +1343,14 @@
         if (role.id === 'secgen') {
           const hasSupportOpinion = !!(kase.supportOpinion || kase.supportOpinion72 || kase.supportDecision);
           const isRegional = isRegionalCase(kase);
+          /* เคสด่วน (ตั้งต้นด่วน หรือเลขาฯ เลือกด่วน) ไปที่ ผอ.กบค. กำกับความเร่งด่วนเสมอ ตามลำดับใน save_status —
+             ป้ายต้องบอกปลายทางนี้ ไม่ใช่ "ส่งกองบริหารคดี" / "เสนอประธานฯ" ของเส้นทางไม่ด่วน (Task 195) */
+          const goesUrgent = m28Selected() === 'ACCEPT' && !(g1Yes() && !hasSupportOpinion) && (!!kase.urgent || urgentYes());
           if (signed) {
             return [
               { act: 'edit_sign', label: 'แก้ไข / ลงนามใหม่', icon: 'fa-pen-to-square', cls: 'btn-outline-warning' },
               { act: 'clear_sign', label: 'ลบลายเซ็น', icon: 'fa-trash-can', cls: 'btn-outline-danger' },
-              { act: 'save_status', label: hasSupportOpinion ? (isRegional ? 'บันทึกและส่งกองบริหารคดี' : 'บันทึกและเสนอประธานกรรมการ ป.ป.ท.') : 'บันทึกเพื่อเปลี่ยนสถานะ (เลขาลงนามแล้ว)', icon: 'fa-paper-plane', cls: 'btn-success' }
+              { act: 'save_status', label: goesUrgent ? 'บันทึกและส่ง ผอ.กบค. กำกับความเร่งด่วน' : (hasSupportOpinion ? (isRegional ? 'บันทึกและส่งกองบริหารคดี' : 'บันทึกและเสนอประธานกรรมการ ป.ป.ท.') : 'บันทึกเพื่อเปลี่ยนสถานะ (เลขาลงนามแล้ว)'), icon: 'fa-paper-plane', cls: 'btn-success' }
             ];
           }
           const m28 = m28Selected();
@@ -1358,7 +1362,7 @@
                 cls: 'btn-navy'
               });
             } else {
-              b.push({ act: 'sign', label: hasSupportOpinion ? (isRegional ? 'ลงนามดิจิทัลและส่งกองบริหารคดี' : 'ลงนามดิจิทัลและเสนอประธานฯ') : 'ลงนามดิจิทัลและส่งต่อ', icon: 'fa-signature', cls: 'btn-gold' });
+              b.push({ act: 'sign', label: goesUrgent ? 'ลงนามดิจิทัลและส่ง ผอ.กบค. กำกับความเร่งด่วน' : (hasSupportOpinion ? (isRegional ? 'ลงนามดิจิทัลและส่งกองบริหารคดี' : 'ลงนามดิจิทัลและเสนอประธานฯ') : 'ลงนามดิจิทัลและส่งต่อ'), icon: 'fa-signature', cls: 'btn-gold' });
             }
           } else {
             b.push({
@@ -1377,6 +1381,8 @@
           b.addEventListener('click', () => handle(b.dataset.act)));
       }
       renderActionButtons();
+      /* ป้ายปุ่มลงนามขึ้นกับตัวเลือก "เร่งด่วน" — วาดปุ่มใหม่ทุกครั้งที่สลับ (Task 195) */
+      document.querySelectorAll('[name="urgent72toggle"]').forEach(r => r.addEventListener('change', renderActionButtons));
 
       function requireOpinion() {
         const g1yes = document.getElementById('g1yes');

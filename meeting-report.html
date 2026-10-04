@@ -14,7 +14,7 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="assets/ecmis-app.css" rel="stylesheet">
   <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
-  <link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
 </head>
 
 <body class="ws-std">
@@ -154,7 +154,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+  <script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
 <script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
@@ -211,12 +211,13 @@
       if (missing.length) {
         try {
           const { data: links } = await sb.from('tbl_res_calendar_item_case')
-            .select('trr_id, tbl_res_calendar_item(trci_number, is_deleted, tbl_res_calendar(trc_name, trc_date, is_deleted))')
+            .select('trcic_id, trr_id, tbl_res_calendar_item(trci_number, is_deleted, tbl_res_calendar(trc_name, trc_date, is_deleted))')
             .in('trr_id', missing).eq('is_deleted', false);
           (links || []).forEach(l => {
             const it = l.tbl_res_calendar_item, cal = it && it.tbl_res_calendar;
             if (!it || it.is_deleted || !cal || cal.is_deleted) return;
             const c = list.find(x => x.trr_id === l.trr_id);
+            if (c && ECMIS.isStaleAgendaLink(l, c.resolutionData)) return; // แถวค้างจากการเล่นรอบก่อน (Task 196)
             if (c && !c.meetingNo) {
               c.meetingNo = cal.trc_name; c.agendaNo = c.agendaNo || it.trci_number;
               c.meetingDate = c.meetingDate || ECMIS.toBuddhistFakeIso(cal.trc_date);

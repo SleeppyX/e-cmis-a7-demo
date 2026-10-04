@@ -14,7 +14,7 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="../assets/ecmis-app.css" rel="stylesheet">
   <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
-  <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
+  <link href="../assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
   <style>
     .kv .k { color: var(--ecmis-muted); font-weight: 600; }
     .is-invalid-ecmis { border-color: #DB2626 !important; box-shadow: 0 0 0 .15rem rgba(219,38,38,.15); }
@@ -45,6 +45,11 @@
 
       <div class="document-workspace" id="docWorkspace">
         <div id="docLeftCol">
+          <!-- การ์ดเส้นทางการเสนอความเห็นอยู่บนสุดของคอลัมน์ซ้ายเสมอ (Task 201) -->
+          <div class="ws-card mb-3">
+            <div class="card-header"><i class="fa-solid fa-list-ol"></i> เส้นทางการเสนอความเห็นตามลำดับชั้น <span class="chip ms-2" id="chainMockChip" style="font-size:.7rem">ตัวอย่างประกอบ</span></div>
+            <div class="card-body"><ul class="tl mb-0" id="chain"></ul></div>
+          </div>
 
           <!-- 1. สรุปสำนวน -->
           <div class="ws-card mb-3">
@@ -62,10 +67,6 @@
           </div>
 
           <!-- 2. เส้นทางการเสนอความเห็น -->
-          <div class="ws-card mb-3">
-            <div class="card-header"><i class="fa-solid fa-list-ol"></i> เส้นทางการเสนอความเห็นตามลำดับชั้น (ต้นทาง กว.5 → เลขาธิการฯ)</div>
-            <div class="card-body"><ul class="tl mb-0" id="chain"></ul></div>
-          </div>
 
           <!-- 3. ฟอร์มของผู้พิจารณาชั้นนี้ -->
           <div class="ws-card mb-3" id="formCard">
@@ -172,7 +173,7 @@
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
   <script src="../shared-assets/handoff.js"></script>
   <script src="../shared-assets/junctions.js"></script>
   <script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
@@ -214,26 +215,9 @@
       document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขสำนวน ${esc(ECMIS.caseNo(k))}</span>` + ECMIS.statusBadge(k.status) + ' ' + ECMIS.slaBadge(k);
       document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(k, ECMIS.FLOW_STEPS_72, ECMIS.STATUS_STEP_72);
 
-      const FULL_CHAIN = ECMIS.UPSTREAM_CHAIN.concat(['secgen']);
-      const opByRole = Object.fromEntries((k.chainOpinions || []).map(o => [o.roleId, o]));
-      document.getElementById('chain').innerHTML = FULL_CHAIN.map(rid => {
-        const r = ECMIS.getRole(rid);
-        const op = opByRole[rid];
-        let note = 'เห็นชอบแล้วตามลำดับชั้น';
-        if (op) note = `เห็นชอบแล้ว · <span class="text-success fw-medium"><i class="fa-solid fa-check me-1"></i>ลงนามเมื่อ ${ECMIS.thaiDate(op.date)}</span>`;
-        else if (rid === 'secgen') note = `เห็นชอบและลงนามรายงานแล้ว${k.secgenSignedAt ? ' · ' + esc(k.secgenSignedAt) : ''}`;
-        let opHtml = '';
-        if (op) {
-          opHtml = `<div class="tl-m mt-1"><span class="st st-done" style="font-size:.68rem">${(ECMIS.OPINION_TYPES[op.type] && ECMIS.OPINION_TYPES[op.type].label) || 'เห็นชอบ'}</span>
-            <span class="text-muted ms-1" style="font-size:.75rem">${esc(op.note)}</span></div>`;
-        } else if (rid === 'secgen' && k.secgenOpinion) {
-          opHtml = `<div class="tl-m mt-1"><span class="st st-done" style="font-size:.68rem">เห็นชอบ</span>
-            <span class="text-muted ms-1" style="font-size:.75rem">${esc(k.secgenOpinion)}</span></div>`;
-        }
-        return `<li class="ok"><span class="tl-dot"></span><div class="tl-t">${r.title}</div><div class="tl-m">${r.name} · ${note}</div>${opHtml}</li>`;
-      }).join('') + `<li class="now"><span class="tl-dot"></span><div class="tl-t">ประธานกรรมการ ป.ป.ท. <span class="chip ms-1">คุณ</span></div>
-        <div class="tl-m"><strong>อยู่ระหว่างประธานฯ ลงรับและคัดกรองสำนวน (ลงนามคัดกรอง)</strong></div></li>`;
-      if (k.junction) document.getElementById('chain').innerHTML = window.ECMISJunctionBridgeA7.renderSourceChain(k);
+      /* ตัวอย่างประกอบชั้นกอง/เขต 2 แถว + ขั้นที่ผ่านแล้วจริงตามแถบขั้นตอน (Task 211) */
+      document.getElementById('chain').innerHTML = ECMIS.caseRouteChainHtml(k);
+      if (k.junction) { document.getElementById('chain').innerHTML = window.ECMISJunctionBridgeA7.renderSourceChain(k); document.getElementById('chainMockChip')?.classList.add('d-none'); }
 
       document.getElementById('summary').innerHTML = [
         ['เลขสำนวน', ECMIS.caseNo(k)],

@@ -297,7 +297,7 @@
       sb.from('tbl_res_calendar').select('*').eq('is_deleted', false).order('trc_id'),
       sb.from('tbl_res_calendar_item').select('*').eq('is_deleted', false).order('trci_id'),
       sb.from('tbl_res_calendar_item_case')
-        .select('trci_id, trr_id, trcic_remark, tbl_res_request!inner(tbl_cmp_case!inner(tcc_no, tcc_owner_org))')
+        .select('trcic_id, trci_id, trr_id, trcic_remark, tbl_res_request!inner(trr_resolution_data, tbl_cmp_case!inner(tcc_no, tcc_owner_org))')
         .eq('is_deleted', false),
       sb.from('tbl_res_calendar_item_qualifier')
         .select('trci_id, tbl_res_agenda_qualifier!inner(trqf_code, trqf_group, trqf_label, trqf_sort_order)')
@@ -313,6 +313,7 @@
     Object.keys(LINKED_CASE_DETAILS).forEach(k => delete LINKED_CASE_DETAILS[k]);
     LINKED_TRR_IDS.clear();
     (licRows || []).forEach(r => {
+      if (window.ECMIS && ECMIS.isStaleAgendaLink(r)) return; // แถวค้างจากการเล่นรอบก่อน (ปุ่มลัด R×3) — Task 196
       const cc = r.tbl_res_request && r.tbl_res_request.tbl_cmp_case;
       const caseNo = cc && cc.tcc_no;
       if (!caseNo) return;

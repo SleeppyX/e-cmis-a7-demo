@@ -13,7 +13,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="../assets/ecmis-app.css" rel="stylesheet">
-  <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
+  <link href="../assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
   <style>
     .kv { display: grid; grid-template-columns: 150px 1fr; gap: .3rem .8rem; font-size: .86rem; }
     .kv dt { color: var(--ecmis-muted); font-weight: 600; }
@@ -93,7 +93,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
 <script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
@@ -131,7 +131,7 @@
 
     function renderDetail() {
       const k = kase;
-      document.getElementById('pageTitle').textContent = 'รายละเอียดคดี ' + k.id;
+      document.getElementById('pageTitle').textContent = 'รายละเอียดคดี ' + ECMIS.caseNo(k);
       document.getElementById('headBadges').innerHTML = ECMIS.typeBadge(k) + ' ' + ECMIS.statusBadge(k.status) + ' ' + ECMIS.slaBadge(k);
 
       const accused = (k.accused || []).map(a => `${esc(a.name || '')}${a.pos ? ' — ' + esc(a.pos) : ''}`).join('<br>') || '—';
@@ -139,7 +139,7 @@
         ? `${esc(k.subCommittee)}${k.routedByCaseAdminAt ? ' · ส่งเมื่อ ' + new Date(k.routedByCaseAdminAt).toLocaleDateString('th-TH') : ''}`
         : '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">— รอส่งเข้าคณะ</span>';
       document.getElementById('headKv').innerHTML = `
-        <dt>เลขคดี</dt><dd>${esc(k.id)}</dd>
+        <dt>เลขคดี</dt><dd>${esc(ECMIS.caseNo(k))}</dd>
         <dt>ประเภทเรื่อง</dt><dd>${ECMIS.isCase72(k) ? 'วินิจฉัยชี้มูล' : 'ไต่สวนเบื้องต้น'}</dd>
         <dt>ผู้ถูกกล่าวหา</dt><dd>${accused}</dd>
         <dt>เจ้าของสำนวน</dt><dd>${esc(k.owner || '—')}${k.ownerOrg ? ' · ' + esc(k.ownerOrg) : ''}</dd>

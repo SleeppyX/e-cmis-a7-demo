@@ -14,7 +14,7 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="../assets/ecmis-app.css" rel="stylesheet">
   <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
-  <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
+  <link href="../assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
   <style>
     .kpi-card {
       transition: all 0.2s ease;
@@ -139,7 +139,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
 <script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
@@ -151,7 +151,19 @@
     $('#myRoleLabel').text(`บทบาท: คณะอนุกรรมการกลั่นกรองฯ — ${selectedTeam}`);
 
     let sortField = 'id';
-    let sortOrder = 'asc';
+    let sortOrder = 'desc';
+
+    /* เรียงเลขที่ใหม่ไปเก่าแบบ "ปีแล้วเลข" ตาม inbox.html (Task 210) — เทียบเป็นตัวอักษรจะได้ 1233/2566 ก่อน 1277/2569 */
+    function caseIdSortValue(id) {
+      const m = /^(\d+)\/(\d+)$/.exec(id || '');
+      return m ? parseInt(m[2], 10) * 100000 + parseInt(m[1], 10) : 0;
+    }
+    function compareByField(a, b) {
+      let va = a[sortField], vb = b[sortField];
+      if (sortField === 'id') { va = caseIdSortValue(a.id); vb = caseIdSortValue(b.id); }
+      if (typeof va === 'string') return sortOrder === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      return sortOrder === 'asc' ? ((va || 0) - (vb || 0)) : ((vb || 0) - (va || 0));
+    }
 
     /* ---------- โหลดสำนวนจาก Supabase / Local Data (เดียวกับ case-admin-inbox.html) ---------- */
     let sb = null;
@@ -244,18 +256,19 @@
         if (status !== 'ALL' && c.screenStatus !== status) return false;
         if (!q) return true;
         const matchSubject = c.subject && c.subject.toLowerCase().includes(q);
-        const matchId = c.id && c.id.toLowerCase().includes(q);
+        const matchId = ECMIS.caseSearchText(c).includes(q);
         const matchOwner = c.owner && c.owner.toLowerCase().includes(q);
         const matchAccused = c.accused && c.accused.some(a => a.name && a.name.toLowerCase().includes(q));
         return matchSubject || matchId || matchOwner || matchAccused;
       });
 
+      // แถวที่ปุ่มเป็น "ดำเนินการ" (ยังไม่เสร็จ/ไม่ส่งคืน) อยู่บนสุดเสมอ แล้วจึงเรียงตามคอลัมน์ภายในกลุ่ม (Task 210)
+      const isOpen = c => !(c.screenStatus === 'DONE' || c.screenStatus === 'RETURNED');
       filtered.sort((a, b) => {
-        let valA = a[sortField], valB = b[sortField];
-        if (typeof valA === 'string') {
-          return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-        }
-        return sortOrder === 'asc' ? (valA - valB) : (valB - valA);
+        const pin = ECMIS.comparePinnedCases(a, b); if (pin) return pin; // Task 221: 0001/0005/9507 บนสุดเสมอ
+        const pa = isOpen(a) ? 1 : 0, pb = isOpen(b) ? 1 : 0;
+        if (pa !== pb) return pb - pa;
+        return compareByField(a, b);
       });
 
       $('#tableSummaryText').text(`แสดง 1 ถึง ${filtered.length} จาก ${filtered.length} รายการ`);
@@ -293,7 +306,7 @@
 
         return `
           <tr>
-            <td class="case-no">${c.id}</td>
+            <td class="case-no">${ECMIS.caseNoListHtml(c)}</td>
             <td>${typeBadge}</td>
             <td style="max-width:360px">
               <div class="text-truncate fw-medium" title="${c.subject}">${c.subject}</div>

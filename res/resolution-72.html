@@ -14,7 +14,7 @@
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="../assets/ecmis-app.css" rel="stylesheet">
   <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
-  <link href="../assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
+  <link href="../assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
 </head>
 
 <body class="ws-std">
@@ -268,12 +268,12 @@
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261003-a7-reset"></script>
+  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
 <script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
   <script src="../assets/ecmis-model.js"></script>
-  <script src="../assets/agenda-registry-data.js?v=20261002-merge-main1"></script>
+  <script src="../assets/agenda-registry-data.js?v=20261004-stale-links"></script>
   <script>
     ECMIS.renderShell('resolution-72.html');
 
@@ -689,7 +689,7 @@
       if (!mayEdit) return [];
       return [
         { act: 'save', label: 'บันทึกร่างมติ', icon: 'fa-floppy-disk', cls: 'btn-outline-secondary' },
-        { act: 'lock', label: 'บันทึกมติและล็อก PDF', icon: 'fa-lock', cls: 'btn-gold' }
+        { act: 'lock', label: 'บันทึกมติที่ประชุม', icon: 'fa-check', cls: 'btn-gold' }
       ];
     }
     document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(kase, role.id, buildButtons());
@@ -828,7 +828,8 @@
             const { error } = await sb.from('tbl_res_request').update({
               trr_status: ECMIS.STATUS_CODE[patch.status],
               trr_recorded_doc_html: recordedDocHtml,
-              trr_resolution_data: patch
+              /* รวมกับข้อมูลเดิมของสำนวน (ความเห็นรองเลขาฯ/อนุสนับสนุน/ด่วน/Hub/staleAgendaLinks) — เดิมเขียนทับทั้งก้อนจนข้อมูลหาย (Task 197) */
+              trr_resolution_data: Object.assign({}, kase.resolutionData || {}, patch)
             }).eq('trr_id', kase.trr_id);
             if (!error) {
               ECMIS.logRequestEvent(kase.trr_id, fromStatus, patch.status, {
@@ -840,7 +841,7 @@
             }
           }
 
-          ECMIS.toastOk('บันทึกมติและล็อก PDF เรียบร้อย');
+          ECMIS.toastOk('บันทึกมติที่ประชุมเรียบร้อย');
           setTimeout(() => location.href = 'ruling-report.html?case=' + encodeURIComponent(kase.id), 1400);
         });
       }

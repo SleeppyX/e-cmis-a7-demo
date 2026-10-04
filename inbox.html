@@ -11,7 +11,7 @@
 <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 <link href="assets/ecmis-app.css" rel="stylesheet">
 <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
-<link href="assets/ecmis-ws-standard.css?v=189" rel="stylesheet">
+<link href="assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
 <style>
 .btn-xs { font-size: 0.76rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
 .bg-purple { background-color: #7E22CE !important; }
@@ -167,7 +167,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
 <script src="../cases.js"></script>
-<script src="assets/ecmis-app.js?v=20261003-a7-reset"></script>
+<script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
 <script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
@@ -243,8 +243,7 @@ function isChairActionable(c) {
          c.status === 'PENDING_CASE_ADMIN_SCREEN_72' || // 2026-09-30: ประธานฯ ลงรับ/คัดกรอง 7.2 แทน affairs
          c.status === 'PENDING_SIGN_AGENDA_72' ||
          c.status === 'PENDING_SIGN_AGENDA' ||  // 7.1 ลงนามสั่งบรรจุวาระหลังกลั่นกรอง (Task 164)
-         c.status === 'PENDING_SIGN_RULING_72' ||
-         c.status === 'PENDING_SIGN_ORDER_CHAIRMAN';
+         c.status === 'PENDING_SIGN_RULING_72';
 }
 /* "สั่งการบรรจุวาระเรียบร้อย" — ทุกสถานะปลายทางที่หลุดออกจากมือประธานฯ ไปแล้ว (นับตามสถานะปัจจุบัน
    ตรงๆ เหมือน KPI อื่นในไฟล์นี้ ไม่ได้ตรวจ history ว่าผ่านมือประธานฯ จริงหรือไม่ — งานนี้เป็นเดโม
@@ -291,8 +290,8 @@ function isAffairsQueueCase(c) {
    ตรงๆ เหมือน isChairDone ด้านบน ไม่ได้ตรวจ history — ยอมรับการประมาณนี้ตามที่ตกลงกันใน
    /grill-me 2026-09-25) ครอบคลุมปลายทางจาก TRANSITIONS ที่ actor:'affairs' ส่งออกไป
    (IN_SCREENING_72, PENDING_CHAIRMAN_ASSIGN_72, PENDING_SIGN_RULING_72, CLOSED_72) บวก
-   PENDING_SIGN_ORDER_SECGEN/PENDING_SIGN_ORDER_CHAIRMAN ที่ order.html ตั้งตรงเมื่อ affairs
-   จัดทำคำสั่ง ม.24 เสร็จแล้วส่งไปให้ลงนาม (ไม่ผ่าน TRANSITIONS array) — ไม่รวม AGENDA_SET
+   UNDER_INVESTIGATION ที่ order.html ตั้งตรงเมื่อ affairs ออกคำสั่ง ม.24 เอง (Task 213 — ไม่ส่งให้
+   เลขาธิการฯ/ประธานฯ ลงนามแล้ว, ไม่ผ่าน TRANSITIONS array) — ไม่รวม AGENDA_SET
    แม้จะมี TRANSITIONS actor:'affairs' ไปลงที่นั่นด้วย (REAGENDA/REVISE_RESOLUTION) เพราะ
    AGENDA_SET ถูกใช้ร่วมกับเส้นทางอื่นที่ไม่ใช่ affairs เป็นส่วนใหญ่ (chairman/board_sec)
    นับตรงๆ จะปนเคสที่ไม่เกี่ยวกับ affairs เข้ามาเยอะเกินไป */
@@ -300,7 +299,7 @@ function isAffairsDone(c) {
   // 2026-09-30: IN_SCREENING_72 / PENDING_CHAIRMAN_ASSIGN_72 ไม่นับเป็นงานที่ affairs ส่งต่อแล้วอีก (ประธานฯ คัดกรองเอง)
   // 2026-09-30: PENDING_CHAIRMAN_ASSIGN_72 นับเป็นงานที่ affairs ส่งต่อแล้วอีกครั้ง (กจ. ทำความเห็นเสนอเสร็จแล้วส่งประธานฯ)
   return c.status === 'PENDING_CHAIRMAN_ASSIGN_72' || c.status === 'PENDING_SIGN_RULING_72' || c.status === 'CLOSED_72' ||
-         c.status === 'PENDING_SIGN_ORDER_SECGEN' || c.status === 'PENDING_SIGN_ORDER_CHAIRMAN';
+         c.status === 'UNDER_INVESTIGATION';
 }
 
 let CASES, all, mine;
@@ -325,13 +324,6 @@ function getSecgenStatusCategory(c) {
     return 'RETURNED';
   }
   if (c.status === 'PENDING_SECGEN' || c.status === 'PENDING_SECGEN_72') {
-    return 'PENDING';
-  }
-  /* เคสคำสั่ง ม.24 ที่ affairs ส่งมาให้เลขาธิการฯ ลงนาม (order.html) — ต้องนับเป็น 'PENDING' ด้วย
-     ไม่งั้นจะตกไปเข้าเงื่อนไข fallback 'SIGNED' ด้านล่าง (แปลว่า "ผ่านชั้นเลขาธิการฯ ไปแล้ว")
-     ทั้งที่นี่คือของที่รอเลขาธิการฯ ทำเองอยู่ — isMyPending()/applyFilters() เช็คคำว่า 'PENDING'
-     ตรงๆ จึงต้องคืนค่านี้ ไม่ใช่ category ใหม่ (getSecgenActionBadge() แยกข้อความป้ายเองอีกที) */
-  if (c.status === 'PENDING_SIGN_ORDER_SECGEN') {
     return 'PENDING';
   }
   /* ผอ.กบค. รับรองเหตุผลเร่งด่วนแล้ว ส่งกลับมาให้เลขาธิการฯ ยืนยันอีกครั้งก่อนเข้าคิวประธานฯ —
@@ -466,7 +458,6 @@ if(ECMIS.isUpstreamRole(role.id)){
       <option value="PENDING_NORMAL">รอสั่งการวาระปกติ</option>
       <option value="PENDING_URGENT">วาระด่วน</option>
       <option value="PENDING_RULING">รอลงนามรายงานชี้มูล</option>
-      <option value="PENDING_ORDER">รอลงนามคำสั่ง ม.24</option>
       <option value="CHAIR_DONE">สั่งการบรรจุวาระเรียบร้อย</option>
     `;
   }
@@ -536,7 +527,6 @@ function renderKPICards() {
       c.status === 'PENDING_CHAIRMAN_ASSIGN_72' || c.status === 'PENDING_CASE_ADMIN_SCREEN_72').length;
     const pendingUrgentCount = allCasesCombined.filter(c => c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent)).length;
     const pendingRulingCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_RULING_72').length;
-    const pendingOrderCount = allCasesCombined.filter(c => c.status === 'PENDING_SIGN_ORDER_CHAIRMAN').length;
     const doneCount = allCasesCombined.filter(c => isChairDone(c)).length;
 
     const kpis = [
@@ -544,7 +534,6 @@ function renderKPICards() {
       { id:'PENDING_NORMAL', n: pendingNormalCount, l:'รอสั่งการวาระปกติ', i:'fa-hourglass-half', c:'#D0A830' },
       { id:'PENDING_URGENT', n: pendingUrgentCount, l:'วาระด่วน', i:'fa-bolt', c:'#DB2626' },
       { id:'PENDING_RULING', n: pendingRulingCount, l:'รอลงนามชี้มูล', i:'fa-file-signature', c:'#0284C7' },
-      { id:'PENDING_ORDER', n: pendingOrderCount, l:'รอลงนามคำสั่ง ม.24', i:'fa-file-signature', c:'#7E22CE' },
       { id:'CHAIR_DONE', n: doneCount, l:'สั่งการบรรจุวาระเรียบร้อย', i:'fa-circle-check', c:'#16A34A' }
     ];
 
@@ -684,11 +673,6 @@ function getSecgenActionBadge(c) {
   if (cat === 'UPSTREAM') {
     return ECMIS.statusBadge(c.status);
   }
-  /* คำสั่ง ม.24 ที่ affairs ส่งมาให้ลงนาม (คนละงานกับ "พิจารณารายงาน 213" ปกติของเลขาธิการฯ) —
-     แยกป้ายให้ชัดว่าต้องลงนามคำสั่งอะไร ไม่ใช้คำกลาง "รอเลขาพิจารณาลงนาม" ที่จะสับสนกับงานปกติ */
-  if (c.status === 'PENDING_SIGN_ORDER_SECGEN') {
-    return `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามคำสั่ง ม.24</span>`;
-  }
   if (c.status === 'PENDING_SECGEN_URGENT_CONFIRM' || c.status === 'PENDING_SECGEN_URGENT_CONFIRM_72') {
     return `<span class="meet-badge meet-urgent"><i class="fa-solid fa-bolt me-1"></i>ยืนยันวาระด่วน (กบค. รับรองแล้ว)</span>`;
   }
@@ -735,7 +719,10 @@ function getAffairsActionBadge(c) {
     return `<span class="meet-badge meet-review"><i class="fa-solid fa-paper-plane me-1"></i>รอส่งเรื่อง ป.ป.ช. (ม.19)</span>`;
   }
   if (c.status === 'PENDING_DISPATCH_GUILTY_72') {
-    const label = c.guiltyDiscipline72 ? 'รอส่ง ป.วินัย / ดำเนินคดี' : 'รอส่งดำเนินคดี';
+    /* Task 220: บอกสายที่ยังค้างส่งให้ตรง — อาญา / วินัย (ป.วินัย) / ทั้งสองสาย */
+    const crimLeft = ECMIS.trackStatus72(c, 'criminal') === 'PENDING';
+    const discLeft = ECMIS.trackStatus72(c, 'disciplinary') === 'PENDING';
+    const label = crimLeft && discLeft ? 'รอส่งสายอาญา + สายวินัย' : discLeft ? 'รอส่งสายวินัย (ป.วินัย)' : crimLeft ? 'รอส่งสายอาญา' : 'รอปิดสำนวน';
     return `<span class="meet-badge meet-review"><i class="fa-solid fa-paper-plane me-1"></i>${label}</span>`;
   }
   if (isAffairsDone(c)) {
@@ -788,14 +775,10 @@ function typeBadge(c, is72){
 
 function row(c){
   const is72 = ECMIS.isCase72(c);
-  /* PENDING_SIGN_ORDER_SECGEN ต้องชี้ order.html เสมอ ไม่ว่า role ไหนเปิดดู — PAGE_FOR['secgen']
-     ชี้ approval-review.html แบบ static (เดิมใช้กับ "พิจารณารายงาน 213" เท่านั้น) ซึ่งผิดหน้าสำหรับ
-     งานลงนามคำสั่ง ม.24 */
   /* PENDING_SUPPORT_ASSIGN(_72) ต้องชี้หน้าใหม่ dir-case-support-assign.html เสมอ ไม่ว่า role ไหนเปิดดู —
      PAGE_FOR['dir_case'] ชี้ approval-review.html แบบ static (ใช้กับสายเร่งด่วนเดิม) ซึ่งผิดหน้าสำหรับ
      งานออกเลขทะเบียนคุม/มอบหมายคณะอนุสนับสนุนฯ (2026-09-28) */
-  const page = c.status === 'PENDING_SIGN_ORDER_SECGEN' ? 'order.html'
-    : (c.status === 'PENDING_SUPPORT_ASSIGN' || c.status === 'PENDING_SUPPORT_ASSIGN_72') ? 'dir-case-support-assign.html'
+  const page = (c.status === 'PENDING_SUPPORT_ASSIGN' || c.status === 'PENDING_SUPPORT_ASSIGN_72') ? 'dir-case-support-assign.html'
     : is72 ? ECMIS.pageForCase72(c)
     : (role.id === 'affairs' && ECMIS.isCase73(c) && (c.status === 'RESOLVED' || c.status === 'DISPATCHING')) ? 'resolution.html'
     : (role.id === 'affairs' && AFFAIRS_PAGE_FOR_STATUS[c.status]) || (PAGE_FOR[role.id] || 'case-register.html');
@@ -810,21 +793,17 @@ function row(c){
     let catBadge = '';
     if (c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent)) catBadge = `<span class="meet-badge meet-urgent"><i class="fa-solid fa-bolt me-1"></i>วาระด่วน</span>`;
     else if (c.status === 'PENDING_SIGN_RULING_72') catBadge = `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามรายงานชี้มูล</span>`;
-    else if (c.status === 'PENDING_SIGN_ORDER_CHAIRMAN') catBadge = `<span class="meet-badge meet-affairs-ruling"><i class="fa-solid fa-file-signature me-1"></i>รอลงนามคำสั่ง ม.24</span>`;
     else if (c.status === 'PENDING_CASE_ADMIN_SCREEN_72') catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-scale-unbalanced me-1"></i>รอลงรับ / คัดกรองสำนวน</span>`;
     else if (c.status === 'PENDING_CHAIRMAN_ASSIGN_72') catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-bolt-lightning me-1"></i>รอลงนามสั่งบรรจุวาระ</span>`;
     else if (isChairDone(c)) catBadge = `<span class="meet-badge" style="background:#DCFCE7;color:#166534"><i class="fa-solid fa-circle-check me-1"></i>สั่งการบรรจุวาระเรียบร้อย</span>`;
     else catBadge = `<span class="meet-badge meet-pending"><i class="fa-solid fa-hourglass-half me-1"></i>รอสั่งการวาระปกติ</span>`;
 
     /* กำหนดหน้าเป้าหมายสำหรับประธานฯ ให้ตรงกับงานแต่ละประเภท:
-       - PENDING_SIGN_ORDER_CHAIRMAN -> order.html (จัดทำ/ลงนามคำสั่ง ม.24)
        - PENDING_SIGN_RULING_72 -> ruling-report.html (รายงานวินิจฉัยชี้มูล 7.2)
        - PENDING_CHAIRMAN_URGENT_72 -> urgent-agenda.html (บรรจุวาระด่วน 7.2)
        - PENDING_CHAIRMAN / PENDING_URGENT -> chairman-agenda.html (สั่งการและบรรจุวาระปกติ) */
     let chairTarget;
-    if (c.status === 'PENDING_SIGN_ORDER_CHAIRMAN') {
-      chairTarget = `order.html?case=${encodeURIComponent(c.id)}`;
-    } else if (c.status === 'PENDING_SIGN_RULING_72') {
+    if (c.status === 'PENDING_SIGN_RULING_72') {
       chairTarget = `ruling-report.html?case=${encodeURIComponent(c.id)}`;
     } else if (c.status === 'PENDING_CHAIRMAN_URGENT_72') {
       chairTarget = `urgent-agenda.html?case=${encodeURIComponent(c.id)}`;
@@ -840,7 +819,7 @@ function row(c){
     const typeTag = typeBadge(c, is72);
 
     return `<tr>
-      <td class="case-no">${c.id}${(c.urgent || c.urgent72)?' <span class="st st-urgent ms-1">ด่วน</span>':''}</td>
+      <td class="case-no">${ECMIS.caseNoListHtml(c)}${(c.urgent || c.urgent72)?' <span class="st st-urgent ms-1">ด่วน</span>':''}</td>
       <td>${typeTag}</td>
       <td style="max-width:300px">
         <div class="text-truncate fw-medium" title="${c.subject}">${c.subject}</div>
@@ -872,7 +851,7 @@ function row(c){
      special-case ที่นี่อีกต่อไป ดู docs/memory/plans/2026-09-23-affairs-case-detail-page.md */
 
   return `<tr>
-    <td class="case-no">${c.id}${(c.urgent || c.urgent72)?' <span class="st st-urgent ms-1">ด่วน</span>':''}</td>
+    <td class="case-no">${ECMIS.caseNoListHtml(c)}${(c.urgent || c.urgent72)?' <span class="st st-urgent ms-1">ด่วน</span>':''}</td>
     <td>${typeTag}</td>
     <td style="max-width:300px">
       <div class="text-truncate fw-medium" title="${c.subject}">${c.subject}</div>
@@ -921,6 +900,7 @@ function renderMyQueue(loading = false) {
   }
 
   const sortedCases = [...filteredCombined].sort((a, b) => {
+    const pin = ECMIS.comparePinnedCases(a, b); if (pin) return pin; // Task 221: 0001/0005/9507 บนสุดเสมอ
     const isPendingA = isMyPending(a) ? 1 : 0;
     const isPendingB = isMyPending(b) ? 1 : 0;
 
@@ -1007,7 +987,7 @@ function applyFilters() {
 
   filteredCombined = allCasesCombined.filter(c => {
     const matchQ = !q ||
-      c.id.toLowerCase().includes(q) ||
+      ECMIS.caseSearchText(c).includes(q) ||
       (c.subject && c.subject.toLowerCase().includes(q)) ||
       (c.ownerOrg && c.ownerOrg.toLowerCase().includes(q)) ||
       (c.owner && c.owner.toLowerCase().includes(q)) ||
@@ -1029,7 +1009,6 @@ function applyFilters() {
           c.status === 'PENDING_CHAIRMAN_ASSIGN_72' || c.status === 'PENDING_CASE_ADMIN_SCREEN_72');
         else if (st === 'PENDING_URGENT') matchSt = (c.status === 'PENDING_CHAIRMAN_URGENT_72' || (c.status === 'PENDING_CHAIRMAN' && c.urgent));
         else if (st === 'PENDING_RULING') matchSt = (c.status === 'PENDING_SIGN_RULING_72');
-        else if (st === 'PENDING_ORDER') matchSt = (c.status === 'PENDING_SIGN_ORDER_CHAIRMAN');
         else if (st === 'CHAIR_DONE') matchSt = isChairDone(c);
       }
     } else if (role.id === 'affairs') {

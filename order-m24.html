@@ -425,10 +425,10 @@
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('order.html');
@@ -1622,7 +1622,7 @@
             updateSigBoxUI(true, res.value, now.toLocaleString('th-TH'));
             renderDoc();
             refreshSigner();
-            ECMIS.toastOk('ลงนามคำสั่งเรียบร้อยแล้ว กรุณากดปุ่ม "บันทึกคำสั่งและส่งต่อ"');
+            handle('save_order'); // Task 234: ลงนามแล้วส่งต่อทันที (ขั้นเดียวทั้งระบบ)
           });
         return;
       }
@@ -1664,23 +1664,8 @@
             }
           }
 
-          await Swal.fire({
-            icon: 'success',
-            title: 'ออกคำสั่งเรียบร้อย — เสร็จสิ้นกระบวนงานไต่สวนเบื้องต้น',
-            html: `<div class="text-start" style="font-size:.9rem">
-              <p>คำสั่งที่ <strong>${orderNoVal}</strong> ลงนามเรียบร้อย</p>
-              <div style="background:#f4f0fa;border-left:4px solid #9673a6;padding:.6rem .8rem;border-radius:0 6px 6px 0">
-                <strong>ระบบดำเนินการอัตโนมัติ:</strong><br>
-                • ยิงมติ + คำสั่งกลับ <strong>กิจกรรมที่ 5</strong><br>
-                • เปลี่ยนสถานะคดีเป็น <strong>"อยู่ระหว่างไต่สวน"</strong><br>
-                • เริ่มนับกรอบเวลา ม.23 (ครบกำหนด ${ECMIS.thaiDate(kase.deadline2y)})<br>
-                • สำนวนเข้าสู่ชั้นไต่สวนวินิจฉัยชี้มูล
-              </div></div>`,
-            confirmButtonColor: '#0F2A62',
-            confirmButtonText: 'ตกลง',
-            width: 560
-          });
-          location.href = ECMIS.homeHref(role.id);
+          ECMIS.toastOk('ออกคำสั่งเรียบร้อย' + ' · ' + ECMIS.caseNo(kase), `คำสั่งที่ ${orderNoVal} · สำนวนเข้าสู่ชั้นไต่สวนวินิจฉัยชี้มูล`);
+          ECMIS.goAfterSaves(ECMIS.homeHref(role.id));
         })();
         return;
       }
@@ -1757,18 +1742,9 @@
             memCase.signedBySecgen = true;
           }
 
-          await Swal.fire({
-            icon: 'success',
-            title: 'เห็นชอบและลงนามบันทึกเรียบร้อย',
-            html: `<div class="text-start">
-                     สำนวนเรื่องที่ <strong>${ECMIS.caseNo(kase)}</strong><br>
-                     ${isSub ? 'ส่งเรื่องให้ <strong>ประธานกรรมการ ป.ป.ท.</strong> ลงนามคำสั่งแต่งตั้ง (ปปท. ๕-๐๒) ต่อไป' : 'บันทึกคำสั่งและส่งต่อเรียบร้อยแล้ว'}
-                   </div>`,
-            confirmButtonColor: '#0F2A62',
-            confirmButtonText: 'ตกลง (กลับหน้ารายการสั่งการ)'
-          });
+          ECMIS.toastOk('เห็นชอบและลงนามบันทึกเรียบร้อย' + ' · ' + ECMIS.caseNo(kase), isSub ? 'ส่งต่อไปยัง ประธานกรรมการ ป.ป.ท. เพื่อลงนามคำสั่งแต่งตั้ง (ปปท. ๕-๐๒)' : 'บันทึกคำสั่งและส่งต่อเรียบร้อยแล้ว');
 
-          location.href = ECMIS.homeHref ? ECMIS.homeHref(role.id) : 'inbox.html';
+          ECMIS.goAfterSaves(ECMIS.homeHref ? ECMIS.homeHref(role.id) : 'inbox.html');
         });
         return;
       }
@@ -1837,18 +1813,9 @@
           const memCase = ECMIS.CASES.find(x => x.id === kase.id);
           if (memCase) memCase.status = targetStatus;
 
-          await Swal.fire({
-            icon: 'success',
-            title: 'ลงนามคำสั่งแก้ไขเรียบร้อย',
-            html: `<div class="text-start">
-                     สำนวนเรื่องที่ <strong>${ECMIS.caseNo(kase)}</strong><br>
-                     บันทึกคำสั่งแก้ไขเพิ่มเติมเรียบร้อยแล้ว
-                   </div>`,
-            confirmButtonColor: '#0F2A62',
-            confirmButtonText: 'ตกลง (กลับหน้ารายการสั่งการ)'
-          });
+          ECMIS.toastOk('ลงนามคำสั่งแก้ไขเรียบร้อย' + ' · ' + ECMIS.caseNo(kase), 'บันทึกคำสั่งแก้ไขเพิ่มเติมเรียบร้อยแล้ว');
 
-          location.href = ECMIS.homeHref ? ECMIS.homeHref(role.id) : 'inbox.html';
+          ECMIS.goAfterSaves(ECMIS.homeHref ? ECMIS.homeHref(role.id) : 'inbox.html');
         });
         return;
       }

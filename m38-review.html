@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>พิจารณารายงานผล ม.38 | E-CMIS</title>
+  <link rel="icon" type="image/png" href="assets/pacc_logo.png">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <link href="assets/ecmis-app.css" rel="stylesheet">
+  <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
+  <style>
+    .m38-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
+    .m38-layout > * { min-width: 0; }
+    @media (max-width: 1080px) { .m38-layout { grid-template-columns: minmax(0, 1fr); } }
+    .m38-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .72rem; }
+    @media (max-width: 720px) { .m38-kv { grid-template-columns: minmax(0, 1fr); } }
+    .m38-kv .ws-readonly .k { font-size: .76rem; color: var(--ws-muted, #687789); font-weight: 600; }
+    .m38-kv .ws-readonly .v { font-weight: 600; color: var(--ws-ink, #172434); overflow-wrap: anywhere; }
+    .m38-section-title { font-size: .95rem; font-weight: 700; color: var(--ws-navy, #082b50); margin: 0 0 .75rem; }
+    .m38-file { display: flex; align-items: center; gap: .5rem; padding: .5rem .25rem; border-bottom: 1px solid var(--ws-line, #dce3e9); overflow-wrap: anywhere; }
+    .m38-file:last-child { border-bottom: 0; }
+  </style>
+</head>
+
+<body class="ws-std">
+
+  <main class="app-main">
+
+    <!-- หัวหน้าแบบการ์ดหัวเรื่องเดียวกับหน้าเคส (มี #stBadge → ws-case-head) + ปุ่มกลับตัวกลางเหนือการ์ด (Task 263) -->
+    <div class="page-head">
+      <div>
+        <p class="ws-kicker">บริหารจัดการและติดตามสำนวนคดี / มติ</p>
+        <h1><i class="fa-solid fa-file-circle-check me-2"></i><span id="m38PageTitle">พิจารณารายงานผล ม.38</span></h1>
+      </div>
+      <div class="ms-auto text-end">
+        <span class="flow-ref">รายงานผลการดำเนินการทางวินัยจาก กจ.8</span>
+        <div class="mt-1" id="stBadge"></div>
+      </div>
+    </div>
+
+    <div id="m38Root"></div>
+
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
+  <script>
+    ECMIS.renderShell('m38-inbox.html');
+    const role = ECMIS.currentRole();
+    const esc = ECMIS.escapeHtml;
+    const reportNo = new URLSearchParams(location.search).get('report') || '';
+    const root = document.getElementById('m38Root');
+    ECMIS.renderBackButton({ href: 'm38-inbox.html', label: 'กลับหน้ารายการ' });
+    const PAGE_TITLE = { deputy: 'รองเลขาธิการฯ พิจารณา / อนุมัติรายงานผล ม.38', secgen: 'เลขาธิการฯ พิจารณา / อนุมัติรายงานผล ม.38' };
+    if (PAGE_TITLE[role.id]) {
+      document.getElementById('m38PageTitle').textContent = PAGE_TITLE[role.id];
+      document.title = PAGE_TITLE[role.id] + ' | E-CMIS';
+    }
+
+    const kv = (k, v) => `<div class="ws-readonly"><div class="k">${esc(k)}</div><div class="v">${esc(ECMIS.isBlankValue(v) ? '—' : v)}</div></div>`;
+    const actionLabel = a => a === 'APPROVE' ? 'อนุมัติและลงนาม' : 'ส่งคืน กจ.8 ให้แก้ไข';
+    const isoThai = iso => ECMIS.thaiDate(iso.slice(0, 10).replace(/^(\d{4})/, y => String(Number(y) + 543)));
+
+    function render() {
+      const r = ECMIS.m38Get(reportNo);
+      const visible = r && ECMIS.m38VisibleFor(role.id).some(x => x.reportNo === r.reportNo);
+      if (r) {
+        const st0 = ECMIS.M38_STATUS[r.status] || { label: r.status, cls: 'st-pending' };
+        document.getElementById('stBadge').innerHTML = `<span class="chip me-1">เลขที่ ${esc(r.reportNo)}</span><span class="st ${st0.cls}">${esc(st0.label)}</span>`;
+      }
+      if (!visible) {
+        root.innerHTML = `<div class="ws-callout">${r ? 'รายงานนี้ยังไม่ถึงขั้นของบทบาทนี้' : 'ไม่พบรายงานผล ม.38 เลขที่นี้'} — <a href="m38-inbox.html">กลับรายการรายงานผล ม.38</a></div>`;
+        return;
+      }
+      const st = ECMIS.M38_STATUS[r.status] || { label: r.status, cls: 'st-pending' };
+      const mine = st.owner === role.id;
+      const p = r.persons[0] || {};
+      const feedback = ECMIS.m38FeedbackText(r);
+      const tl = r.upstream.map(u => `<li class="ok"><span class="tl-dot"></span>
+          <div class="tl-t">${esc(u.role)}</div>
+          <div class="tl-m">${esc(u.by)} · ${esc(u.act)} · ${esc(ECMIS.thaiDate(u.at))}</div></li>`).join('')
+        + r.history.map(h => `<li class="${h.action === 'RETURN' ? 'rej' : 'ok'}"><span class="tl-dot"></span>
+          <div class="tl-t">${esc(h.title)}</div>
+          <div class="tl-m">${esc(h.name)} · ${esc(actionLabel(h.action))} · ${esc(isoThai(h.at))}</div>
+          ${h.note ? `<div class="tl-m mt-1"><span class="text-muted" style="font-size:.78rem">เหตุผล: ${esc(h.note)}</span></div>` : ''}</li>`).join('')
+        + (st.owner ? `<li class="now"><span class="tl-dot"></span>
+          <div class="tl-t">${esc(ECMIS.getRole(st.owner).title)} ${mine ? '<span class="chip ms-1">คุณ</span>' : ''}</div>
+          <div class="tl-m"><strong>${esc(st.label)}</strong></div></li>` : '');
+
+      root.innerHTML = `
+        <section class="ws-card mb-3">
+          <div class="ws-section p-3 d-flex flex-wrap align-items-start justify-content-between gap-2">
+            <div style="min-width:0">
+              <h2 class="h5 fw-bold text-navy mb-1">${esc(r.title)}</h2>
+              <div class="small text-muted">${esc(r.pwinai)} · สำนวน ${esc(r.caseNo)} · ลงวันที่ ${esc(ECMIS.thaiDate(r.reportDate))}</div>
+            </div>
+          </div>
+        </section>
+
+        ${feedback ? `<div class="ws-callout mb-3"><i class="fa-solid fa-share me-1"></i><strong>สถานะที่ส่งกลับ กจ.8:</strong> ${esc(feedback)}</div>` : ''}
+
+        <div class="m38-layout">
+          <div class="d-flex flex-column gap-3">
+            <section class="ws-card p-3">
+              <h3 class="m38-section-title">ผู้ถูกลงโทษและผลการพิจารณาโทษ</h3>
+              <div class="m38-kv">
+                ${kv('ผู้ถูกลงโทษ', p.name)}${kv('ตำแหน่ง', p.position)}
+                ${kv('หน่วยงานต้นสังกัด', p.agency)}${kv('ผลการพิจารณาโทษ', `${p.result} (${p.finality})`)}
+                ${kv('คำสั่งลงโทษ', r.order.no)}${kv('ลงวันที่ / วันที่มีผล', `${ECMIS.thaiDate(r.order.date)} · มีผล ${ECMIS.thaiDate(r.order.effective)}`)}
+              </div>
+            </section>
+            <section class="ws-card p-3">
+              <h3 class="m38-section-title">ที่มาของรายงาน</h3>
+              <div class="m38-kv">
+                ${kv('มติคณะกรรมการ ป.ป.ท.', `${r.resolutionNo} · ${r.meeting}`)}${kv('หนังสือแจ้ง (ป.วินัย)', r.pwinai)}
+                ${kv('ส่งถึงต้นสังกัด (EMS)', `${r.ems.no} · นำจ่าย ${ECMIS.thaiDate(r.ems.deliveredAt)}`)}${kv('ครบกำหนดตอบกลับ (90 วัน)', ECMIS.thaiDate(r.ems.dueAt))}
+                ${kv('หนังสือตอบกลับของต้นสังกัด', `${r.reply.no} ลว. ${ECMIS.thaiDate(r.reply.date)}`)}${kv('กองบริหารคดีรับหนังสือ', ECMIS.thaiDate(r.reply.receivedAt))}
+              </div>
+              <div class="small text-muted mt-2">เรื่อง ${esc(r.reply.subject)}</div>
+            </section>
+            <section class="ws-card p-3">
+              <h3 class="m38-section-title">เอกสารแนบ</h3>
+              ${r.attachments.map(f => `<div class="m38-file"><i class="fa-solid fa-file-pdf text-danger"></i><span>${esc(f)}</span><span class="ms-auto small text-muted text-nowrap">ไฟล์จำลอง</span></div>`).join('')}
+            </section>
+          </div>
+          <section class="ws-card p-3">
+            <h3 class="m38-section-title">ลำดับการเสนอ</h3>
+            <ul class="tl mb-0">${tl}</ul>
+          </section>
+        </div>
+
+        <div id="actionBarSlot"></div>`;
+
+      /* แถบปุ่มกลางเดียวกับหน้าอื่น (ECMIS.actionBar) — ขั้นที่รออยู่ใช้สถานะ PENDING_DEPUTY/PENDING_SECGEN
+         เพื่อให้ข้อความล็อกบอกผู้รับผิดชอบถูกคน; รายงานที่จบแล้วบอกผลที่ส่งกลับ กจ.8 แทน */
+      const buttons = [
+        { act: 'm38_return', label: 'ส่งคืน กจ.8 ให้แก้ไข', icon: 'fa-rotate-left', cls: 'btn-outline-danger' },
+        { act: 'm38_approve', label: 'อนุมัติและลงนาม', icon: 'fa-signature', cls: 'btn-navy' }
+      ];
+      let bar = ECMIS.actionBar({ id: r.reportNo, status: st.owner === 'deputy' ? 'PENDING_DEPUTY' : st.owner === 'secgen' ? 'PENDING_SECGEN' : '' },
+        role.id, mine ? buttons : [], { forceAllowed: mine });
+      if (!st.owner) {
+        bar = bar.replace(/<div class="no-permission">[\s\S]*?<\/div>(\s*<\/div>)$/,
+          `<div class="no-permission"><i class="fa-solid fa-circle-check me-1"></i>รายงานนี้ดำเนินการเสร็จแล้ว — ${esc(feedback)}</div>$1`);
+      }
+      document.getElementById('actionBarSlot').innerHTML = bar.replace('ดำเนินการกับสำนวนนี้', 'ดำเนินการกับรายงานนี้');
+
+      if (!mine) return;
+      const nextDest = role.id === 'deputy' ? 'พิจารณา / อนุมัติ (เลขาธิการคณะกรรมการ ป.ป.ท.)' : 'กจ.8 — ติดตามผลทางวินัย (รอเสนอคณะกรรมการ ป.ป.ท.)';
+      document.querySelector('#actionBarSlot [data-act="m38_approve"]').addEventListener('click', () => {
+        ECMIS.signDialog(`รายงานผล ม.38 เลขที่ ${r.reportNo}`, `${role.name} — ${role.title}`, null, { destination: nextDest })
+          .then(res => {
+            if (!res.isConfirmed) return;
+            ECMIS.m38Act(r.reportNo, role.id, 'APPROVE');
+            ECMIS.toastOk(`อนุมัติรายงานผล ม.38 เรียบร้อย · ${r.reportNo}`, `ส่งต่อไปยัง ${nextDest}`);
+            ECMIS.goAfterSaves('m38-inbox.html');
+          });
+      });
+      document.querySelector('#actionBarSlot [data-act="m38_return"]').addEventListener('click', () => {
+        Swal.fire({
+          title: 'ส่งคืน กจ.8 ให้แก้ไข',
+          html: `<div class="text-start small mb-2">รายงานเลขที่ <strong>${esc(r.reportNo)}</strong> จะกลับไปที่ กจ.8 และไม่ส่งต่อในขั้นถัดไป</div>`,
+          input: 'textarea', inputLabel: 'เหตุผลที่ส่งคืน', inputPlaceholder: 'ระบุสิ่งที่ กจ.8 ต้องแก้ไข',
+          inputValidator: v => (!v || !v.trim()) ? 'กรุณาระบุเหตุผลที่ส่งคืน' : undefined,
+          showCancelButton: true, confirmButtonText: 'ยืนยันส่งคืน', cancelButtonText: 'ยกเลิก',
+          confirmButtonColor: '#a52c25', cancelButtonColor: '#7C8CA3', reverseButtons: true
+        }).then(res => {
+          if (!res.isConfirmed) return;
+          ECMIS.m38Act(r.reportNo, role.id, 'RETURN', res.value.trim());
+          ECMIS.toastOk(`ส่งคืนรายงานผล ม.38 เรียบร้อย · ${r.reportNo}`, 'ส่งต่อไปยัง กจ.8 เพื่อแก้ไข');
+          ECMIS.goAfterSaves('m38-inbox.html');
+        });
+      });
+    }
+    render();
+  </script>
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
+</body>
+
+</html>

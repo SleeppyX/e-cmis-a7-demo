@@ -48,6 +48,15 @@
       host.classList.remove('d-none');
       host.innerHTML = `<div class="ws-card mb-3" id="closureCard">${head}<div class="card-body">${resLine}${html}</div></div>`;
     }
+    /* Task 300: เลขบันทึกแจ้งมติ / หนังสือนำส่งพร้อมสำนวนคืน — กลุ่มงานวินิจฉัยฯ ออกตอนบันทึกมติ (board-resolution.html) แผงนี้แสดงอย่างเดียว */
+    const SARABAN = [
+      { slot: 'resNotifyMemo71', label: 'เลขบันทึกข้อความแจ้งมติ' },
+      { slot: 'resReturnLetter71', label: 'เลขหนังสือนำส่งพร้อมสำนวนคืนสำนัก/เขต' }
+    ];
+    const sarabanLines = () => (ECMIS.SARABAN_UI_ENABLED === false ? [] : SARABAN).map(f => {
+      const no = ECMIS.sarabanNoOf ? ECMIS.sarabanNoOf(kase, f.slot) : '';
+      return no ? `<div class="small mt-1">${esc(f.label)}: ${esc(no)}</div>` : '';
+    }).join('');
 
     function noRight() {
       return `<div class="no-permission"><i class="fa-solid fa-lock me-1"></i>ผู้ปิดสำนวนคือกลุ่มงานกิจการคณะกรรมการ — บทบาทของคุณดูได้อย่างเดียว</div>`;
@@ -86,7 +95,7 @@
         ${c.closedAt ? ` เมื่อ ${esc(ECMIS.thaiDate ? ECMIS.thaiDate(String(c.closedAt).slice(0, 10)) : c.closedAt)}` : ''}
         ${fw || rd.forwardToOther ? `<div class="small mt-1">ส่งเรื่องให้: ${esc(fw ? fw.label : rd.forwardToOther)}</div>` : ''}
         ${rd.signedScanName ? `<div class="small">ฉบับลงนามที่แนบ: ${esc(rd.signedScanName)}</div>` : ''}
-        ${c.note ? `<div class="small mt-1">หมายเหตุ: ${esc(c.note)}</div>` : ''}</div>`);
+        ${c.note ? `<div class="small mt-1">หมายเหตุ: ${esc(c.note)}</div>` : ''}${sarabanLines()}</div>`);
       return true;
     }
 
@@ -95,7 +104,7 @@
       const fw = target();
       if (!mayClose) { view(noRight()); return true; }
       view(`<div class="alert alert-warning py-2"><i class="fa-solid fa-paper-plane me-1"></i>ส่งเรื่องให้ <strong>${esc(fw ? fw.label : (rd.forwardToOther || '-'))}</strong> แล้ว — รอฉบับลงนามกลับ
-          ${fw && fw.statutoryBasis ? `<div class="small text-muted mt-1">${esc(fw.statutoryBasis)}</div>` : ''}</div>
+          ${fw && fw.statutoryBasis ? `<div class="small text-muted mt-1">${esc(fw.statutoryBasis)}</div>` : ''}${sarabanLines()}</div>
         <div class="row g-2">
           <div class="col-md-6"><label class="form-label field-req">ชื่อไฟล์สแกนฉบับลงนามที่ได้รับกลับ</label>
             <input class="form-control" id="clScan" placeholder="เช่น หนังสือนำส่ง_ลงนาม.pdf"></div>
@@ -124,15 +133,20 @@
     /* ---------- RESOLVED: ยังไม่ได้ดำเนินการหลังมติ ---------- */
     if (!mayClose) { view(noRight()); return true; }
     const isForward = code === 'FORWARD';
+    /* ปลายทางที่เลือกไว้ตอนบันทึกมติ (7.1 จัดกลุ่มใหม่) ตั้งเป็นค่าเริ่มต้น — ตัวเลือกจำกัดตาม SELECTABLE_FORWARD_71
+       แต่ยังแสดงปลายทางเดิมของเคสเก่า (เช่น คณะอนุกลั่นกรองฯ) เพื่อไม่เปลี่ยนค่าเงียบ ๆ */
+    const recordedFwd = rd.forwardTo || kase.forwardTo || '';
+    const selectableFwd = ECMIS.SELECTABLE_FORWARD_71 || targets.map(t => t.code);
+    const fwdChoices = targets.filter(t => selectableFwd.includes(t.code) || t.code === recordedFwd);
     const canReagenda = REAGENDA_CODES.includes(code);
     const forwardBox = isForward ? `
       <div class="row g-2 mb-2">
         <div class="col-md-6"><label class="form-label field-req">ส่งเรื่องให้</label>
-          <select class="form-select" id="clFwd">${targets.map(t => `<option value="${t.code}">${esc(t.label)}${t.external ? ' (หน่วยงานนอกองค์กร)' : ''}</option>`).join('')}</select></div>
+          <select class="form-select" id="clFwd">${fwdChoices.map(t => `<option value="${t.code}" ${t.code === recordedFwd ? 'selected' : ''}>${esc(t.label)}${t.external ? ' (หน่วยงานนอกองค์กร)' : ''}</option>`).join('')}</select></div>
         <div class="col-md-6 d-none" id="clFwdOtherBox"><label class="form-label field-req">ระบุปลายทาง</label>
           <input class="form-control" id="clFwdOther" placeholder="หน่วยงาน/คณะที่ส่งเรื่องให้"></div>
       </div><div class="form-text mb-2" id="clFwdHint"></div>` : '';
-    view(`${forwardBox}
+    view(`${forwardBox}${sarabanLines() ? `<div class="mb-2">${sarabanLines()}</div>` : ''}
       <div class="mb-2"><label class="form-label">หมายเหตุ / เหตุผลการดำเนินการ${canReagenda ? '' : ' (ถ้ามี)'}</label>
         <textarea class="form-control" id="clNote" rows="2"></textarea></div>
       <div class="d-flex flex-wrap gap-2 mt-2" id="clBtns"></div>`);
@@ -209,7 +223,12 @@
     const mayAct = role.id === CLOSER_ROLE;
     const today = new Date().toISOString().slice(0, 10);
     const head = `<div class="card-header"><i class="fa-solid fa-envelope-open-text"></i> แจ้งมติ / ปิดเรื่อง (เรื่องทั่วไป / กกม.)</div>`;
-    const resLine = `<p class="mb-2">มติของเรื่องนี้: <strong>${esc(res ? res.label : code)}</strong>
+    /* Task 274: มติแบบพิมพ์อิสระ (เรื่องทั่วไป) ไม่มีชื่อในรายการ — แสดงข้อความมติที่บันทึกแทนรหัสดิบ */
+    const freeText = String(rd.boardOpinion || kase.boardOpinion || '').trim();
+    const resLabel = res ? res.label
+      : (code === 'GENERAL_FREE_TEXT' || !code) ? (freeText ? (freeText.length > 120 ? freeText.slice(0, 120) + '…' : freeText) : 'มติตามความเห็นที่ประชุม')
+      : code;
+    const resLine = `<p class="mb-2">มติของเรื่องนี้: <strong>${esc(resLabel)}</strong>
       ${kase.meetingNo ? `<span class="text-muted small ms-2">ครั้งที่ ${esc(kase.meetingNo)}${kase.agendaNo ? ' วาระที่ ' + esc(kase.agendaNo) : ''}</span>` : ''}</p>`;
     const view = html => { host.classList.remove('d-none'); host.innerHTML = `<div class="ws-card mb-3" id="closureCard">${head}<div class="card-body">${resLine}${html}</div></div>`; };
     const noRight = `<div class="no-permission"><i class="fa-solid fa-lock me-1"></i>ผู้ดำเนินการคือกลุ่มงานกิจการคณะกรรมการ — บทบาทของคุณดูได้อย่างเดียว</div>`;

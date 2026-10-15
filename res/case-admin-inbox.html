@@ -109,10 +109,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="../assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="../assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('case-admin-inbox.html');
@@ -334,7 +334,7 @@
         const { team, reason } = res.value;
         ECMIS.pushCaseHistory(kase, {
           event: 'ROUTE_TO_SUBCOMMITTEE', from: kase.status, to: kase.status, team,
-          note: `กระจายสำนวนเข้า ${team}${team === suggested ? ' (Round-Robin)' : ' (เลือกโดย กบค.)'}${reason ? ' — ' + reason : ''}`
+          note: `กระจายสำนวนเข้า ${team}${team === suggested ? '' : ' (เลือกโดย กบค.)'}${reason ? ' — ' + reason : ''}`
         });
         const routedAt = new Date().toISOString();
         kase.subCommittee = team;

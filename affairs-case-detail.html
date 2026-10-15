@@ -98,6 +98,12 @@
             </div>
           </div>
 
+          <!-- 3.1 สถานะการลงนามดิจิทัล — แบบเดียวกับ chairman-agenda (Task 276) -->
+          <div class="ws-card mb-3" id="sigCard">
+            <div class="card-header"><i class="fa-solid fa-signature"></i> สถานะการลงนามดิจิทัล (Digital Signature)</div>
+            <div class="card-body"><div id="sigBox" class="sig-box"></div></div>
+          </div>
+
           <!-- 4. ฐานกฎหมาย (ตัวบทจริง — พ.ร.บ.มาตรการฯ ฉบับรวมถึงฉบับที่ ๔ พ.ศ. ๒๕๖๘) -->
           <div class="ws-card mb-3">
             <div class="card-header"><i class="fa-solid fa-scale-balanced"></i> ฐานอำนาจ / กฎหมายที่เกี่ยวข้อง
@@ -173,10 +179,10 @@
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
   <script src="../shared-assets/handoff.js"></script>
   <script src="../shared-assets/junctions.js"></script>
-  <script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+  <script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('inbox.html');
@@ -298,7 +304,29 @@
     function canActHere() { return ECMIS.canAct(kase, role.id) && kase.status === REQUIRED_STATUS; }
 
     /* ---------- แถบลงนาม/ส่ง ด้านล่าง ---------- */
+    /* Task 276: การ์ดสถานะลงนาม — ลงนามแล้วอ่านจาก screen72.signedAt (บันทึกตอนลงนามคัดกรอง) */
+    function renderSigCard() {
+      const box = document.getElementById('sigBox');
+      if (!box) return;
+      const sc = kase.screen72 || (kase.resolutionData || {}).screen72 || {};
+      if (sc.signedAt) {
+        const d = new Date(sc.signedAt);
+        const dateStr = isNaN(d) ? sc.signedAt : d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+        box.className = 'sig-box signed';
+        box.innerHTML = `<i class="fa-solid fa-circle-check fa-2x mb-2" style="color:#16A34A"></i>
+          <div class="sig-name">${ECMIS.escapeHtml(SIGNER_NAME)}</div>
+          <div class="sig-meta">${ECMIS.escapeHtml(SIGNER_TITLE)}</div>
+          <div class="sig-meta" style="color:#16A34A; margin-top:4px;"><i class="fa-solid fa-shield-halved me-1"></i>ลงนามดิจิทัลแล้วเมื่อ ${ECMIS.escapeHtml(dateStr)}</div>`;
+      } else {
+        box.className = 'sig-box';
+        box.innerHTML = `<i class="fa-solid fa-file-signature fa-2x mb-2" style="color:#7C8CA3"></i>
+          <div class="sig-name">ยังไม่ได้ลงนาม</div>
+          <div class="sig-meta">กดปุ่มลงนามที่แถบด้านล่างเพื่อดำเนินการ</div>`;
+      }
+    }
+
     function renderActionButtons() {
+      renderSigCard();
       document.getElementById('actionBarSlot').innerHTML = ECMIS.actionBar(kase, role.id,
         [{ act: 'go', label: 'ลงนามคัดกรอง', icon: 'fa-signature', cls: 'btn-navy' }]);
       document.querySelectorAll('.action-bar [data-act]').forEach(b =>

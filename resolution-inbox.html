@@ -199,10 +199,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
 <script src="../cases.js"></script>
-<script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+<script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
 <script>
 ECMIS.renderShell('resolution-inbox.html');
 
@@ -285,11 +285,18 @@ let CASES = [];
 let allCasesCombined = [];
 let quickFilter = 'ALL';
 
+/* Task 243: ค่า trr_resolution_stage = 1 ที่ค้างอยู่กับสำนวนที่บันทึกมติแล้ว (มาจากหน้ารุ่นก่อน/resolution.html/การย้ายสถานะคืน)
+   เชื่อไม่ได้ — ใช้ค่าที่คำนวณจากมติจริงแทน ไม่งั้นแถวยังขึ้น "อยู่ระหว่างการจัดทำมติ" + ปุ่มบันทึกมติ แต่เปิดแล้วถูกล็อก */
+/* Task 244: ครอบคลุมทุกสถานะที่เลยขั้นบันทึกมติแล้ว (ECMIS.isBoardResolvedCase เช่น 115 ชี้มูลแล้ว รอส่งดำเนินการ)
+   ที่ไม่มีค่า stage เก็บไว้ — computeResolutionStage ตกไปที่ 1 เพราะสถานะไม่ใช่ RESOLVED จึงคำนวณแบบ "มีมติแล้ว" */
 function getStage(c) {
-  if (c.resolutionStage && typeof c.resolutionStage === 'number') {
-    return c.resolutionStage;
+  const stored = typeof c.resolutionStage === 'number' ? c.resolutionStage : null;
+  const pastResolution = c.status === 'RESOLVED_PENDING_72' || ECMIS.isBoardResolvedCase(c);
+  if (stored && !(stored === 1 && pastResolution)) {
+    return stored;
   }
-  return ECMIS.computeResolutionStage(c);
+  const stg = ECMIS.computeResolutionStage(c);
+  return stg === 1 && pastResolution ? ECMIS.computeResolutionStage(Object.assign({}, c, { status: 'RESOLVED' })) : stg;
 }
 
 /* stage 2 = "จัดทำมติแล้วเสร็จ" (บันทึกมติที่ประชุมสำเร็จแล้ว trr_status='RESOLVED') — เดิมยังนับเป็น
@@ -492,7 +499,11 @@ function row(c){
   const stg = getStage(c);
   const isActionable = isRowActionable(c);
   
-  const target = is72
+  /* Task 283: 7.2 หลังบันทึกมติ (รายงานวินิจฉัย → ปิดสำนวน) เปิดที่ ruling-report ตาม pageForCase72 */
+  const post72 = is72 && ['RESOLVED_PENDING_72', 'PENDING_SIGN_RULING_72', 'PENDING_AREA_NOTICE_72', 'DISPATCHING_NACC_72',
+    'PENDING_DISPATCH_GUILTY_72', 'CLOSED_72'].includes(c.status);
+  const target = post72 ? ECMIS.pageForCase72(c) + `?case=${encodeURIComponent(c.id)}`
+    : is72
     ? `resolution-72.html?case=${encodeURIComponent(c.id)}`
     : `board-resolution.html?case=${encodeURIComponent(c.id)}`;
 

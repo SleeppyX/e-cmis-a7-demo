@@ -167,10 +167,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
 <script src="../cases.js"></script>
-<script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+<script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
 <script src="assets/ecmis-model.js"></script>
 <script>
 ECMIS.renderShell('inbox.html');
@@ -721,7 +721,9 @@ function getAffairsActionBadge(c) {
   if (c.status === 'PENDING_DISPATCH_GUILTY_72') {
     /* Task 220: บอกสายที่ยังค้างส่งให้ตรง — อาญา / วินัย (ป.วินัย) / ทั้งสองสาย */
     const crimLeft = ECMIS.trackStatus72(c, 'criminal') === 'PENDING';
-    const discLeft = ECMIS.trackStatus72(c, 'disciplinary') === 'PENDING';
+    const discSt = ECMIS.trackStatus72(c, 'disciplinary');
+    const discLeft = discSt === 'PENDING' || discSt === 'RETURNED'; // Task 282: กจ.8 ตีกลับ = ต้องส่งใหม่
+    if (discSt === 'RETURNED') return `<span class="meet-badge" style="background:#f9e1df;color:#8c261f"><i class="fa-solid fa-rotate-left me-1"></i>สายวินัยถูก กจ.8 ตีกลับ — แก้ไขแล้วส่งใหม่</span>`;
     const label = crimLeft && discLeft ? 'รอส่งสายอาญา + สายวินัย' : discLeft ? 'รอส่งสายวินัย (ป.วินัย)' : crimLeft ? 'รอส่งสายอาญา' : 'รอปิดสำนวน';
     return `<span class="meet-badge meet-review"><i class="fa-solid fa-paper-plane me-1"></i>${label}</span>`;
   }

@@ -271,10 +271,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="assets/report-export.js"></script>
   <script>
     ECMIS.renderShell('register.html');
@@ -358,7 +358,7 @@
       // Filter Chips
       if (filter === 'late' && !(c.slaDays > ECMIS.effectiveSlaLimit(c))) return false;
       if (filter === 'urgent' && !(c.urgent || c.urgent72)) return false;
-      if (filter === 'mine' && !ECMIS.canAct(c, role.id)) return false;
+      if (filter === 'mine' && !ECMIS.isCaseStepActor(c, role.id)) return false; // Task 260: คิวตามขั้นปัจจุบันในแถบขั้นตอน
       if (filter === 'dup' && !c.dupWarning) return false;
       if (filter === '71' && (ECMIS.isCase72(c) || ECMIS.isCase73(c))) return false;
       if (filter === '72' && !ECMIS.isCase72(c)) return false;
@@ -370,6 +370,16 @@
     const pageSize = 5;
     let sortField = 'id';
     let sortOrder = 'asc';
+
+    /* Task 260: ปุ่มในทะเบียนพาไปหน้าของขั้นปัจจุบันตามการไหลจริง (ตรงกับ inbox ของบทบาทนั้น)
+       ส่วนที่ pageForCaseByStatus พาไปหน้าบันทึกมติ/หน้าอนุกลั่นกรองแทนขั้นจริง แก้เฉพาะในทะเบียนนี้ */
+    function registerTarget(c) {
+      if (['IN_SCREENING', 'IN_SCREENING_72'].includes(c.status) && !c.subCommittee) return ECMIS.resolvePage('case-admin-detail.html');
+      if (ECMIS.isCase72(c) || ECMIS.isCase73(c)) return ECMIS.pageForCaseByStatus(c);
+      const page = ['RESOLVED', 'DISPATCHING'].includes(c.status) ? 'order.html'
+        : c.status === 'DEFERRED' ? 'agenda-registry.html' : null;
+      return page ? ECMIS.resolvePage(page) : ECMIS.pageForCaseByStatus(c);
+    }
 
     function render(loading = false) {
       const tbody = document.getElementById('tb');
@@ -425,11 +435,11 @@
       const paginated = sorted.slice(startIdx, startIdx + pageSize);
 
       tbody.innerHTML = paginated.length ? paginated.map(c => {
-        const holder = ECMIS.STATUS[c.status] ? ECMIS.getRole(ECMIS.STATUS[c.status].owner) : null;
-        const actionable = ECMIS.canAct(c, role.id);
+        const stepInfo = ECMIS.caseStepInfo(c) || {};
+        const actionable = ECMIS.isCaseStepActor(c, role.id);
         const is72 = ECMIS.isCase72(c);
         const is73 = ECMIS.isCase73(c);
-        const target = ECMIS.pageForCaseByStatus(c);
+        const target = registerTarget(c);
         const procBadge = ECMIS.typeBadge(c);
 
         return `<tr>
@@ -452,12 +462,13 @@
         ${c.accused.map(a => `<div>${a.name}${a.idcard ? ` <small class="text-muted">(${a.idcard})</small>` : ''}</div>`).join('') || '—'}
       </td>
       <td><span class="chip">${c.legalBase}</span></td>
-      <td>${ECMIS.statusBadge(c.status)}</td>
-      <td style="font-size:.8rem">${holder ? holder.title : '—'}</td>
+      <td>${ECMIS.statusBadge(c.status)}${stepInfo.step ? `<div class="small text-muted mt-1">ขั้น ${stepInfo.idx + 1}/${stepInfo.total} · ${stepInfo.step.label}</div>` : ''}</td>
+      <td style="font-size:.8rem">${stepInfo.holderTitle || '—'}</td>
       <td>${ECMIS.slaBadge(c)}</td>
       <td style="font-size:.78rem">
         ${is72
             ? `<div>รอบการไต่สวน: ครั้งที่ ${c.round72 || 1}</div>`
+            : is73 ? '<div class="text-muted" title="เรื่องทั่วไปไม่มีอายุความไต่สวน">—</div>'
             : `<div>เริ่มไต่สวน: ${ECMIS.thaiDate(c.deadline60)}</div>
                <div class="text-muted">ครบ 2 ปี: ${ECMIS.thaiDate(c.deadline2y)}</div>`}
       </td>

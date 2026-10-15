@@ -94,11 +94,11 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
-  <script src="assets/agenda-registry-data.js?v=20261004-stale-links"></script>
+<script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
+  <script src="assets/agenda-registry-data.js?v=20261005-board-real"></script>
   <script>
     ECMIS.renderShell('agenda-registry.html');
     const M = ECMIS.mergeField;
@@ -195,7 +195,6 @@
       wrap.classList.remove('d-none');
       tbody.innerHTML = filtered.map(c => {
         const cat = getQueueCaseCategory(c);
-        const caseRef = c.junction?.payload?.caseNumber || c.id;
         const catBadge = cat === 'URGENT' ? '<span class="badge bg-danger ms-1">เร่งด่วน</span>'
           : cat === 'SCREENING' ? `<span class="badge text-white ms-1" style="background:#0d9488">จากอนุกลั่นกรอง ${ECMIS.escapeHtml(c.subCommittee)}</span>`
           : cat === 'RETURN' ? '<span class="badge bg-purple text-white ms-1" style="background:#6b3fa0">กลับมาอีก</span>'
@@ -210,7 +209,7 @@
              </span>`;
 
         return `<tr>
-          <td class="case-no">${ECMIS.escapeHtml(caseRef)} ${catBadge}</td>
+          <td class="case-no">${ECMIS.caseNoListHtml(c)} ${catBadge}</td>
           <td class="text-truncate" style="max-width:320px">${c.subject}</td>
           <td>${ECMIS.statusBadge(c.status)}</td>
           <td class="text-end">${actionCell}</td>
@@ -257,7 +256,7 @@
         width: 560,
         html: `
           <div class="text-start small mb-3 p-2 rounded" style="background:#F8FAFC;border:1px solid #E2E8F0">
-            <strong>เรื่องที่ ${ECMIS.escapeHtml(caseRef)}</strong><br>
+            <strong>เรื่องที่ ${ECMIS.escapeHtml(ECMIS.caseNo(c))}</strong><br>
             <span class="text-muted">${ECMIS.escapeHtml(c.subject)}</span>
           </div>
           <div class="text-start">
@@ -400,7 +399,7 @@
       const caseCountNote = form.caseNos.length > 1 ? ` (รวม ${form.caseNos.length} เรื่อง)` : '';
       const confirmed = await ECMIS.confirmAction({
         title: 'ยืนยันบรรจุระเบียบวาระ',
-        html: `<p>สำนวน <strong>${ECMIS.escapeHtml(form.caseNos.join(', ') || c.id)}</strong>${caseCountNote} จะถูกบรรจุเข้าระเบียบวาระ ครั้งที่ ${ECMIS.escapeHtml(form.meetNo)} วาระที่ ${ECMIS.escapeHtml(form.agendaNo)}${form.urgent ? ' <span class="badge bg-danger">ด่วน</span>' : ''}</p>`,
+        html: `<p>สำนวน <strong>${ECMIS.escapeHtml(ECMIS.caseRefText(form.caseNos.join(', ') || c.id, 'full'))}</strong>${caseCountNote} จะถูกบรรจุเข้าระเบียบวาระ ครั้งที่ ${ECMIS.escapeHtml(form.meetNo)} วาระที่ ${ECMIS.escapeHtml(form.agendaNo)}${form.urgent ? ' <span class="badge bg-danger">ด่วน</span>' : ''}</p>`,
         confirmText: 'ยืนยันบรรจุวาระ'
       });
       if (!confirmed.isConfirmed) return;
@@ -447,6 +446,8 @@
        ถูก populate ระหว่าง AR.ready เท่านั้น ถ้าเรียกคิวก่อนจะกรองซ้ำไม่ได้ (เห็นเรื่องซ้ำในคิว) */
     AR.ready.then(loadQueueCasesFromSupabase).then(cases => {
       queueCases = cases;
+      /* ให้ข้อความยืนยันการบรรจุแสดงเคสที่ไม่มีเลขสำนวนเป็น "—" ด้วย (Task 235) */
+      cases.forEach(c => ECMIS.noteCaseRefSource(c.id, c.scenarioSource));
       renderCategoryChips();
       renderQueueTable();
     }).catch(err => {

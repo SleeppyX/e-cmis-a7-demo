@@ -73,6 +73,8 @@
 
 
 
+            <!-- Task 300: เลขบันทึกแจ้งมติคณะอนุกรรมการสนับสนุนเลขาธิการฯ (ปป 0004/) -->
+            <div class="mb-3" id="supportMemoNoBox" style="max-width:34rem"></div>
             <label class="form-label field-req">มติของคณะอนุกรรมการสนับสนุนเลขาธิการฯ</label>
             <div class="list-group mb-3">
               <label class="list-group-item d-flex gap-2 align-items-start">
@@ -232,10 +234,11 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
+  <script src="assets/saraban-no.js?v=20261015-a7-saraban-off"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('support-subcommittee.html');
@@ -555,6 +558,9 @@
       }
 
 
+      if (ECMIS.mountSarabanField) ECMIS.mountSarabanField({ host: document.getElementById('supportMemoNoBox'), id: 'supportMemoNo',
+        label: 'เลขบันทึกแจ้งมติคณะอนุกรรมการสนับสนุนฯ', slot: 'supportSubMemo', prefix: 'ปป 0004/', kase, sb,
+        readonly: pageReadOnly, onChange: () => renderDoc() });
       onDecisionChange();
       renderDoc();
       renderActionButtons();
@@ -602,6 +608,7 @@
           </div>
           <div class="doc-sub">สำนักงานคณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
 
+          <div class="doc-row"><span class="k">ที่</span> ${M(ECMIS.sarabanThai(ECMIS.sarabanNoOf(kase, 'supportSubMemo')), 'ปป ๐๐๐๔/......')}</div>
           <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
           <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
           <div class="doc-row"><span class="k">ผู้รับผิดชอบ</span> ${M(kase.owner || '-')} (${M(kase.ownerOrg || '-')})</div>
@@ -812,22 +819,8 @@
             status: is72Track ? 'PENDING_SECGEN_72' : 'PENDING_SECGEN'
           });
 
-          await Swal.fire({
-            icon: 'success',
-            title: 'เสนอความเห็นคืนเลขาธิการ ป.ป.ท. เรียบร้อย',
-            html: `<div class="text-start">
-              สำนวน <strong>${ECMIS.caseNo(kase)}</strong> ได้รับการกลั่นกรองและส่งกลับเข้าคิวของ <strong>เลขาธิการคณะกรรมการ ป.ป.ท.</strong> แล้ว<br><br>
-              <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:.6rem .8rem;border-radius:0 6px 6px 0;font-size:.88rem">
-                <strong>ขั้นตอนถัดไปสำหรับการทดสอบ:</strong><br>
-                1. สลับบทบาทเป็น <strong>"เลขาธิการคณะกรรมการ ป.ป.ท."</strong><br>
-                2. เข้าหน้า <strong>Work Inbox</strong> เพื่อตรวจทานผลการกลั่นกรองและลงนามดิจิทัล
-              </div>
-            </div>`,
-            confirmButtonColor: '#0F2A62',
-            confirmButtonText: 'ตกลง (กลับกล่องข้อความอนุสนับสนุนฯ)',
-            width: 560
-          });
-          location.href = returnInboxUrl;
+          ECMIS.toastOk('เสนอความเห็นคืนเลขาธิการ ป.ป.ท. เรียบร้อย' + ' · ' + ECMIS.caseNo(kase), 'ส่งต่อไปยัง เลขาธิการคณะกรรมการ ป.ป.ท.');
+          ECMIS.goAfterSaves(returnInboxUrl);
         });
       }
     }

@@ -213,13 +213,14 @@
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
     <script src="../cases.js"></script>
-    <script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+    <script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
     <script src="assets/ecmis-model.js"></script>
     <script>
         ECMIS.renderShell('screening.html');
+        ECMIS.initMeetingDateInput(document.getElementById('subMeetDate')); // Task 248: กดเลือกจากปฏิทินได้
 
         const params = new URLSearchParams(location.search);
         const kase = ECMIS.requireCase(params.get('case') || '1547/2568');
@@ -324,7 +325,7 @@
                     <i class="fa-solid fa-circle mt-1" style="font-size:0.5rem;color:#0F2A62"></i>
                     <div><div class="small"><strong>${h.event || '-'}</strong>${oc}${law}</div>
                     <div class="text-muted" style="font-size:0.75rem">${h.team || ''} · ${h.actor || ''} · ${d}</div>
-                    ${h.note ? `<div class="small mt-1">${h.note}</div>` : ''}</div></div>`;
+                    ${h.note ? `<div class="small mt-1">${String(h.note).replace(/\s*\(Round-Robin\)/g, '')}</div>` : ''}</div></div>`;
             }).join('');
         }
 
@@ -397,7 +398,7 @@
   </div>`;
         }).join('');
 
-        document.getElementById('assignedTeam').value = assigned + ' (Round-Robin อัตโนมัติ)';
+        document.getElementById('assignedTeam').value = assigned + ' (อัตโนมัติ)';
         document.getElementById('manualTeam').innerHTML =
             '<option value="">— ไม่เปลี่ยนแปลง —</option>' +
             QUOTA.map(q => `<option value="คณะที่ ${q.n}" ${q.used >= 40 ? 'disabled' : ''}>คณะที่ ${q.n}${q.used >= 40 ? ' (เต็มโควตา)' : ''}</option>`).join('');
@@ -632,7 +633,7 @@
                         updateSigBoxUI(true, res.value, now.toLocaleString('th-TH'));
                         renderDoc();
                         renderActionButtons();
-                        ECMIS.toastOk('ลงนามรับรองมติเรียบร้อยแล้ว กรุณากดปุ่ม "บันทึกเพื่อส่งมติ"');
+                        handle('save_status'); // Task 234: ลงนามแล้วส่งต่อทันที (ขั้นเดียวทั้งระบบ)
                     });
                 return;
             }
@@ -659,16 +660,8 @@
                     });
                 }
 
-                Swal.fire({
-                    icon: 'success',
-                    title: 'ส่งมติคณะอนุกลั่นกรองฯ เรียบร้อย',
-                    html: `<div class="text-start">
-                        สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — ${next.t}<br>
-                        <span class="st st-done mt-2 d-inline-block"><i class="fa-solid fa-signature me-1"></i>ลงนามรับรองมติแล้ว</span>
-                    </div>`,
-                    confirmButtonColor: '#0F2A62',
-                    confirmButtonText: 'ตกลง'
-                }).then(() => location.href = next.p + '?case=' + encodeURIComponent(kase.id));
+                ECMIS.toastOk('ส่งมติคณะอนุกลั่นกรองฯ เรียบร้อย' + ' · ' + ECMIS.caseNo(kase), next.t);
+                ECMIS.goAfterSaves(next.p + '?case=' + encodeURIComponent(kase.id));
             }
         }
 
@@ -705,7 +698,7 @@
   </div>`;
             }).join('');
 
-            document.getElementById('assignedTeam').value = assigned + ' (Round-Robin อัตโนมัติ)';
+            document.getElementById('assignedTeam').value = assigned + ' (อัตโนมัติ)';
             document.getElementById('manualTeam').innerHTML =
                 '<option value="">— ไม่เปลี่ยนแปลง —</option>' +
                 QUOTA.map(q => `<option value="คณะที่ ${q.n}" ${q.used >= 40 ? 'disabled' : ''}>คณะที่ ${q.n}${q.used >= 40 ? ' (เต็มโควตา)' : ''}</option>`).join('');
@@ -914,7 +907,7 @@
                             updateSigBoxUI72(true, res.value, now.toLocaleString('th-TH'));
                             renderDoc();
                             renderActionButtons72();
-                            ECMIS.toastOk('ลงนามรับรองความเห็นเรียบร้อยแล้ว กรุณากดปุ่ม "บันทึกเพื่อส่งบรรจุวาระ"');
+                            handle('save_status'); // Task 234: ลงนามแล้วส่งต่อทันที (ขั้นเดียวทั้งระบบ)
                         });
                     return;
                 }
@@ -948,16 +941,8 @@
                         });
                     }
 
-                    Swal.fire({
-                        icon: 'success',
-                        title: isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อทำเพิ่มเติมเรียบร้อย' : 'บันทึกความเห็นและส่งบรรจุวาระเรียบร้อย',
-                        html: `<div class="text-start">
-                            สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — ${isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อไต่สวนเพิ่มเติม (ม.๖๗ พ.ร.ป. ป.ป.ช. ๒๕๖๑)' : 'ส่งฝ่ายจัดประชุมเพื่อจัดพิมพ์หนังสือเชิญประชุม (T11_72)'}<br>
-                            <span class="st st-done mt-2 d-inline-block"><i class="fa-solid fa-signature me-1"></i>ลงนามรับรองความเห็นแล้ว</span>
-                        </div>`,
-                        confirmButtonColor: '#0F2A62',
-                        confirmButtonText: 'ตกลง'
-                    }).then(() => location.href = (isReturn72 ? ECMIS.homeHref(role.id) : ECMIS.pageForCase72(kase)) + '?case=' + encodeURIComponent(kase.id));
+                    ECMIS.toastOk((isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อทำเพิ่มเติมเรียบร้อย' : 'บันทึกความเห็นและส่งบรรจุวาระเรียบร้อย') + ' · ' + ECMIS.caseNo(kase), isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อไต่สวนเพิ่มเติม (ม.๖๗ พ.ร.ป. ป.ป.ช. ๒๕๖๑)' : 'ส่งฝ่ายจัดประชุมเพื่อจัดพิมพ์หนังสือเชิญประชุม');
+                    ECMIS.goAfterSaves((isReturn72 ? ECMIS.homeHref(role.id) : ECMIS.pageForCase72(kase)) + '?case=' + encodeURIComponent(kase.id));
                 }
             }
 

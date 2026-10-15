@@ -36,8 +36,15 @@
       if (tracks.indexOf("BOARD_DECISION") !== -1){
         // มติต่อข้อเสนอ J13 กลับมาในเลขเรื่องของข้อเสนอ (CHK:...) ต้องผูกกลับสำนวนต้นทาง
         var target = find(list, text(p.request && p.request.sourceCaseId));
-        if (target){
+        if (target && text(p.kind) === "SOURCE_RETURN"){
+          // ก7 ตีกลับข้อเสนอก่อนมีมติ: เปิดให้เสนอใหม่ได้
+          target.boardReturn = { reason: text(p.reason), by: text(p.by), returnedAt: text(p.returnedAt) };
+          target.proposal = null;
+          target.boardDecision = null;
+          count++;
+        } else if (target){
           target.boardDecision = { a7Code: text(p.a7Code), text: text(p.text), reference: text(p.reference), decidedAt: text(p.decidedAt) };
+          target.boardReturn = null;
           count++;
         }
       } else {
@@ -109,7 +116,7 @@
     }).then(function(r){
       if (!r.isConfirmed) return;
       var v = Object.assign({ resultLabel: RESULTS[r.value.result], at: new Date().toISOString() }, r.value);
-      J().send("J10R", { caseId: item.caseId, by: "กิจกรรมติดตามคดี (ก8)", payload: Object.assign({ tracks: item.tracks,
+      J().send("J10R", { caseId: item.caseId, by: "กระบวนการติดตามคดี", payload: Object.assign({ tracks: item.tracks,
         boardDecision: item.boardDecision }, v) });
       item.results.push(v);
       write(list);
@@ -128,11 +135,12 @@
     }).then(function(r){
       if (!r.isConfirmed) return;
       // เสนอเป็นเรื่องของ ก8 เอง ไม่ใช้เลขสำนวนเดิม เพื่อไม่ทับประวัติมติ 644 ของสำนวนใน ก7
-      J().send("J13", { caseId: "CHK:" + item.caseId, by: "กิจกรรมติดตามคดี (ก8)", payload: { docType: "GENERAL",
+      J().send("J13", { caseId: "CHK:" + item.caseId, by: "กระบวนการติดตามคดี", payload: { docType: "GENERAL",
         subject: "ผลติดตามวินัย " + item.accused + " (สำนวน " + item.caseId + ")", accused: item.accused, agency: item.agency,
         sourceCaseId: item.caseId, report: last, proposal: text(r.value) } });
       item.proposal = { sentAt: new Date().toISOString(), text: text(r.value) };
       item.boardDecision = null;
+      item.boardReturn = null;
       write(list);
       refresh();
       root.Swal.fire({ icon: "success", title: "ส่งเสนอแล้ว", text: "เรื่องเข้าคิวคณะกรรมการ ป.ป.ท. (ก7)", confirmButtonColor: "#1d5a91" });
@@ -146,7 +154,8 @@
       var last = lastResult(item), id = esc(item.caseId);
       var progress = [last ? "ผลล่าสุด: " + RESULTS[last.result] : "ยังไม่แจ้งผล",
         item.proposal && !item.boardDecision ? "เสนอคณะกรรมการแล้ว รอมติ" : "",
-        item.boardDecision ? "มติคณะกรรมการ: " + (item.boardDecision.text || item.boardDecision.a7Code) : ""].filter(Boolean).map(esc).join(" · ");
+        item.boardDecision ? "มติคณะกรรมการ: " + (item.boardDecision.text || item.boardDecision.a7Code) : "",
+        item.boardReturn ? "ก7 ตีกลับข้อเสนอ: " + (item.boardReturn.reason || "-") : ""].filter(Boolean).map(esc).join(" · ");
       var actions = '<button class="btn" data-jn8-act="result" data-jn8-id="' + id + '">แจ้งผลกลับระบบไต่สวน</button>';
       if (last && last.result !== "Compliant" && !(item.proposal && !item.boardDecision)){
         actions += ' <button class="btn" data-jn8-act="propose" data-jn8-id="' + id + '">เสนอคณะกรรมการ ป.ป.ท.</button>';

@@ -260,10 +260,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="../assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="../assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('approval-review.html');
@@ -997,24 +997,14 @@
               return;
             }
 
-            Swal.fire({
-              icon: 'success',
-              title: 'ส่งเรื่องให้ ผอ.กบค. เรียบร้อย',
-              html: `<div class="text-start">
-              สำนวน <strong>${ECMIS.caseNo(kase)}</strong> ถูกส่งไปยัง <strong>ผู้อำนวยการกองบริหารคดี (ผอ.กบค.)</strong> แล้ว<br>
-              <div style="font-size:.82rem;color:#7C8CA3;margin-top:.6rem">ขั้นถัดไป: ผอ.กบค. ออกเลขทะเบียนคุมและมอบหมายคณะอนุสนับสนุนฯ → คณะอนุสนับสนุนฯ กลั่นกรอง → กลับมาเลขาธิการฯ</div>
-            </div>`,
-              confirmButtonColor: '#0F2A62',
-              confirmButtonText: 'ตกลง (ไปที่ Work Inbox)',
-              width: 540
-            }).then(() => {
-              location.href = ECMIS.homeHref(role.id);
-            });
+            ECMIS.toastOk('ส่งเรื่องให้ ผอ.กบค. เรียบร้อย' + ' · ' + ECMIS.caseNo(kase), 'ส่งต่อไปยัง ผู้อำนวยการกองบริหารคดี (ผอ.กบค.)');
+            ECMIS.goAfterSaves(ECMIS.homeHref(role.id));
           });
           return;
         }
 
-        if (act === 'save_status') {
+        /* Task 234: ปลายทางที่เลขาฯ จะส่ง — ใช้ทั้งบรรทัด "ลงนามแล้วจะส่งต่อ" ในกล่องลงนามและตอนบันทึก (ตรรกะเดียว) */
+        function secgenRoute() {
           const m28 = m28Selected();
           const complex = g1Yes();
           let dest, path, targetStatus;
@@ -1040,6 +1030,10 @@
             dest = 'ประธานกรรมการ ป.ป.ท.';
             path = 'สำนวนปกติ: เสนอประธานฯ พิจารณาสั่งการ';
           }
+          return { m28, complex, dest, path, targetStatus };
+        }
+        if (act === 'save_status') {
+          const { m28, complex, dest, path, targetStatus } = secgenRoute();
 
           if (kase.urgent && attachmentCount === 0 && !mockAttachmentShown) {
             ECMIS.toastWarn('สำนวนนี้เป็นกรณีเร่งด่วน — กรุณาแนบไฟล์ใบด่วนก่อนบันทึก/ลงนาม');
@@ -1073,24 +1067,8 @@
             return;
           }
 
-          Swal.fire({
-            icon: 'success',
-            title: 'บันทึกและเปลี่ยนสถานะเรียบร้อย',
-            html: `<div class="text-start">
-            สำนวน <strong>${ECMIS.caseNo(kase)}</strong> ถูกบันทึกสถานะเป็น
-            <span class="st st-done" style="font-size:0.85rem"><i class="fa-solid fa-signature me-1"></i>เลขาลงนามแล้ว</span><br>
-            และส่งต่อไปยัง <strong>${dest}</strong> เรียบร้อยแล้ว
-            <div style="font-size:.82rem;color:#7C8CA3;margin-top:.6rem">เส้นทางที่ระบบกำหนด: ${path}</div>
-            <div style="background:#fdf7e8;border-left:4px solid #D0A830;padding:.55rem .8rem;border-radius:0 6px 6px 0;margin-top:.7rem;font-size:.8rem">
-              <strong>ม.28</strong> — คำสั่งของเลขาธิการฯ ถูกบรรจุเข้ารอบรายงานคณะกรรมการ ป.ป.ท. รอบถัดไปโดยอัตโนมัติ
-            </div>
-          </div>`,
-            confirmButtonColor: '#0F2A62',
-            confirmButtonText: 'ตกลง (ไปที่ Work Inbox)',
-            width: 560
-          }).then(() => {
-            location.href = ECMIS.homeHref(role.id);
-          });
+          ECMIS.toastOk((m28 !== 'ACCEPT' ? 'ลงนามคำสั่งเรียบร้อย' : 'ลงนามและส่งต่อเรียบร้อย') + ' · ' + ECMIS.caseNo(kase), m28 !== 'ACCEPT' ? `${dest} — บรรจุเข้ารอบรายงานคณะกรรมการ ป.ป.ท. รอบถัดไปโดยอัตโนมัติ` : `ส่งต่อไปยัง ${dest}`);
+          ECMIS.goAfterSaves(ECMIS.homeHref(role.id));
           return;
         }
 
@@ -1107,7 +1085,7 @@
             }
             const order = ECMIS.m28Order(m28);
             ECMIS.signDialog(`คำสั่งเลขาธิการฯ ตาม ${order.lawRef} เรื่องที่ ${ECMIS.caseNo(kase)}`,
-              'นายอภิชาติ สุจริตกุล — เลขาธิการคณะกรรมการ ป.ป.ท.')
+              'นายอภิชาติ สุจริตกุล — เลขาธิการคณะกรรมการ ป.ป.ท.', null, { lead: 'ลงนามแล้วจะปิดเรื่อง', destination: order.label })
               .then(res => {
                 if (!res.isConfirmed) return;
                 signed = true;
@@ -1120,7 +1098,7 @@
                 });
                 updateSigBoxUI(true, res.value.sig, now.toLocaleString('th-TH'));
                 renderActionButtons();
-                ECMIS.toastOk('ลงนามคำสั่งเรียบร้อยแล้ว กรุณากดปุ่ม "บันทึกเพื่อเปลี่ยนสถานะ"');
+                handle('save_status'); // Task 234: ลงนามแล้วส่งต่อทันที (ขั้นเดียวทั้งระบบ)
               });
             return;
           }
@@ -1131,7 +1109,7 @@
           }
 
           const SEC = { name: 'นายอภิชาติ สุจริตกุล', title: 'เลขาธิการคณะกรรมการ ป.ป.ท.' };
-          const signPromise = ECMIS.signDialog(`${docType.label} เรื่องที่ ${ECMIS.caseNo(kase)}`, `${SEC.name} — ${SEC.title}`);
+          const signPromise = ECMIS.signDialog(`${docType.label} เรื่องที่ ${ECMIS.caseNo(kase)}`, `${SEC.name} — ${SEC.title}`, null, { destination: secgenRoute().dest });
 
           signPromise.then(res => {
             if (!res.isConfirmed) return;
@@ -1145,7 +1123,7 @@
             });
             updateSigBoxUI(true, res.value.sig, now.toLocaleString('th-TH'));
             renderActionButtons();
-            ECMIS.toastOk('ลงนามดิจิทัลเรียบร้อยแล้ว กรุณากดปุ่ม "บันทึกเพื่อเปลี่ยนสถานะ"');
+            handle('save_status'); // Task 234: ลงนามแล้วส่งต่อทันที (ขั้นเดียวทั้งระบบ)
           });
         }
       }

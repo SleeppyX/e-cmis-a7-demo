@@ -8,7 +8,7 @@
 
      ก4+5  10 บทบาท จาก ROLE_LABELS ใน intake-investigation/assets/activity4-workspace.js
      ก7    6 คน ตามหน่วยงานและบทบาทจริงของกิจกรรมที่ 7
-     ก10   9 คน จาก ROLES ใน legal-case/assets/ecmis-app.js
+     ก10   19 คน จาก ROLES ใน legal-case/assets/ecmis-app.js
      ก14   5 คน จาก USERS ใน admin-center/index.html
      ก6 ก8 ก9 ก12 ก13 — ต้นทางไม่มีรายชื่อ จึงตั้งตามหน้าที่ของกิจกรรม
 
@@ -34,7 +34,7 @@ const AUTH_USERS = [
   { u:"warrant.officer", p:"1234", name:"นางสาวอรุณี ใจมั่น", title:"เจ้าหน้าที่หมายจับ / เจ้าของสำนวน",
     org:"กองปราบปรามการทุจริตฯ", act:"arrest-warrant", roleId:"officer" },
 
-  /* ── กิจกรรมที่ 10 กฎหมายในทางคดี — 9 คน ตาม ROLES ใน activity10/assets/ecmis-app.js ── */
+  /* ── กิจกรรมที่ 10 กฎหมายในทางคดี — 19 คน ตาม ROLES ใน legal-case/assets/ecmis-app.js ── */
   { u:"Kitti.P", p:"1234", name:"นายกิตติ ปรีชาญาณ", title:"คณะอนุกรรมการกลั่นกรองฯ",
     org:"ส่วนกลาง", act:"legal-case", roleId:"subcommittee_screen", group:"คณะอนุกรรมการ" },
   { u:"Sumet.N", p:"1234", name:"นายสุเมธ นิติธรรม", title:"คณะอนุกรรมการวินิจฉัยอุทธรณ์",
@@ -53,6 +53,29 @@ const AUTH_USERS = [
     org:"กองกฎหมาย", act:"legal-case", roleId:"dir_legal", group:"กองกฎหมาย" },
   { u:"Anucha.S", p:"1234", name:"นายอนุชา สารบรรณ", title:"สารบรรณกลาง",
     org:"สำนักงานเลขาธิการ", act:"legal-case", roleId:"registry", group:"สำนักงานเลขาธิการ" },
+  /* ก10.2 คำขอเปิดเผยข้อมูลข่าวสาร */
+  { u:"Pimchanok.T", p:"1234", name:"นางสาวพิมพ์ชนก ธรรมรักษ์", title:"ฝ่ายเลขานุการคณะอนุกรรมการพิจารณากลั่นกรองการเปิดเผยข้อมูลข่าวสาร",
+    org:"กองกฎหมาย (กกม.)", act:"legal-case", roleId:"sub_secretariat", group:"กองกฎหมาย" },
+  /* ก10.2 อุทธรณ์คำสั่งไม่เปิดเผยข้อมูล */
+  { u:"Nichada.T", p:"1234", name:"นางนิชาดา ธุรการกิจ", title:"ธุรการกองบริหารคดี",
+    org:"กองบริหารคดี", act:"legal-case", roleId:"case_bureau_admin", group:"กองบริหารคดี" },
+  { u:"Kittipong.D", p:"1234", name:"นายกิตติพงษ์ ดูแลเขต", title:"เจ้าหน้าที่เขต",
+    org:"สนง. ป.ป.ท. เขต 4", act:"legal-case", roleId:"district_admin", group:"เขต" },
+  { u:"Pattama.B", p:"1234", name:"นางปัทมา บริหารกิจ", title:"ผู้อำนวยการกองบริหารคดี",
+    org:"กองบริหารคดี", act:"legal-case", roleId:"case_bureau_director", group:"กองบริหารคดี" },
+  { u:"Wichai.T", p:"1234", name:"นายวิชัย ติดตามกิจ", title:"ผู้อำนวยการกลุ่มงานบริหารติดตามคดี",
+    org:"กองบริหารคดี", act:"legal-case", roleId:"case_tracking_director", group:"กองบริหารคดี" },
+  { u:"Malee.S", p:"1234", name:"นางสาวมาลี เสรีกิจ", title:"ฝ่ายเลขาคณะอนุกรรมการวินิจฉัยอุทธรณ์",
+    org:"กองบริหารคดี", act:"legal-case", roleId:"appeal_subcommittee_secretariat", group:"คณะอนุกรรมการ" },
+  { u:"Sompong.V", p:"1234", name:"นายสมพงษ์ วินิจฉัยกุล", title:"คณะอนุกรรมการวินิจฉัยอุทธรณ์คำสั่งไม่เปิดเผยข้อมูลหรือข้อเท็จจริง",
+    org:"ส่วนกลาง", act:"legal-case", roleId:"appeal_ruling_subcommittee", group:"คณะอนุกรรมการ" },
+  { u:"Suda.K", p:"1234", name:"นางสาวสุดา คดีเที่ยง", title:"เลขานุการกลุ่มงานบริหารติดตามคดี",
+    org:"กองบริหารคดี", act:"legal-case", roleId:"case_tracking_secretary", group:"กองบริหารคดี" },
+  /* ก10.3 คดีศาลปกครอง */
+  { u:"Pichai.R", p:"1234", name:"นายพิชัย เรืองศรี", title:"ผู้อำนวยการกลุ่มงานคดี",
+    org:"กองกฎหมาย (กอท.)", act:"legal-case", roleId:"case_group_director", group:"กองกฎหมาย (กลุ่มงานคดี)" },
+  { u:"Kittisak.S", p:"1234", name:"นายกิตติศักดิ์ แสงทอง", title:"นิติกร กลุ่มงานคดี",
+    org:"กองกฎหมาย (กอท.)", act:"legal-case", roleId:"case_legal_officer", group:"กองกฎหมาย (กลุ่มงานคดี)" },
   /* ── กิจกรรมที่ 12 วิเคราะห์และรายงานผล ── */
   { u:"report.analyst", p:"1234", name:"นางสาวมนัสนันท์ วิเคราะห์", title:"นักวิเคราะห์นโยบายและแผน",
     org:"กองยุทธศาสตร์และแผนงาน", act:"analytics", roleId:"officer" },
@@ -61,26 +84,30 @@ const AUTH_USERS = [
   { u:"gateway.officer", p:"1234", name:"นายอรรถพล เชื่อมโยง", title:"เจ้าหน้าที่ ป.ป.ท. (ดูแลการเชื่อมโยงข้อมูล)",
     org:"ศูนย์เทคโนโลยีสารสนเทศ", act:"integration-gateway", roleId:"officer" },
 
-  /* ── กิจกรรมที่ 7 มติคณะกรรมการ ป.ป.ท. ── */
+  /* ── กิจกรรมที่ 7 มติคณะกรรมการ ป.ป.ท. ──
+     ตารางบัญชีทดสอบหน้า login แสดงเฉพาะรองเลขาธิการ (Prasert.T) — เล่นบทบาทอื่นผ่านตัวสลับบทบาทขวาบนของ ก7
+     บัญชีอื่นซ่อนจากรายการ (hideInDemoList) แต่ยัง login ได้ เพราะ ก10 ใช้ Apichat.S / Wichai.Y / Siriporn.K */
+  { u:"Prasert.T", p:"1234", name:"นายประเสริฐ ธรรมพิทักษ์", title:"รองเลขาธิการคณะกรรมการ ป.ป.ท.",
+    org:"เลขาธิการฯ/รองเลขาธิการ", act:"board-resolution", roleId:"deputy", group:"เลขาธิการฯ/รองเลขาธิการ" },
   { u:"Apichat.S", p:"1234", name:"นายอภิชาติ สุจริตกุล", title:"เลขาธิการคณะกรรมการ ป.ป.ท.",
-    org:"เลขาธิการฯ/รองเลขาธิการ", act:"board-resolution", roleId:"secgen", group:"เลขาธิการฯ/รองเลขาธิการ" },
+    org:"เลขาธิการฯ/รองเลขาธิการ", act:"board-resolution", hideInDemoList:true, roleId:"secgen", group:"เลขาธิการฯ/รองเลขาธิการ" },
   { u:"Jiraporn.N", p:"1234", name:"นางสาวจิราพร นิติกิจ", title:"อนุกรรมการสนับสนุนเลขาธิการฯ",
-    org:"คณะอนุกรรมการสนับสนุนเลขาธิการฯ", act:"board-resolution", roleId:"support_sub", group:"คณะอนุกรรมการสนับสนุนเลขาธิการฯ" },
+    org:"คณะอนุกรรมการสนับสนุนเลขาธิการฯ", act:"board-resolution", hideInDemoList:true, roleId:"support_sub", group:"คณะอนุกรรมการสนับสนุนเลขาธิการฯ" },
   { u:"Wichai.Y", p:"1234", name:"นายวิชัย ยุติธรรม", title:"ประธานกรรมการ ป.ป.ท.",
-    org:"ประธานกรรมการ ป.ป.ท.", act:"board-resolution", roleId:"chairman", group:"ประธานกรรมการ ป.ป.ท.", readOnly:true },
+    org:"ประธานกรรมการ ป.ป.ท.", act:"board-resolution", hideInDemoList:true, roleId:"chairman", group:"ประธานกรรมการ ป.ป.ท.", readOnly:true },
   { u:"Thanakrit.B", p:"1234", name:"นายธนกฤต บุญมี", title:"เจ้าหน้าที่กลุ่มงานคำวินิจฉัยและมติคณะกรรมการ",
-    org:"กลุ่มงานวินิจฉัยและมติคณะกรรมการ", act:"board-resolution", roleId:"board_sec", group:"กลุ่มงานวินิจฉัยและมติคณะกรรมการ" },
+    org:"กลุ่มงานวินิจฉัยและมติคณะกรรมการ", act:"board-resolution", hideInDemoList:true, roleId:"board_sec", group:"กลุ่มงานวินิจฉัยและมติคณะกรรมการ" },
   { u:"Somboon.T", p:"1234", name:"นายสมบูรณ์ ธรรมรัฐ", title:"กรรมการ ป.ป.ท.",
-    org:"คณะกรรมการ ป.ป.ท.", act:"board-resolution", roleId:"board", group:"คณะกรรมการ ป.ป.ท.", readOnly:true },
+    org:"คณะกรรมการ ป.ป.ท.", act:"board-resolution", hideInDemoList:true, roleId:"board", group:"คณะกรรมการ ป.ป.ท.", readOnly:true },
   { u:"Siriporn.K", p:"1234", name:"นางสาวศิริพร กิจการ", title:"เจ้าหน้าที่กลุ่มงานกิจการคณะกรรมการ",
-    org:"กลุ่มงานกิจการคณะกรรมการ", act:"board-resolution", roleId:"affairs", group:"กลุ่มงานกิจการคณะกรรมการ" },
+    org:"กลุ่มงานกิจการคณะกรรมการ", act:"board-resolution", hideInDemoList:true, roleId:"affairs", group:"กลุ่มงานกิจการคณะกรรมการ" },
 
   { u:"a7.subcommittee", p:"1234", name:"นายสุเมธ นิติธรรม", title:"อนุกรรมการและเลขานุการ คณะอนุกรรมการกลั่นกรองฯ",
-    org:"คณะอนุกรรมการกลั่นกรองฯ", act:"board-resolution", roleId:"subcommittee", group:"คณะอนุกรรมการกลั่นกรองฯ 1-8" },
+    org:"คณะอนุกรรมการกลั่นกรองฯ", act:"board-resolution", hideInDemoList:true, roleId:"subcommittee", group:"คณะอนุกรรมการกลั่นกรองฯ 1-8" },
   { u:"Kannika.W", p:"1234", name:"นางสาวกรรณิกา วงศ์ศิริ", title:"กบค.กลุ่มงานบริหารคดีและบริหารทั่วไป",
-    org:"กองบริหารคดี", act:"board-resolution", roleId:"case_admin", group:"กองบริหารคดี" },
+    org:"กองบริหารคดี", act:"board-resolution", hideInDemoList:true, roleId:"case_admin", group:"กองบริหารคดี" },
   { u:"Bunlue.S", p:"1234", name:"นายบุญลือ สุขเกษม", title:"ผู้อำนวยการกองบริหารคดี",
-    org:"กองบริหารคดี", act:"board-resolution", roleId:"dir_case", group:"กองบริหารคดี" },
+    org:"กองบริหารคดี", act:"board-resolution", hideInDemoList:true, roleId:"dir_case", group:"กองบริหารคดี" },
 
   /* ── กิจกรรมที่ 14 บริหารกลางและสนับสนุน ── */
   { u:"somsak.p", p:"1234", name:"นายสมศักดิ์ ใจดี", title:"นักสืบสวน",

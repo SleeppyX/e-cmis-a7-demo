@@ -128,8 +128,8 @@
                                         class="fa-solid fa-file-signature me-1"></i>เอกสารคำสั่ง /
                                     รายงานรอลงนาม</button>
                                 <button class="ws-doc-tab" data-doc="report213" id="tabReport213"><i
-                                        class="fa-solid fa-file-contract me-1"></i>รายงาน ๒-๑๓ (เลขาฯ
-                                    ลงนามแล้ว)</button>
+                                        class="fa-solid fa-file-contract me-1"></i><span id="tabReport213Label">รายงาน ๒-๑๓ (เลขาฯ
+                                    ลงนามแล้ว)</span></button>
                             </div>
                             <div class="d-flex gap-1 align-items-center">
                                 <button type="button" class="btn-doc-edit" id="btnDocEdit"
@@ -224,10 +224,10 @@
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
     <script src="../cases.js"></script>
-    <script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+    <script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
     <script src="assets/ecmis-model.js"></script>
     <script>
         ECMIS.renderShell('chairman.html');
@@ -286,6 +286,10 @@
                 updateSigBoxUI(true, { mode: 'cert' }, ECMIS.thaiDate(kase.chairSignedAt || new Date().toISOString()));
             }
 
+            if (ECMIS.isCase72(kase)) {
+                const lbl = document.getElementById('tabReport213Label');
+                if (lbl) lbl.textContent = 'รายงาน ๖-๔๔ (เลขาฯ ลงนามแล้ว)';
+            }
             renderDoc();
             renderActionButtons();
         }
@@ -536,7 +540,7 @@
                         updateSigBoxUI(true, res.value, now.toLocaleString('th-TH'));
                         renderDoc();
                         renderActionButtons();
-                        ECMIS.toastOk('ลงนามเรียบร้อยแล้ว กรุณากดปุ่ม "บันทึกคำสั่งและส่งบรรจุวาระ"');
+                        handle('save_status'); // Task 234: ลงนามแล้วส่งต่อทันที (ขั้นเดียวทั้งระบบ)
                     });
                 return;
             }
@@ -574,20 +578,8 @@
                         });
                     }
 
-                    await Swal.fire({
-                        icon: 'success',
-                        title: 'บันทึกคำสั่งและลงนามสำเร็จ',
-                        html: `<div class="text-start">
-                                  สำนวนเรื่องที่ <strong>${ECMIS.caseNo(kase)}</strong><br>
-                                  สถานะใหม่: <strong>${ECMIS.STATUS[nextStatus]?.label || nextStatus}</strong><br><br>
-                                  <span style="font-size:.9rem;color:#475569">
-                                      <i class="fa-solid fa-arrow-right me-1 text-primary"></i>ส่งสำนวนเข้าสู่ระบบเรียบร้อยแล้ว ดำเนินการส่งต่อฝ่ายเลขาฯ บรรจุวาระต่อไป
-                                  </span>
-                               </div>`,
-                        confirmButtonColor: '#0F2A62',
-                        confirmButtonText: 'ตกลง (กลับหน้ารายการสั่งการ)'
-                    });
-                    location.href = nextTarget;
+                    ECMIS.toastOk('บันทึกคำสั่งและลงนามสำเร็จ' + ' · ' + ECMIS.caseNo(kase), `สถานะใหม่: ${ECMIS.STATUS[nextStatus]?.label || nextStatus}`);
+                    ECMIS.goAfterSaves(nextTarget);
                 })();
             }
         }

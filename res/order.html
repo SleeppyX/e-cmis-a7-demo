@@ -80,6 +80,10 @@
                   <input class="form-control" id="orderDate" value="2569-06-05">
                 </div>
               </div>
+              <div class="row g-2 mt-1">
+                <!-- Task 300: เลขหนังสือส่งคำสั่งแจ้งสำนัก/เขต (ปป 0004/) -->
+                <div class="col-md-6" id="orderNotifyLetterBox"></div>
+              </div>
             </div>
           </div>
 
@@ -175,7 +179,7 @@
             <div class="card-body">
               <div class="row g-2">
                 <div class="col-md-6"><label class="form-label field-req">เลขที่บันทึก</label>
-                  <input class="form-control" id="memoNo" value="ปป ๐๐๐๔/">
+                  <input class="form-control" id="memoNo">
                 </div>
                 <div class="col-md-6"><label class="form-label field-req">ลงวันที่</label>
                   <input class="form-control" id="memoDate" value="2569-06-01">
@@ -438,13 +442,15 @@
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="../assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
+  <script src="../assets/resolution-split.js?v=20261014-a7-split2"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="../assets/ecmis-model.js"></script>
   <script src="../assets/order-memo-docs.js"></script>
-  <script src="../assets/case-closure.js"></script>
+  <script src="../assets/saraban-no.js?v=20261015-a7-saraban-off"></script>
+  <script src="../assets/case-closure.js?v=20261015-a7-saraban-off"></script>
   <script>
     ECMIS.renderShell('order.html');
 
@@ -550,7 +556,9 @@
     document.getElementById('stepper').innerHTML = ECMIS.stepperHtml(kase);
 
     function accusedTextFromBoard(source) {
-      const list = (source.accusedSnapshot && source.accusedSnapshot.length) ? source.accusedSnapshot : (source.accused || []);
+      const all = (source.accusedSnapshot && source.accusedSnapshot.length) ? source.accusedSnapshot : (source.accused || []);
+      /* Task 324: มติ 7.1 แยกรายคน — คำสั่งแต่งตั้ง ม.24 ใช้เฉพาะผู้ถูกกล่าวหาที่มีมติรับไว้ไต่สวน */
+      const list = window.ECMISResolutionSplit ? ECMISResolutionSplit.acceptedAccused71(source, all) : all;
       return list.map((acc, index) => `${index + 1}. ${acc.name || ''}${acc.pos ? ` ตำแหน่ง ${acc.pos}` : ''}${acc.agency ? ` สังกัด ${acc.agency}` : ''}`).join('\n');
     }
 
@@ -649,7 +657,7 @@
       const memberNames = memoMembers.map(m =>
         `${P(m.name, 'ชื่อ - สกุล')} ${P(m.pos, 'ตำแหน่ง')} สังกัด ${P(m.agency, '……………')} (${m.role})`).join(' และ ');
       return {
-        no: P(no, 'ปป ๐๐๐๔/'), dt: P(dt), caseId: P(kase.id),
+        no: P(ECMIS.sarabanThai(no), 'ปป ๐๐๐๔/'), dt: P(dt), caseId: P(kase.id),
         origOffice: P(origOffice, '(กอง/สำนัก)'), origDoc: P(origDoc),
         meetNo: P(meetNo), meetDate: P(meetDate), agenda: P(agenda),
         recvDate: P(recvDate), recvMeet: P(recvMeet),
@@ -973,7 +981,8 @@
     function renderAppointDoc() {
       const no = document.getElementById('orderNo').value.trim();
       const dt = ECMIS.thaiDate(document.getElementById('orderDate').value.trim());
-      const accused = (kase.accused && kase.accused[0]) || {};
+      const accusedPool = window.ECMISResolutionSplit ? ECMISResolutionSplit.acceptedAccused71(kase, kase.accused || []) : (kase.accused || []);
+      const accused = accusedPool[0] || {};
       const accusedNamesText = document.getElementById('boardAccusedNames').value.trim();
       const offenseBasisText = document.getElementById('boardOffenseBasis').value.trim();
       const isNaccM62 = caseOriginCode() === 'NACC_M62';
@@ -989,7 +998,7 @@
     </div>
     ${misconductHeader}
     <div class="doc-sub">
-      ที่ ${M(no, '………/………')}
+      ที่ ${M(ECMIS.sarabanThai(no), '………/………')}
     </div>
     <div class="doc-sub">
       เรื่อง แต่งตั้ง${isSub ? 'คณะอนุกรรมการไต่สวน' : 'องค์คณะพนักงาน ป.ป.ท. เพื่อดำเนินการไต่สวน'}
@@ -1279,7 +1288,7 @@
       const memoHtml = `
     <div class="doc-title" style="font-size:29pt !important;line-height:1.2 !important;margin:0 0 6pt !important">บันทึกข้อความ</div>
     <div class="doc-memo-hdr"><span class="doc-memo-lbl">ส่วนราชการ</span> กลุ่มงานกิจการคณะกรรมการ กองบริหารคดี โทร. ๔๓๑๓</div>
-    <div class="doc-memo-hdr"><span class="doc-memo-lbl">ที่</span> ${M(no, 'ปป ๐๐๐๔/')}&nbsp;&nbsp;&nbsp;&nbsp;<span class="doc-memo-lbl" style="min-width:auto">วันที่</span> ${M(dt, '……………………')}</div>
+    <div class="doc-memo-hdr"><span class="doc-memo-lbl">ที่</span> ${M(ECMIS.sarabanThai(no), 'ปป ๐๐๐๔/')}&nbsp;&nbsp;&nbsp;&nbsp;<span class="doc-memo-lbl" style="min-width:auto">วันที่</span> ${M(dt, '……………………')}</div>
     <div class="doc-memo-hdr"><span class="doc-memo-lbl">เรื่อง</span> คำสั่ง${isSub ? 'คณะกรรมการ' : 'สำนักงาน'} ป.ป.ท. เรื่อง แต่งตั้ง${orderKind} กรณีเจ้าหน้าที่ของรัฐกระทำการทุจริตในภาครัฐ</div>
     <div class="doc-indent" style="text-indent:6.2em">เรื่องที่ ${M(ECMIS.caseNo(kase))}</div>
     <div class="doc-memo-hdr" style="margin-top:6px"><span class="doc-memo-lbl">เรียน</span> ${isSub ? 'ประธานกรรมการ ป.ป.ท.' : 'เลขาธิการคณะกรรมการ ป.ป.ท.'} (ผ่านกบค.กลุ่มงานบริหารคดีและบริหารทั่วไป)</div>
@@ -1716,7 +1725,7 @@
     <div style="text-align:center;margin-bottom:8px"><img src="../assets/doc_logo.jpg" alt="ตราครุฑ" style="height:76px"></div>
     <div class="doc-title" style="font-size:20pt">คำสั่ง${orgFullName}</div>
     ${String(kase.legalBase || '').startsWith('ม.18') ? '<div class="doc-sub" style="font-weight:700">(ประพฤติมิชอบ)</div>' : ''}
-    <div class="doc-sub">ที่ ${M(no, '………/………')}</div>
+    <div class="doc-sub">ที่ ${M(ECMIS.sarabanThai(no), '………/………')}</div>
     <div class="doc-sub">เรื่อง ${meta.subject}</div>
     <div style="width:140px;margin:6px auto 14px;border-bottom:1px solid #333"></div>
     ${body}
@@ -1852,7 +1861,23 @@
         const orderDateVal = document.getElementById('orderDate').value.trim();
         const caseOriginVal = document.getElementById('caseOrigin')?.value || 'MISCONDUCT';
 
+        /* Task 289: ยืนยันก่อนออกคำสั่ง/บันทึกเสนอ/คำสั่งแก้ไข — ทุกแบบพาสำนวนเข้าชั้นไต่สวนทันที (ตรวจข้อมูลด้านบนผ่านแล้วจึงถาม) */
+        const confirmWord = { memo: ['ยืนยันการเสนอบันทึกข้อความ', 'ยืนยันเสนอ'], amend: ['ยืนยันการออกคำสั่งแก้ไข', 'ยืนยันออกคำสั่งแก้ไข'] }[currentMode]
+          || ['ยืนยันการออกคำสั่งแต่งตั้ง ม.24', 'ยืนยันออกคำสั่ง'];
+        const confirmRow = (label, val) => `<tr><td class="text-muted pe-3 py-1" style="white-space:nowrap">${label}</td><td class="py-1 fw-semibold">${ECMIS.escapeHtml(String(val || '—'))}</td></tr>`;
+        const confirmHtml = `<table class="mb-3" style="font-size:.95rem">
+            ${confirmRow('เลขสำนวน', ECMIS.caseNo(kase))}
+            ${confirmRow('เลขที่คำสั่ง', orderNoVal)}
+            ${currentMode === 'appoint' && ECMIS.SARABAN_UI_ENABLED !== false ? confirmRow('เลขหนังสือส่งคำสั่งแจ้งสำนัก/เขต', ECMIS.sarabanNoOf(kase, 'orderNotifyLetter')) : ''}
+            ${confirmRow('ลงวันที่', orderDateVal ? ECMIS.thaiDate(orderDateVal) : '')}
+            ${confirmRow('จำนวนผู้ไต่สวน', members && members.length ? members.length + ' คน' : '')}
+          </table>
+          <div class="ws-callout" style="padding:.6rem .8rem;border-left:4px solid #caa631;background:#fff8e5;color:#5f5027;border-radius:0 6px 6px 0">
+            <i class="fa-solid fa-circle-info me-1"></i>เมื่อยืนยัน สำนวนจะเข้าสู่ชั้นไต่สวนวินิจฉัยชี้มูลทันที</div>`;
+
         (async () => {
+          const ok = await ECMIS.confirmAction({ title: confirmWord[0], html: confirmHtml, confirmText: confirmWord[1] });
+          if (!ok.isConfirmed) return;
           try {
             if (kase.trr_id && sb) {
               const currentResData = kase.resolutionData || (kase.code ? { code: kase.code, label: kase.label } : {});
@@ -1914,7 +1939,7 @@
             updateSigBoxUI(true, res.value, now.toLocaleString('th-TH'));
             renderDoc();
             refreshSigner();
-            ECMIS.toastOk('ลงนามคำสั่งเรียบร้อยแล้ว กรุณากดปุ่ม "บันทึกคำสั่งและส่งต่อ"');
+            handle('save_order'); // Task 234: ลงนามแล้วส่งต่อทันที (ขั้นเดียวทั้งระบบ)
           });
         return;
       }
@@ -1956,23 +1981,8 @@
             }
           }
 
-          await Swal.fire({
-            icon: 'success',
-            title: 'ออกคำสั่งเรียบร้อย — เสร็จสิ้นกระบวนงานไต่สวนเบื้องต้น',
-            html: `<div class="text-start" style="font-size:.9rem">
-              <p>คำสั่งที่ <strong>${orderNoVal}</strong> ลงนามเรียบร้อย</p>
-              <div style="background:#f4f0fa;border-left:4px solid #9673a6;padding:.6rem .8rem;border-radius:0 6px 6px 0">
-                <strong>ระบบดำเนินการอัตโนมัติ:</strong><br>
-                • ยิงมติ + คำสั่งกลับ <strong>กิจกรรมที่ 5</strong><br>
-                • เปลี่ยนสถานะคดีเป็น <strong>"อยู่ระหว่างไต่สวน"</strong><br>
-                • เริ่มนับกรอบเวลา ม.23 (ครบกำหนด ${ECMIS.thaiDate(kase.deadline2y)})<br>
-                • สำนวนเข้าสู่ชั้นไต่สวนวินิจฉัยชี้มูล
-              </div></div>`,
-            confirmButtonColor: '#0F2A62',
-            confirmButtonText: 'ตกลง',
-            width: 560
-          });
-          location.href = ECMIS.homeHref(role.id);
+          ECMIS.toastOk('ออกคำสั่งเรียบร้อย' + ' · ' + ECMIS.caseNo(kase), `คำสั่งที่ ${orderNoVal} · สำนวนเข้าสู่ชั้นไต่สวนวินิจฉัยชี้มูล`);
+          ECMIS.goAfterSaves(ECMIS.homeHref(role.id));
         })();
         return;
       }
@@ -2049,18 +2059,9 @@
             memCase.signedBySecgen = true;
           }
 
-          await Swal.fire({
-            icon: 'success',
-            title: 'เห็นชอบและลงนามบันทึกเรียบร้อย',
-            html: `<div class="text-start">
-                     สำนวนเรื่องที่ <strong>${ECMIS.caseNo(kase)}</strong><br>
-                     ${isSub ? 'ส่งเรื่องให้ <strong>ประธานกรรมการ ป.ป.ท.</strong> ลงนามคำสั่งแต่งตั้ง (ปปท. ๕-๐๒) ต่อไป' : 'บันทึกคำสั่งและส่งต่อเรียบร้อยแล้ว'}
-                   </div>`,
-            confirmButtonColor: '#0F2A62',
-            confirmButtonText: 'ตกลง (กลับหน้ารายการสั่งการ)'
-          });
+          ECMIS.toastOk('เห็นชอบและลงนามบันทึกเรียบร้อย' + ' · ' + ECMIS.caseNo(kase), isSub ? 'ส่งต่อไปยัง ประธานกรรมการ ป.ป.ท. เพื่อลงนามคำสั่งแต่งตั้ง (ปปท. ๕-๐๒)' : 'บันทึกคำสั่งและส่งต่อเรียบร้อยแล้ว');
 
-          location.href = ECMIS.homeHref ? ECMIS.homeHref(role.id) : 'inbox.html';
+          ECMIS.goAfterSaves(ECMIS.homeHref ? ECMIS.homeHref(role.id) : 'inbox.html');
         });
         return;
       }
@@ -2129,18 +2130,9 @@
           const memCase = ECMIS.CASES.find(x => x.id === kase.id);
           if (memCase) memCase.status = targetStatus;
 
-          await Swal.fire({
-            icon: 'success',
-            title: 'ลงนามคำสั่งแก้ไขเรียบร้อย',
-            html: `<div class="text-start">
-                     สำนวนเรื่องที่ <strong>${ECMIS.caseNo(kase)}</strong><br>
-                     บันทึกคำสั่งแก้ไขเพิ่มเติมเรียบร้อยแล้ว
-                   </div>`,
-            confirmButtonColor: '#0F2A62',
-            confirmButtonText: 'ตกลง (กลับหน้ารายการสั่งการ)'
-          });
+          ECMIS.toastOk('ลงนามคำสั่งแก้ไขเรียบร้อย' + ' · ' + ECMIS.caseNo(kase), 'บันทึกคำสั่งแก้ไขเพิ่มเติมเรียบร้อยแล้ว');
 
-          location.href = ECMIS.homeHref ? ECMIS.homeHref(role.id) : 'inbox.html';
+          ECMIS.goAfterSaves(ECMIS.homeHref ? ECMIS.homeHref(role.id) : 'inbox.html');
         });
         return;
       }
@@ -2324,10 +2316,24 @@
        res/inbox.html) — ถ้าได้ข้อมูลจริงมา mutate kase object เดิม (คนละ binding แต่ object เดียวกัน
        จึง closure ทุกจุดที่จับ kase ไว้เห็นค่าที่อัปเดตด้วย) แล้ว re-render ส่วนที่ผูกกับข้อมูลสำนวน */
     /* มติที่ไม่ใช่รับไว้ไต่สวน → แผงปิดสำนวน/ส่งเรื่อง/ขอเข้าวาระใหม่ (assets/case-closure.js, Task 175) */
+    /* Task 300: ช่องเลขสารบรรณ (assets/saraban-no.js) — เลขที่คำสั่ง/คำสั่งแก้ไขไม่มี prefix, บันทึกเสนอลงนามและหนังสือส่งคำสั่ง ปป 0004/ (ตารางออกเลขแถว 5–8) */
+    const sarabanFields = [];
+    function mountSarabanFields() {
+      if (sarabanFields.length || !ECMIS.mountSarabanField) return;
+      const rerender = () => { if (typeof renderDoc === 'function') renderDoc(); };
+      const field = o => sarabanFields.push(ECMIS.mountSarabanField(Object.assign({ kase, sb, onChange: rerender }, o)));
+      field({ input: document.getElementById('orderNo'), slot: 'orderNo', prefix: '' });
+      field({ input: document.getElementById('memoNo'), slot: 'memoNo', prefix: 'ปป 0004/' });
+      field({ input: document.getElementById('amendNo'), slot: 'amendOrderNo', prefix: '' });
+      field({ host: document.getElementById('orderNotifyLetterBox'), id: 'orderNotifyLetter', label: 'เลขหนังสือส่งคำสั่งแจ้งสำนัก/เขต',
+        slot: 'orderNotifyLetter', prefix: 'ปป 0004/', readonly: !appointOrderAllowed(kase) });
+    }
+
     function mountClosure() {
       if (window.CaseClosure) CaseClosure.mount({ kase, role, sb, host: document.getElementById('closurePanel') });
     }
 
+    mountSarabanFields();
     (async function refreshFromSupabase() {
       let live;
       try {
@@ -2377,6 +2383,7 @@
       renderMemoMembers();
       renderAmendTable();
       setMode(determineInitialMode());
+      sarabanFields.forEach(f => f.refresh());
       if (typeof renderDoc === 'function') renderDoc();
       mountClosure();
     })();

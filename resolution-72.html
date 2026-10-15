@@ -91,6 +91,23 @@
             <label class="form-label field-req">เลือกประเภทผลมติ</label>
             <div class="list-group mb-3" id="resList"></div>
 
+            <!-- Task 323: ผู้ถูกกล่าวหามากกว่า 1 คน — แยกมติรายคนได้ (ชี้มูล/ไม่มีมูล/กันไว้เป็นพยาน) -->
+            <div class="mb-3 d-none" id="splitModeBox">
+              <label class="form-label fw-bold text-navy" id="splitModeLabel"><i class="fa-solid fa-users me-1"></i>รูปแบบมติ</label>
+              <div class="d-flex flex-wrap gap-3" role="radiogroup" aria-labelledby="splitModeLabel">
+                <div class="form-check m-0">
+                  <input class="form-check-input" type="radio" name="res72Mode" id="res72ModeSame" value="SAME" checked>
+                  <label class="form-check-label" for="res72ModeSame">มติเดียวกันทุกคน</label>
+                </div>
+                <div class="form-check m-0">
+                  <input class="form-check-input" type="radio" name="res72Mode" id="res72ModeSplit" value="SPLIT">
+                  <label class="form-check-label" for="res72ModeSplit">แยกมติรายผู้ถูกกล่าวหา</label>
+                </div>
+              </div>
+              <small class="text-muted d-block mt-1">แยกมติรายคนได้เฉพาะมติชี้มูลความผิด / ข้อกล่าวหาไม่มีมูล — มีผู้ถูกชี้มูลอย่างน้อย 1 คน เรื่องจะไปขั้นรายงานวินิจฉัยชี้มูล</small>
+              <div id="perAccusedCards" class="mt-2 d-none"></div>
+            </div>
+
             <div class="mb-3" id="accusedWitnessSection">
               <label class="form-label fw-bold text-navy"><i class="fa-solid fa-user-shield me-1"></i>พิจารณาชี้มูลรายผู้ถูกกล่าวหา / ขอกันบุคคลไว้เป็นพยาน</label>
               <div id="accusedWitnessList" class="p-2 border rounded bg-light"></div>
@@ -136,6 +153,12 @@
               <div id="criminalFindingBox" class="mb-2 d-none">
                 <label class="form-label">การกระทำของผู้ถูกกล่าวหาเป็นความผิดตาม (ฐานความผิด/กฎหมายและมาตรา)</label>
                 <textarea class="form-control" id="criminalFinding" rows="2"></textarea>
+                <!-- A7-14: มาตราที่ชี้มูลความผิดทางอาญา หลายมาตรา (trr_resolution_data.criminalSections) -->
+                <div class="mt-2" id="criminalSectionsBox">
+                  <label class="form-label mb-1" id="criminalSectionsLabel">มาตราที่ชี้มูลความผิดทางอาญา <small class="text-muted fw-normal">(ระบุได้หลายมาตรา เช่น ป.อาญา ม.149, ป.อาญา ม.157)</small></label>
+                  <div class="d-flex flex-column gap-1" id="criminalSectionsList" role="group" aria-labelledby="criminalSectionsLabel"></div>
+                  <button type="button" class="ws-button secondary mt-1" id="btnAddCrimSection"><i class="fa-solid fa-plus"></i>เพิ่มมาตรา</button>
+                </div>
               </div>
               <div class="form-check mb-2">
                 <input class="form-check-input" type="checkbox" id="guiltyDiscipline">
@@ -188,6 +211,16 @@
           </div>
         </div>
 
+        <!-- Task 300: เลขบันทึกแจ้งมติชี้มูลความผิดอาญาและวินัย — กลุ่มงานวินิจฉัยฯ ยกร่างหลังบอร์ดมีมติ (ตารางออกเลข แถว 4) -->
+        <div class="ws-card mb-3 d-none" id="resNotifyNoCard" data-a7ro-keep>
+          <div class="card-header"><i class="fa-solid fa-hashtag"></i> เลขบันทึกแจ้งมติ</div>
+          <div class="card-body">
+            <div class="row g-2">
+              <div class="col-12" id="resNotifyMemoBox"></div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <aside class="ws-doc-pane" style="top:calc(var(--topbar-h) + 14px)">
@@ -206,6 +239,10 @@
                 <button type="button" class="btn btn-sm btn-light border" id="btnDocFullscreen" title="ขยายเต็มจอ"><i class="fa-solid fa-expand"></i></button>
                 <button type="button" class="ws-doc-pane-toggle" id="btnPaneCollapse" title="ย่อแผงเอกสาร"><i class="fa-solid fa-angles-right"></i></button>
               </div>
+            </div>
+            <div class="d-none align-items-center gap-1" id="splitDocPane" style="font-size:.78rem">
+              <span class="text-secondary small fw-medium"><i class="fa-solid fa-files me-1"></i>ฉบับ:</span>
+              <div class="d-flex gap-1 flex-wrap" id="splitDocTabs" role="group" aria-label="เลือกฉบับเอกสารมติ"></div>
             </div>
 
             <!-- Symmetrical Pagination & Zoom Navigator Bar -->
@@ -268,12 +305,13 @@
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
+  <script src="assets/saraban-no.js?v=20261015-a7-saraban-off"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="assets/ecmis-model.js"></script>
-  <script src="assets/agenda-registry-data.js?v=20261004-stale-links"></script>
+  <script src="assets/agenda-registry-data.js?v=20261005-board-real"></script>
   <script>
     ECMIS.renderShell('resolution-72.html');
 
@@ -516,7 +554,200 @@
       document.getElementById('noMeritBox').classList.toggle('d-none', code !== 'NO_MERIT_72');
       document.getElementById('forwardNaccBox').classList.toggle('d-none', code !== 'FORWARD_NACC');
       document.getElementById('guiltyBox').classList.toggle('d-none', code !== 'GUILTY_72');
+      applySplitUi();
     }
+
+    /* ---------- Task 323: แยกมติรายผู้ถูกกล่าวหา ----------
+       ใช้ได้เมื่อมีผู้ถูกกล่าวหา > 1 คน และมติที่เลือกเป็น GUILTY_72/NO_MERIT_72 (ไต่สวนเพิ่ม/ส่ง ป.ป.ช.
+       เป็นมติทั้งเรื่อง) · รายคน: GUILTY_72 / NO_MERIT_72 / WITNESS · มติรวมของเรื่อง (effectiveRes)
+       = GUILTY_72 ถ้ามีผู้ถูกชี้มูลอย่างน้อย 1 คน ไม่งั้น NO_MERIT_72 — ส่งต่อรายงานชี้มูลผ่าน accusedDecisions72 */
+    const SPLIT_RES_CODES = ['GUILTY_72', 'NO_MERIT_72'];
+    const PERSON_STATUS_LABEL = { GUILTY_72: 'ชี้มูลความผิด', NO_MERIT_72: 'ข้อกล่าวหาไม่มีมูล', WITNESS: 'กันไว้เป็นพยาน' };
+    const accusedOf = () => (Array.isArray(kase.accused) ? kase.accused : []);
+    let splitMode = false;
+    let activeSplitIdx = null;      // แท็บเอกสาร: null = ฉบับรวม, 0..n = รายคน
+    let perAccused = [];
+
+    function canSplit() {
+      return accusedOf().length > 1 && SPLIT_RES_CODES.includes(selectedRes().code);
+    }
+    function isSplit() { return splitMode && canSplit(); }
+
+    function seedPerAccused() {
+      const cur = selectedRes().code;
+      const base = SPLIT_RES_CODES.includes(cur) ? cur : 'GUILTY_72';
+      const witMap = kase.witnessState72 || {};
+      perAccused = accusedOf().map(acc => ({
+        name: acc.name,
+        status: witMap[acc.name] ? 'WITNESS' : base,
+        crim: document.getElementById('guiltyCriminal').checked,
+        disc: document.getElementById('guiltyDiscipline').checked,
+        flight: document.getElementById('flightRisk').checked,
+        criminalFinding: document.getElementById('criminalFinding').value.trim(),
+        disciplinaryFinding: document.getElementById('disciplinaryFinding').value.trim(),
+        noMeritReason: document.getElementById('noMeritReason').value,
+        noMeritOther: document.getElementById('noMeritOther').value.trim()
+      }));
+    }
+
+    function effectiveRes() {
+      if (!isSplit()) return selectedRes();
+      return ECMIS.resolution72(perAccused.some(p => p.status === 'GUILTY_72') ? 'GUILTY_72' : 'NO_MERIT_72');
+    }
+
+    function personNoMeritText(p) {
+      if (p.noMeritReason === 'OTHER') return ECMIS.mergeField(p.noMeritOther, '……………………………………');
+      return NO_MERIT_REASONS[p.noMeritReason](ECMIS.mergeField(p.name, '(ชื่อผู้ถูกกล่าวหา)'));
+    }
+
+    /* ส่วน "มติที่ประชุม" ของเอกสารโหมดแยกรายคน — rows = [{ p, n }] (n = ลำดับในรายชื่อ) */
+    function splitResolutionHtml(rows, voteText) {
+      const M = ECMIS.mergeField;
+      const one = rows.length === 1;
+      const items = rows.map(({ p, n }, i) => {
+        const head = one ? '' : `<div class="doc-h" style="margin-top:3px">(${ECMIS.toThaiDigits(i + 1)}) ${M(p.name)}</div>`;
+        if (p.status === 'WITNESS') {
+          return `${head}<div class="doc-indent">ให้กัน${M(p.name)} ไว้เป็นพยาน — ไม่ส่งพนักงานอัยการดำเนินคดีอาญาและไม่แจ้งผู้บังคับบัญชาพิจารณาโทษทางวินัย</div>`;
+        }
+        if (p.status === 'NO_MERIT_72') {
+          return `${head}<div class="doc-indent">ข้อกล่าวหาไม่มีมูล ให้ข้อกล่าวหาเป็นอันตกไป — ${personNoMeritText(p)}</div>`;
+        }
+        const crimHtml = p.crim ? `<div class="doc-indent">ความผิดทางอาญา: การกระทำของ${M(p.name)} เป็นความผิดตาม
+          ${M(p.criminalFinding, '(ฐานความผิด/กฎหมายและมาตรา)')} — ให้ส่งเรื่องพร้อมทั้งสำนวนการไต่สวน รายงาน เอกสาร และความเห็น
+          ของคณะกรรมการ ป.ป.ท. ให้พนักงานอัยการดำเนินคดีต่อไป ตามมาตรา ๔๔${p.flight
+            ? ' และเนื่องจากมีเหตุอันควรเชื่อว่าผู้ถูกกล่าวหาจะหลบหนี ให้ดำเนินการขอให้ศาลที่มีเขตอำนาจออกหมายจับและควบคุมตัวผู้ถูกกล่าวหาไว้ตามมาตรา ๑๙/๒'
+            : ''}</div>` : '';
+        const discHtml = p.disc ? `<div class="doc-indent">ความผิดทางวินัย: การกระทำของ${M(p.name)} เป็นความผิดวินัยอย่างร้ายแรง ฐาน
+          ${M(p.disciplinaryFinding, '(ฐานความผิด/กฎหมายและมาตรา)')} ตามมาตรา ๓๘</div>` : '';
+        return `${head}<div class="doc-indent">วินิจฉัยชี้มูลความผิด</div>${crimHtml}${discHtml}`;
+      }).join('');
+      return `<div class="doc-h">มติที่ประชุม</div>
+      <div>๑. คณะกรรมการ ป.ป.ท. มีมติ${voteText}${one ? `ในส่วนของ${M(rows[0].p.name)}` : 'รายผู้ถูกกล่าวหา'} ดังนี้</div>
+      ${items}`;
+    }
+
+    function renderPerAccusedCards() {
+      const box = document.getElementById('perAccusedCards');
+      const reasonOpts = Array.from(document.getElementById('noMeritReason').options)
+        .map(o => `<option value="${o.value}">${o.textContent}</option>`).join('');
+      box.innerHTML = perAccused.map((p, idx) => {
+        const acc = accusedOf()[idx] || {};
+        const id = k => `pa${idx}_${k}`;
+        return `
+        <div class="p-2 mb-2 border rounded" data-pa="${idx}">
+          <div class="d-flex flex-wrap align-items-center gap-1 mb-2">
+            <span class="badge bg-secondary">ลำดับ ${idx + 1}</span>
+            <strong style="color:var(--ecmis-navy)" id="${id('name')}">${ECMIS.escapeHtml(p.name || '')}</strong>
+            <span class="text-muted small">${ECMIS.escapeHtml(acc.pos || '')} ${acc.agency ? '(' + ECMIS.escapeHtml(acc.agency) + ')' : ''}</span>
+          </div>
+          <div class="d-flex flex-wrap gap-3 mb-1" role="radiogroup" aria-labelledby="${id('name')}">
+            ${Object.keys(PERSON_STATUS_LABEL).map(code => `
+            <div class="form-check m-0">
+              <input class="form-check-input" type="radio" name="${id('st')}" id="${id('st_' + code)}" value="${code}" data-field="status" ${p.status === code ? 'checked' : ''}>
+              <label class="form-check-label" for="${id('st_' + code)}">${PERSON_STATUS_LABEL[code]}</label>
+            </div>`).join('')}
+          </div>
+          <div class="pa-guilty mt-2 ${p.status === 'GUILTY_72' ? '' : 'd-none'}">
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" id="${id('crim')}" data-field="crim" ${p.crim ? 'checked' : ''}>
+              <label class="form-check-label" for="${id('crim')}"><strong>ทางอาญา</strong> — ส่งพนักงานอัยการดำเนินคดี (ม.44)</label>
+            </div>
+            <div class="pa-crim mb-2 ${p.crim ? '' : 'd-none'}">
+              <label class="form-label small" for="${id('cf')}">เป็นความผิดตาม (ฐานความผิด/กฎหมายและมาตรา)</label>
+              <textarea class="form-control" id="${id('cf')}" rows="2" data-field="criminalFinding">${ECMIS.escapeHtml(p.criminalFinding)}</textarea>
+              <div class="form-check mt-1">
+                <input class="form-check-input" type="checkbox" id="${id('flight')}" data-field="flight" ${p.flight ? 'checked' : ''}>
+                <label class="form-check-label small" for="${id('flight')}">มีเหตุอันควรเชื่อว่าจะหลบหนี — ขอศาลออกหมายจับและควบคุมตัว (ม.19/2)</label>
+              </div>
+            </div>
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" id="${id('disc')}" data-field="disc" ${p.disc ? 'checked' : ''}>
+              <label class="form-check-label" for="${id('disc')}"><strong>ทางวินัย</strong> — แจ้งผู้บังคับบัญชาพิจารณาโทษ (ม.38)</label>
+            </div>
+            <div class="pa-disc mb-1 ${p.disc ? '' : 'd-none'}">
+              <label class="form-label small" for="${id('df')}">เป็นความผิดวินัยอย่างร้ายแรง ฐาน (ฐานความผิด/กฎหมายและมาตรา)</label>
+              <textarea class="form-control" id="${id('df')}" rows="2" data-field="disciplinaryFinding">${ECMIS.escapeHtml(p.disciplinaryFinding)}</textarea>
+            </div>
+            <div class="small text-danger pa-guilty-err ${p.crim || p.disc ? 'd-none' : ''}" id="${id('err')}"><i class="fa-solid fa-circle-exclamation me-1"></i>เลือกอย่างน้อย 1 ประเภทความผิด (อาญา และ/หรือ วินัย)</div>
+          </div>
+          <div class="pa-nomerit mt-2 ${p.status === 'NO_MERIT_72' ? '' : 'd-none'}">
+            <label class="form-label small" for="${id('nm')}">เหตุผลที่ข้อกล่าวหาตกไป</label>
+            <select class="form-select form-select-sm" id="${id('nm')}" data-field="noMeritReason">${reasonOpts}</select>
+            <textarea class="form-control mt-1 pa-nm-other ${p.noMeritReason === 'OTHER' ? '' : 'd-none'}" id="${id('nmo')}" rows="2" data-field="noMeritOther" aria-label="ระบุเหตุผลอื่น" placeholder="ระบุเหตุผลอื่น...">${ECMIS.escapeHtml(p.noMeritOther)}</textarea>
+          </div>
+          <div class="pa-witness mt-1 small text-muted ${p.status === 'WITNESS' ? '' : 'd-none'}">
+            <i class="fa-solid fa-shield-halved me-1"></i>ไม่ถูกนำไปออกหนังสือส่งลงโทษทางวินัยหรือส่งพนักงานอัยการดำเนินคดี
+          </div>
+        </div>`;
+      }).join('');
+      perAccused.forEach((p, idx) => { const s = document.getElementById(`pa${idx}_nm`); if (s) s.value = p.noMeritReason; });
+    }
+
+    function syncPerAccusedCard(card) {
+      const idx = Number(card.dataset.pa);
+      const p = perAccused[idx];
+      if (!p) return;
+      const st = card.querySelector('[data-field="status"]:checked');
+      if (st) p.status = st.value;
+      card.querySelectorAll('[data-field]:not([data-field="status"])').forEach(el => {
+        p[el.dataset.field] = el.type === 'checkbox' ? el.checked : el.value.trim();
+      });
+      card.querySelector('.pa-guilty').classList.toggle('d-none', p.status !== 'GUILTY_72');
+      card.querySelector('.pa-crim').classList.toggle('d-none', !p.crim);
+      card.querySelector('.pa-disc').classList.toggle('d-none', !p.disc);
+      card.querySelector('.pa-guilty-err').classList.toggle('d-none', p.crim || p.disc);
+      card.querySelector('.pa-nomerit').classList.toggle('d-none', p.status !== 'NO_MERIT_72');
+      card.querySelector('.pa-nm-other').classList.toggle('d-none', p.noMeritReason !== 'OTHER');
+      card.querySelector('.pa-witness').classList.toggle('d-none', p.status !== 'WITNESS');
+    }
+
+    function renderSplitDocTabs() {
+      const pane = document.getElementById('splitDocPane');
+      const box = document.getElementById('splitDocTabs');
+      const on = isSplit();
+      pane.classList.toggle('d-none', !on);
+      pane.classList.toggle('d-flex', on);
+      if (!on) { activeSplitIdx = null; box.innerHTML = ''; return; }
+      if (activeSplitIdx !== null && !perAccused[activeSplitIdx]) activeSplitIdx = null;
+      const tabs = [{ id: null, label: 'ฉบับรวม (ทุกคน)' },
+        ...perAccused.map((p, idx) => ({ id: idx, label: `ฉบับที่ ${idx + 1}: ${(p.name || '').split(' ')[0] || p.name}` }))];
+      box.innerHTML = tabs.map(t => `
+        <button type="button" class="btn btn-xs ${activeSplitIdx === t.id ? 'btn-navy' : 'btn-outline-secondary'} py-0 px-2" data-split-idx="${t.id === null ? 'all' : t.id}" aria-pressed="${activeSplitIdx === t.id}">${ECMIS.escapeHtml(t.label)}</button>`).join('');
+    }
+
+    function applySplitUi() {
+      const show = canSplit();
+      if (splitMode && show && (perAccused.length !== accusedOf().length || perAccused.some(p => !PERSON_STATUS_LABEL[p.status]))) {
+        seedPerAccused(); renderPerAccusedCards();
+      }
+      document.getElementById('splitModeBox').classList.toggle('d-none', !show);
+      const on = isSplit();
+      document.getElementById('perAccusedCards').classList.toggle('d-none', !on);
+      document.getElementById('accusedWitnessSection').classList.toggle('d-none', on);
+      if (on) {
+        document.getElementById('guiltyBox').classList.add('d-none');
+        document.getElementById('noMeritBox').classList.add('d-none');
+      }
+      renderSplitDocTabs();
+    }
+
+    document.querySelectorAll('input[name="res72Mode"]').forEach(rb => rb.addEventListener('change', () => {
+      splitMode = document.getElementById('res72ModeSplit').checked;
+      if (splitMode) { seedPerAccused(); renderPerAccusedCards(); }
+      toggleBoxes(); renderDoc();
+    }));
+    document.getElementById('perAccusedCards').addEventListener('input', e => {
+      const card = e.target.closest('[data-pa]'); if (card) { syncPerAccusedCard(card); renderSplitDocTabs(); renderDoc(); }
+    });
+    document.getElementById('perAccusedCards').addEventListener('change', e => {
+      const card = e.target.closest('[data-pa]'); if (card) { syncPerAccusedCard(card); renderSplitDocTabs(); renderDoc(); }
+    });
+    document.getElementById('splitDocTabs').addEventListener('click', e => {
+      const btn = e.target.closest('[data-split-idx]');
+      if (!btn) return;
+      activeSplitIdx = btn.dataset.splitIdx === 'all' ? null : Number(btn.dataset.splitIdx);
+      renderSplitDocTabs(); renderDoc();
+    });
 
     document.getElementById('noMeritReason').addEventListener('change', function () {
       document.getElementById('noMeritOtherBox').classList.toggle('d-none', this.value !== 'OTHER');
@@ -527,6 +758,38 @@
       document.getElementById('criminalFindingBox').classList.toggle('d-none', !this.checked);
       renderDoc();
     });
+    /* A7-14: มาตราอาญาหลายมาตรา — เพิ่ม/ลบรายการได้ เก็บเป็น criminalSections (array of string) เคสเก่าไม่มี key = ว่าง */
+    let criminalSections = Array.isArray(kase.criminalSections) && kase.criminalSections.length ? kase.criminalSections.slice() : [''];
+    const crimSectionsClean = () => criminalSections.map(x => String(x || '').trim()).filter(Boolean);
+    function renderCriminalSections() {
+      const box = document.getElementById('criminalSectionsList');
+      box.innerHTML = criminalSections.map((v, i) => `
+        <div class="d-flex gap-1 align-items-center">
+          <input class="form-control" data-sec-idx="${i}" value="${ECMIS.escapeHtml(v)}" placeholder="เช่น ประมวลกฎหมายอาญา มาตรา ๑๕๗" aria-label="มาตราที่ ${i + 1}">
+          <button type="button" class="btn btn-outline-danger btn-sm" data-sec-del="${i}" aria-label="ลบมาตราที่ ${i + 1}" title="ลบมาตรานี้"><i class="fa-solid fa-xmark"></i></button>
+        </div>`).join('');
+    }
+    renderCriminalSections();
+    document.getElementById('criminalSectionsList').addEventListener('input', e => {
+      const i = e.target.dataset.secIdx;
+      if (i === undefined) return;
+      criminalSections[Number(i)] = e.target.value;
+      renderDoc();
+    });
+    document.getElementById('criminalSectionsList').addEventListener('click', e => {
+      const b = e.target.closest('[data-sec-del]');
+      if (!b) return;
+      criminalSections.splice(Number(b.dataset.secDel), 1);
+      if (!criminalSections.length) criminalSections = [''];
+      renderCriminalSections(); renderDoc();
+    });
+    document.getElementById('btnAddCrimSection').addEventListener('click', () => {
+      criminalSections.push('');
+      renderCriminalSections();
+      const inputs = document.querySelectorAll('#criminalSectionsList [data-sec-idx]');
+      inputs[inputs.length - 1]?.focus();
+    });
+
     document.getElementById('guiltyDiscipline').addEventListener('change', function () {
       document.getElementById('disciplinaryFindingBox').classList.toggle('d-none', !this.checked);
       renderDoc();
@@ -541,14 +804,19 @@
       const presenter = document.getElementById('presenter').value.trim();
       const curSubject = document.getElementById('caseSubject').value.trim() || kase.subject;
       const agendaDetails = document.getElementById('agendaDetails').value.trim() || kase.allegation;
-      const r = selectedRes();
+      const r = effectiveRes();
+      const split = isSplit();
+      const splitOne = split && activeSplitIdx !== null ? perAccused[activeSplitIdx] : null;
+      const docAccused = splitOne ? [kase.accused[activeSplitIdx]] : kase.accused;
 
       /* ป้ายชื่อเอกสารบนแถบเครื่องมือ เดิม hardcode เป็น "(วินิจฉัยชี้มูล)" เสมอ ทั้งที่หน้านี้
          ส่งออกได้ 2 แม่แบบ (ชี้มูล/ไม่ชี้มูล-ทำเพิ่ม) ตาม r.code — ให้ตรงกับ isGuilty ที่ปุ่ม
          #btnExportDocx ใช้เลือกไฟล์ .docx จริง (ดู CLAUDE.md §4 ตารางแม่แบบ 6 รายการ) */
       const docToolbarNameEl = document.querySelector('.ws-doc-toolbar .name');
       if (docToolbarNameEl) {
-        const title = r.code === 'GUILTY_72' ? 'มติการประชุม (วินิจฉัยชี้มูล)' : 'มติการประชุม (ไต่สวน กรณีไม่ชี้มูล/ทำเพิ่ม)';
+        const title = split
+          ? `มติการประชุม (แยกรายผู้ถูกกล่าวหา${splitOne ? ` — ${splitOne.name}` : ''})`
+          : (r.code === 'GUILTY_72' ? 'มติการประชุม (วินิจฉัยชี้มูล)' : 'มติการประชุม (ไต่สวน กรณีไม่ชี้มูล/ทำเพิ่ม)');
         docToolbarNameEl.innerHTML = `<i class="fa-solid fa-file-word"></i> ${title}`;
       }
 
@@ -581,7 +849,7 @@
 
       function runningHeaderHtml(pageNo) {
         return `
-    <div class="doc-run-title">มติการประชุมคณะกรรมการ ป.ป.ท. — วินิจฉัยชี้มูล<br>
+    <div class="doc-run-title">มติการประชุมคณะกรรมการ ป.ป.ท. — วินิจฉัยชี้มูล${splitOne ? ` (${M(splitOne.name)})` : ''}<br>
       ครั้งที่ ${M(meetNo)} วันที่ ${M(meetDate)}<br>วาระที่ ${M(agendaNo)}</div>
     <div class="doc-secret">ลับ</div>
     <div class="doc-run-page">- ${ECMIS.toThaiDigits(pageNo)} -</div>`;
@@ -607,7 +875,7 @@
         bi(`<div class="doc-indent" style="margin-top:4px">
         ${M(presenter)} กล่าวต่อที่ประชุมว่า ${M(investigatorRef)} ขอรายงานผลการไต่สวน ดังต่อไปนี้
       </div>`),
-        bi(`<div style="margin-top:4px">เรื่องที่ ${M(ECMIS.caseNo(kase))}
+        bi(`<div style="margin-top:4px">เรื่องที่ ${M(ECMIS.caseNo(kase))}${splitOne ? `/${ECMIS.toThaiDigits(activeSplitIdx + 1)}` : ''}
         (${M(kase.legalBase === 'ม.62'
               ? 'รับตามมาตรา ๖๒ พระราชบัญญัติประกอบรัฐธรรมนูญว่าด้วยการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๖๑'
               : kase.legalBase === 'ม.18/4'
@@ -616,7 +884,7 @@
       </div>`),
         bi(`<div class="doc-h">ผู้กล่าวหา</div><div>${M(kase.complainant)}</div>`),
         bi(`<div class="doc-h">ผู้ถูกกล่าวหา</div>
-      ${kase.accused.map(a => `<div>${a.no}. ${M(a.name)} ${M(a.pos)} ${M(a.agency)}</div>`).join('')}`),
+      ${docAccused.map(a => `<div>${a.no}. ${M(a.name)} ${M(a.pos)} ${M(a.agency)}</div>`).join('')}`),
         bi(`<div class="doc-h">พฤติการณ์ที่กล่าวหา</div><div class="doc-indent">${M(agendaDetails)}</div>`),
         bi(`<div class="doc-h">คณะอนุกรรมการไต่สวน/คณะพนักงานไต่สวน แล้วแต่กรณี มีความเห็น ดังนี้</div>
       <div class="doc-indent">${M(investigatorOpinion, '………………………………………………………………………………………………')}</div>`),
@@ -642,12 +910,15 @@
         bi(`<div class="doc-h">ความเห็นที่ประชุม</div>
       <div class="doc-indent">คณะกรรมการ ป.ป.ท. พิจารณาแล้วเห็นว่า
         ${M(opinion, '………………………………………………………………………………………………')}</div>`),
-        r.code === 'GUILTY_72'
+        split
+          ? bi(splitResolutionHtml(splitOne ? [{ p: splitOne, n: activeSplitIdx }] : perAccused.map((p, n) => ({ p, n })),
+              M(unanimous ? 'เป็นเอกฉันท์' : `ด้วยคะแนนเสียงข้างมาก ${t.forV} ต่อ ${t.againstV} เสียง`)))
+          : r.code === 'GUILTY_72'
           ? bi(`<div class="doc-h">มติที่ประชุม</div>
       <div>๑. คณะกรรมการ ป.ป.ท. มีมติ${M(unanimous ? 'เป็นเอกฉันท์' : `ด้วยคะแนนเสียงข้างมาก ${t.forV} ต่อ ${t.againstV} เสียง`)}วินิจฉัยชี้มูลความผิด ดังนี้</div>
       ${crim ? `<div class="doc-h" style="margin-top:3px">ความผิดทางอาญา</div>
       <div class="doc-indent">การกระทำของ${M(kase.accused[0] ? kase.accused[0].name : '', '(ชื่อผู้ถูกกล่าวหา)')} เป็นความผิดตาม
-        ${M(criminalFinding, '(ฐานความผิด/กฎหมายและมาตรา)')} — ให้ส่งเรื่องพร้อมทั้งสำนวนการไต่สวน รายงาน เอกสาร และความเห็น
+        ${M([criminalFinding, crimSectionsClean().join(', ')].filter(Boolean).join(' — '), '(ฐานความผิด/กฎหมายและมาตรา)')} — ให้ส่งเรื่องพร้อมทั้งสำนวนการไต่สวน รายงาน เอกสาร และความเห็น
         ของคณะกรรมการ ป.ป.ท. ให้พนักงานอัยการดำเนินคดีต่อไป ตามมาตรา ๔๔${flight
               ? ' และเนื่องจากมีเหตุอันควรเชื่อว่าผู้ถูกกล่าวหาจะหลบหนี ให้ดำเนินการขอให้ศาลที่มีเขตอำนาจออกหมายจับและควบคุมตัวผู้ถูกกล่าวหาไว้ตามมาตรา ๑๙/๒'
               : ''}</div>` : ''}
@@ -700,7 +971,8 @@
 
       if (act === 'lock') {
         const q = renderQuorum();
-        const r = selectedRes();
+        const r = effectiveRes();
+        const split = isSplit();
         if (!document.getElementById('meetNo').value.trim() || !document.getElementById('meetDate').value.trim() || !document.getElementById('agendaNo').value.trim()) {
           ECMIS.toastWarn('กรุณาระบุ ครั้งที่ประชุม, วันที่ประชุม และ วาระที่'); return;
         }
@@ -728,9 +1000,17 @@
           document.querySelector('.val-msg[data-for="moreReason"]').classList.add('show');
           ECMIS.toastWarn('ม.24 วรรคท้ายบังคับให้ระบุเหตุผลของการสั่งไต่สวนเพิ่มเติม'); return;
         }
-        const crim = document.getElementById('guiltyCriminal').checked;
-        const disc = document.getElementById('guiltyDiscipline').checked;
-        if (r.code === 'GUILTY_72' && !crim && !disc) {
+        if (split) {
+          const missing = perAccused.findIndex(p => p.status === 'GUILTY_72' && !p.crim && !p.disc);
+          if (missing >= 0) {
+            document.querySelector(`[data-pa="${missing}"]`)?.scrollIntoView({ block: 'center' });
+            ECMIS.toastWarn(`${perAccused[missing].name}: ต้องเลือกอย่างน้อย 1 ประเภทความผิด (อาญา และ/หรือ วินัย)`); return;
+          }
+        }
+        const guiltyRows = split ? perAccused.filter(p => p.status === 'GUILTY_72') : [];
+        const crim = split ? guiltyRows.some(p => p.crim) : document.getElementById('guiltyCriminal').checked;
+        const disc = split ? guiltyRows.some(p => p.disc) : document.getElementById('guiltyDiscipline').checked;
+        if (!split && r.code === 'GUILTY_72' && !crim && !disc) {
           document.querySelector('.val-msg[data-for="guiltyCheck"]').classList.add('show');
           ECMIS.toastWarn('ต้องเลือกอย่างน้อย 1 ประเภทความผิด (อาญา และ/หรือ วินัย)'); return;
         }
@@ -738,7 +1018,8 @@
         ECMIS.confirmAction({
           title: 'บันทึกมติและล็อกไฟล์ PDF',
           html: `<div class="text-start">
-        <p class="mb-2">สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — มติ: <strong>${r.label}</strong></p>
+        <p class="mb-2">สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — มติ: <strong>${split ? 'แยกรายผู้ถูกกล่าวหา' : r.label}</strong></p>
+        ${split ? `<ul class="mb-2 ps-3">${perAccused.map(p => `<li>${ECMIS.escapeHtml(p.name)} — ${PERSON_STATUS_LABEL[p.status]}${p.status === 'GUILTY_72' ? ` (${[p.crim ? 'อาญา' : null, p.disc ? 'วินัย' : null].filter(Boolean).join(' + ')})` : ''}</li>`).join('')}</ul>` : ''}
         <div style="background:#fdf7e8;border-left:4px solid #D0A830;padding:.6rem .8rem;border-radius:0 6px 6px 0;font-size:.83rem">
           เมื่อบันทึกแล้วระบบจะ:<br>
           • ล็อกเอกสารมติเป็น PDF<br>
@@ -758,8 +1039,28 @@
           const accusedSnapshot = (kase.accused || []).map(acc => ({
             no: acc.no, name: acc.name || '', pos: acc.pos || '', agency: acc.agency || '', idcard: acc.idcard || ''
           }));
-          const accusedDecisions72 = accusedSnapshot.map(acc => {
+          const accusedDecisions72 = accusedSnapshot.map((acc, idx) => {
             const prior = priorDecisions.find(item => item.name === acc.name) || {};
+            const pa = split ? perAccused[idx] : null;
+            if (pa) {
+              const g = pa.status === 'GUILTY_72';
+              const cf = g && pa.crim ? pa.criminalFinding : '';
+              const df = g && pa.disc ? pa.disciplinaryFinding : '';
+              return {
+                ...acc,
+                status: pa.status,
+                factSummary,
+                criminalFinding: cf,
+                disciplinaryFinding: df,
+                offenseBasis: [cf, df].filter(Boolean).join('\n'),
+                guiltyCriminal: g && pa.crim,
+                guiltyDiscipline: g && pa.disc,
+                flightRisk: g && pa.crim && pa.flight,
+                noMeritReason: pa.status === 'NO_MERIT_72' ? pa.noMeritReason : '',
+                noMeritText: pa.status === 'NO_MERIT_72' ? stripHtml(personNoMeritText(pa)) : '',
+                additionalText: prior.additionalText || ''
+              };
+            }
             return {
               ...acc,
               status: kase.witnessState72?.[acc.name] ? 'WITNESS' : r.code,
@@ -784,7 +1085,10 @@
             factSummary72: factSummary,
             accusedSnapshot,
             accusedDecisions72,
-            witnessState72: Object.assign({}, kase.witnessState72 || {})
+            witnessState72: split
+              ? Object.fromEntries(perAccused.map(p => [p.name, p.status === 'WITNESS']))
+              : Object.assign({}, kase.witnessState72 || {}),
+            accusedSplit72: split
           };
           if (r.code === 'MORE_INVESTIGATE_72') {
             const reasonText = document.getElementById('moreReason').value.trim();
@@ -799,13 +1103,16 @@
           if (r.code === 'GUILTY_72') {
             patch.guiltyCriminal72 = crim;
             patch.guiltyDiscipline72 = disc;
+            patch.criminalSections = crim && !split ? crimSectionsClean() : [];
             patch.criminalTrack72 = crim ? { status: 'PENDING' } : null;
             patch.disciplinaryTrack72 = disc ? { status: 'PENDING' } : null;
-            patch.flightRisk72 = crim && document.getElementById('flightRisk').checked;
+            patch.flightRisk72 = split ? guiltyRows.some(p => p.crim && p.flight) : (crim && document.getElementById('flightRisk').checked);
             /* ให้ค่าตั้งต้นแก่ช่องความเห็นทางอาญา/วินัยของหน้ารายงานชี้มูล (72-09) จากมติที่บันทึกไว้
                ที่นี่ — เฉพาะกรณียังไม่เคยกรอกไว้ ไม่เขียนทับของเดิมถ้าผู้ใช้แก้ไขในหน้า 72-09 ไปแล้ว */
-            if (crim && !kase.criminalFinding72) patch.criminalFinding72 = document.getElementById('criminalFinding').value.trim();
-            if (disc && !kase.disciplinaryFinding72) patch.disciplinaryFinding72 = document.getElementById('disciplinaryFinding').value.trim();
+            const firstCf = split ? (guiltyRows.find(p => p.crim && p.criminalFinding) || {}).criminalFinding || '' : document.getElementById('criminalFinding').value.trim();
+            const firstDf = split ? (guiltyRows.find(p => p.disc && p.disciplinaryFinding) || {}).disciplinaryFinding || '' : document.getElementById('disciplinaryFinding').value.trim();
+            if (crim && !kase.criminalFinding72) patch.criminalFinding72 = firstCf;
+            if (disc && !kase.disciplinaryFinding72) patch.disciplinaryFinding72 = firstDf;
           }
           ECMIS.Model.CaseStore.update(kase.id, patch);
 
@@ -834,7 +1141,7 @@
             if (!error) {
               ECMIS.logRequestEvent(kase.trr_id, fromStatus, patch.status, {
                 type: 'RESOLVED_72', actorRole: role.id,
-                data: { resolutionCode: r.code, resolutionLabel: r.label }
+                data: { resolutionCode: r.code, resolutionLabel: r.label, accusedSplit: split }
               });
             } else {
               console.error('บันทึกมติลง Supabase ไม่สำเร็จ:', error);
@@ -1063,6 +1370,35 @@
     });
 
     $('#btnExportDocx').on('click', async function () {
+      /* Task 323: โหมดแยกรายคน — ฉบับรายคน (ชี้มูล/ไม่มีมูล) ใช้แม่แบบ .docx เดิมกับข้อมูลคนนั้น;
+         ฉบับรวม/คนที่กันไว้เป็นพยาน แม่แบบเดิมไม่รองรับ → ส่งออกจากเอกสาร preview ตามแท็บ */
+      if (isSplit()) {
+        const one = activeSplitIdx !== null ? perAccused[activeSplitIdx] : null;
+        const safeId = kase.id.replace('/', '_');
+        try {
+          if (one && one.status !== 'WITNESS') {
+            const g = one.status === 'GUILTY_72';
+            const acc = kase.accused[activeSplitIdx] || {};
+            const P = (v, ph) => (v && String(v).trim()) ? String(v).trim() : (ph || '…………');
+            const tags = Object.assign(docxTags(), {
+              accused1: P(`${acc.name || ''} ${acc.pos || ''} ${acc.agency || ''}`), accused2: '', accused3: '',
+              criminalBasis: g && one.crim ? 'มาตรา ๔๔ แห่งพระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม (ส่งพนักงานอัยการดำเนินคดีต่อไป)' : 'ไม่มีมูลความผิดทางอาญา',
+              disciplinaryBasis: g && one.disc ? 'มาตรา ๓๘ แห่งพระราชบัญญัติมาตรการของฝ่ายบริหารในการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๕๑ และที่แก้ไขเพิ่มเติม' : 'ไม่มีมูลความผิดทางวินัย',
+              resolutionText: g ? '' : P(stripHtml(personNoMeritText(one)))
+            });
+            await generateDocx(g ? 'assets/templates/order-ruling.docx' : 'assets/templates/order-no-merit.docx', tags,
+              `${g ? 'มติชี้มูล' : 'มติไม่ชี้มูล'}-${safeId}-${activeSplitIdx + 1}-${one.name}.docx`);
+          } else {
+            ECMIS.exportDocToDocx(document.getElementById('docPaper'),
+              one ? `มติ-${safeId}-${activeSplitIdx + 1}-${one.name}.docx` : `มติแยกรายผู้ถูกกล่าวหา-${safeId}.docx`);
+          }
+          ECMIS.toastOk('ดาวน์โหลด .docx เรียบร้อย — แก้ไขใน Word ได้ตามปกติ');
+        } catch (e) {
+          console.error(e);
+          ECMIS.toastWarn('สร้างไฟล์ .docx ไม่สำเร็จ: ' + e.message);
+        }
+        return;
+      }
       const isGuilty = selectedRes().code === 'GUILTY_72';
       const tplUrl = isGuilty ? 'assets/templates/order-ruling.docx' : 'assets/templates/order-no-merit.docx';
       const filePrefix = isGuilty ? 'มติชี้มูล' : 'มติไม่ชี้มูล';
@@ -1130,6 +1466,15 @@
 
     /* โหลดข้อมูลจริงจาก Supabase แบบ background หลังเรนเดอร์ด้วย mock data ไปก่อนแล้ว (เหมือน
        order.html/board-resolution.html) — ถ้าได้ข้อมูลจริงมา mutate kase object เดิม แล้ว re-render */
+    /* Task 300: เลขบันทึกข้อความแจ้งมติชี้มูล (ปป 0004.5/) — ออกได้เฉพาะกลุ่มงานวินิจฉัยฯ (board_sec) ทั้งระหว่างและหลังบันทึกมติ */
+    let sarabanRes72 = null;
+    if (ECMIS.mountSarabanField && document.getElementById('resNotifyNoCard')) {
+      document.getElementById('resNotifyNoCard').classList.remove('d-none');
+      sarabanRes72 = ECMIS.mountSarabanField({ host: document.getElementById('resNotifyMemoBox'), id: 'notifyMemo72No',
+        label: 'เลขบันทึกข้อความแจ้งมติชี้มูลความผิดอาญาและวินัย', slot: 'notifyMemo72', prefix: 'ปป 0004.5/', kase, sb,
+        readonly: role.id !== 'board_sec' && !(ECMIS.canEditMaster && ECMIS.canEditMaster(role.id)), ignoreCaseLock: true });
+    }
+
     (async function refreshFromSupabase() {
       if (!sb) return;
       let live;
@@ -1140,8 +1485,9 @@
         return;
       }
       if (!live) return;
-      Object.assign(kase, live);
+      if (ECMIS.applyLiveCase(kase, live)) return; // Task 244: สถานะจริงต่างจากที่เรนเดอร์ไป → โหลดหน้าใหม่ด้วยสถานะจริง
       toggleBoxes(); renderQuorum(); renderDoc();
+      if (sarabanRes72) sarabanRes72.refresh();
     })();
   </script>
 

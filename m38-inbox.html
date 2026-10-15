@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>รายงานผล ม.38 | E-CMIS</title>
+  <link rel="icon" type="image/png" href="assets/pacc_logo.png">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <link href="assets/ecmis-app.css" rel="stylesheet">
+  <link href="assets/a4-ecmis-workspace.css" rel="stylesheet">
+  <link href="assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
+  <style>
+    .m38-tabs .nav-link { font-weight: 600; color: var(--ws-muted, #687789); }
+    .m38-tabs .nav-link.active { color: var(--ws-navy, #082b50); }
+    .m38-person { min-width: 0; }
+  </style>
+</head>
+
+<body class="ws-std">
+
+  <main class="app-main">
+
+    <div class="page-head d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+      <div>
+        <h1><i class="fa-solid fa-file-circle-check me-2" style="color:#0F2A62"></i><span>รายงานผล ม.38</span></h1>
+      </div>
+      <div class="d-flex align-items-center gap-3 ms-auto">
+        <span class="flow-ref">รายงานผลการดำเนินการทางวินัยจาก กจ.8 · รองเลขาธิการฯ → เลขาธิการฯ</span>
+      </div>
+    </div>
+
+    <div class="card card-ecmis mb-3">
+      <div class="card-body p-3">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-8">
+            <label class="form-label fw-semibold text-dark small mb-1" for="searchInput">ค้นหารายงาน</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+              <input type="text" id="searchInput" class="form-control"
+                placeholder="เลขรายงาน เช่น 0004/0112, ป.วินัย 56/2569-1, เลขสำนวน หรือชื่อผู้ถูกลงโทษ">
+            </div>
+          </div>
+          <div class="col-md-4 text-end">
+            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-3" id="btnClearFilter">
+              <i class="fa-solid fa-rotate-left me-1"></i>ล้างคำค้น
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-ecmis mb-4">
+      <div class="card-header d-flex align-items-center flex-wrap gap-2">
+        <ul class="nav nav-tabs card-header-tabs m38-tabs" role="tablist">
+          <li class="nav-item"><button type="button" class="nav-link active" data-tab="todo" role="tab" aria-selected="true">รอดำเนินการ <span class="badge bg-danger rounded-pill ms-1" id="countTodo">0</span></button></li>
+          <li class="nav-item"><button type="button" class="nav-link" data-tab="done" role="tab" aria-selected="false">ดำเนินการแล้ว <span class="badge bg-secondary rounded-pill ms-1" id="countDone">0</span></button></li>
+        </ul>
+        <span class="ms-auto small text-muted" id="myRoleLabel"></span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover tbl-ecmis mb-0 align-middle">
+            <colgroup>
+              <col style="width:150px">
+              <col style="width:200px">
+              <col>
+              <col style="width:230px">
+              <col style="width:130px">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>เลขรายงาน</th>
+                <th>ป.วินัย / สำนวน</th>
+                <th>ผู้ถูกลงโทษ / ผล</th>
+                <th>สถานะ</th>
+                <th class="text-end">ดำเนินการ</th>
+              </tr>
+            </thead>
+            <tbody id="m38Body"></tbody>
+          </table>
+        </div>
+        <div class="px-3 py-2 border-top small text-muted" id="summaryText"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
+  <script src="../cases.js"></script>
+  <script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
+<script src="../shared-assets/handoff.js"></script>
+<script src="../shared-assets/junctions.js"></script>
+<script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
+  <script>
+    ECMIS.renderShell('m38-inbox.html');
+    const role = ECMIS.currentRole();
+    const esc = ECMIS.escapeHtml;
+    let tab = 'todo';
+    document.getElementById('myRoleLabel').textContent = `บทบาท: ${role.title}`;
+
+    function searchText(r) {
+      return [r.reportNo, r.pwinai, r.caseNo, r.title, ...r.persons.map(p => `${p.name} ${p.result}`)].join(' ').toLowerCase();
+    }
+    function render() {
+      const mine = ECMIS.m38VisibleFor(role.id);
+      const isTodo = r => (ECMIS.M38_STATUS[r.status] || {}).owner === role.id;
+      document.getElementById('countTodo').textContent = mine.filter(isTodo).length;
+      document.getElementById('countDone').textContent = mine.filter(r => !isTodo(r)).length;
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const rows = mine.filter(r => (tab === 'todo') === isTodo(r)).filter(r => !q || searchText(r).includes(q));
+      const body = document.getElementById('m38Body');
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">${q ? 'ไม่พบรายงานตามคำค้น'
+          : tab === 'todo' ? 'ไม่มีรายงานผล ม.38 ที่รอดำเนินการ' : 'ยังไม่มีรายงานที่ดำเนินการแล้ว'}</td></tr>`;
+        document.getElementById('summaryText').textContent = '';
+        return;
+      }
+      body.innerHTML = rows.map(r => {
+        const st = ECMIS.M38_STATUS[r.status] || { label: r.status, cls: 'st-pending' };
+        const href = `m38-review.html?report=${encodeURIComponent(r.reportNo)}`;
+        return `<tr>
+          <td><div class="fw-bold text-navy">${esc(r.reportNo)}</div><small class="text-muted">รอบที่ ${r.round} · ${esc(ECMIS.thaiDate(r.reportDate))}</small></td>
+          <td><div>${esc(r.pwinai)}</div><small class="text-muted">สำนวน ${esc(r.caseNo)}</small></td>
+          <td class="m38-person">${r.persons.map(p => `<div><strong>${esc(p.name)}</strong> · ${esc(p.position)}</div><small class="text-muted">${esc(p.result)} (${esc(p.finality)})</small>`).join('')}</td>
+          <td><span class="st ${st.cls}">${esc(st.label)}</span></td>
+          <td class="text-end"><a href="${href}" class="btn btn-sm ${isTodo(r) ? 'btn-navy' : 'btn-outline-secondary'} px-3">${isTodo(r) ? 'พิจารณา' : 'ดูรายละเอียด'}</a></td>
+        </tr>`;
+      }).join('');
+      document.getElementById('summaryText').textContent = `แสดง ${rows.length} รายการ`;
+    }
+    document.querySelectorAll('.m38-tabs [data-tab]').forEach(btn => btn.addEventListener('click', () => {
+      tab = btn.dataset.tab;
+      document.querySelectorAll('.m38-tabs [data-tab]').forEach(b => { b.classList.toggle('active', b === btn); b.setAttribute('aria-selected', b === btn ? 'true' : 'false'); });
+      render();
+    }));
+    document.getElementById('searchInput').addEventListener('input', render);
+    document.getElementById('btnClearFilter').addEventListener('click', () => { document.getElementById('searchInput').value = ''; render(); });
+    render();
+  </script>
+<script src="../shared-assets/case-bar.js"></script>
+<script src="../shared-assets/pipe-buttons.js"></script>
+<script src="../shared-assets/case-inbox.js"></script>
+</body>
+
+</html>

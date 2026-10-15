@@ -43,6 +43,11 @@
                 <input class="form-control" id="meetDate" type="date">
               </div>
             </div>
+            <!-- Task 300: เลขรายงานการประชุม — บันทึก (ปป 0004.5/) และหนังสือ (ปป 0004/) ใช้เลขเดียวกันทุกเรื่องในครั้งประชุม -->
+            <div class="row g-2 mt-1" id="minutesNoRow">
+              <div class="col-md-6" id="minutesMemoNoBox"></div>
+              <div class="col-md-6" id="minutesLetterNoBox"></div>
+            </div>
           </div>
         </div>
 
@@ -154,10 +159,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
+  <script src="assets/saraban-no.js?v=20261015-a7-saraban-off"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('meeting-report.html');
@@ -251,6 +257,19 @@
       if (items[0]) document.getElementById('meetDate').value = items[0].meetingDate || '';
     }
 
+    /* Task 300: ช่องเลขสารบรรณของรายงานการประชุม — เลขเดียวเขียนลงทุกเรื่องในครั้งประชุม (group = ครั้งที่ประชุม) */
+    function mountMinutesSaraban() {
+      const row = document.getElementById('minutesNoRow');
+      if (!row || !ECMIS.mountSarabanField) return;
+      row.classList.toggle('d-none', !items.length);
+      if (!items.length) return;
+      [['minutesMemo', 'ปป 0004.5/', 'เลขที่บันทึกรายงานการประชุม'], ['minutesLetter', 'ปป 0004/', 'เลขหนังสือรายงานการประชุม']].forEach(([slot, prefix, label]) => {
+        const host = document.getElementById(slot + 'NoBox');
+        ECMIS.mountSarabanField({ host, id: slot + 'No', label, slot, prefix, kases: items, sb,
+          group: `meeting:${currentMeetNo}:${slot}`, readonly: !mayEdit, ignoreCaseLock: true, onChange: () => renderDoc() });
+      });
+    }
+
     function stageLabel(c) {
       if (!c.resolutionStage) return 'อยู่ระหว่างการจัดทำมติ';
       return ECMIS.resolutionStageLabel(c.resolutionStage) || 'จัดทำรายงานประชุมแล้วเสร็จ';
@@ -336,6 +355,8 @@
       const introBlock = `
       <div class="doc-title">รายงานการประชุม<br>คณะกรรมการป้องกันและปราบปรามการทุจริตในภาครัฐ</div>
       <div class="doc-sub">ครั้งที่ ${M(meetNo)} วันที่ ${M(meetDate)}</div>
+      <div class="doc-row"><span class="k">ที่ (บันทึก)</span> ${M(ECMIS.sarabanThai(ECMIS.sarabanNoOf(items[0], 'minutesMemo')), 'ปป ๐๐๐๔.๕/......')}</div>
+      <div class="doc-row"><span class="k">ที่ (หนังสือ)</span> ${M(ECMIS.sarabanThai(ECMIS.sarabanNoOf(items[0], 'minutesLetter')), 'ปป ๐๐๐๔/......')}</div>
 
       <div class="doc-indent" style="margin-top:8px">เริ่มประชุม${meetTimeText}</div>
       <div class="doc-indent" style="margin-top:6px">
@@ -401,6 +422,7 @@
     document.getElementById('meetDate').addEventListener('input', renderDoc);
     meetSelect.addEventListener('change', () => {
       selectMeeting(meetSelect.value);
+      mountMinutesSaraban();
       renderItems(); renderDoc(); renderActions();
     });
 
@@ -644,6 +666,7 @@
       currentMeetNo = params.get('meet') || '';
       renderMeetingSelect();
       selectMeeting(currentMeetNo);
+      mountMinutesSaraban();
       renderItems(); renderDoc(); renderActions();
     })();
   </script>

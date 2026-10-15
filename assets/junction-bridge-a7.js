@@ -90,7 +90,7 @@
     var E = ecmis();
     if (!E || typeof E.saveCases !== "function" || E.saveCases.__junctionWrapped) return;
     var original = E.saveCases;
-    var wrapped = function(){ var out = original.apply(this, arguments); publishProgress(); persistLinked(); return out; };
+    var wrapped = function(){ (E.CASES || []).forEach(normalizeLinked); var out = original.apply(this, arguments); publishProgress(); persistLinked(); return out; };
     wrapped.__junctionWrapped = true;
     if (root.saveCases === original) root.saveCases = wrapped;
     E.saveCases = wrapped;
@@ -125,14 +125,61 @@
     if (text(p.allegation || allegations || p.subject)) result.allegation = text(p.allegation || allegations || p.subject);
     return result;
   }
+  /* ขั้นแรกของ ก7 คือรองเลขาธิการฯ ทุกสาย ต้นทางตรวจถึง ผอ.หน่วยงานแล้วส่งเข้ามา
+     ยกเว้นเรื่องที่ผู้ช่วย/รองเลขาธิการลงความเห็นในต้นทางไปแล้ว (รายงาน/คำขอรุ่นก่อนย้ายขั้นนี้มา ก7)
+     จึงใช้ความเห็นนั้นแทนไม่ให้ลงความเห็นซ้ำ */
+  function isExecutiveApproval(o){
+    if (!o) return false;
+    var decision = text(o.result || o.decision).toUpperCase();
+    if (decision === "RETURN" || decision === "REJECTED") return false;
+    if (o.stepType === "SUPERVISING_EXECUTIVE" || o.tier === "SUPERVISING_EXECUTIVE") return true;
+    return o.role === "executive" && decision === "APPROVED";
+  }
+  function sourceDeputyReview(junctionId, p){
+    var rs = p.requestSnapshot || {};
+    // ความเห็นรายงานสะสมทุกฉบับ นับเฉพาะที่ระบุว่าเป็นฉบับที่ส่งมารอบนี้ ไม่รู้ฉบับ = ไม่นับ (ให้รองเลขาฯ ลงความเห็นเอง)
+    var revision = Number(p.sourceRevision || p.reportRevision || 0);
+    var reportOpinions = (p.reviewOpinions || []).filter(function(o){ return revision > 0 && Number(o.reportRevisionNo) === revision; });
+    var found = [].concat(reportOpinions, rs.opinions || [], rs.payload?.reviews || [], rs.payload?.approvals || [])
+      .filter(isExecutiveApproval).pop();
+    if (!found) return null;
+    var o = found, at = text(o.recordedAt || o.at || o.signature?.signedAt), year = Number(at.slice(0, 4));
+    /* ไม่ใส่ deputySignedAt: ช่องนี้หมายถึงรองเลขาฯ ของ ก7 ลงนามแล้ว (หน้ารายการของรองเลขาฯ นับเป็น "เสนอแล้ว")
+       วันที่ของต้นทางเก็บแยกไว้ใน deputySourceAt */
+    return {
+      deputyOpinion: text(o.opinionText || o.opinion) || "เห็นชอบตามลำดับชั้นในกระบวนการไต่สวน",
+      deputyName: text(o.reviewerName || o.byName || o.by) || "ผู้ช่วย/รองเลขาธิการตามสายกำกับ (กระบวนการไต่สวน)",
+      deputySourceAt: /^\d{4}-\d{2}-\d{2}/.test(at) ? String(year > 2400 ? year : year + 543) + at.slice(4, 10) : "",
+      deputySource: junctionId
+    };
+  }
+  function sourceChainOpinions(deputy){
+    return deputy ? [{ roleId: "deputy", type: "ACCEPT", mock: false, date: deputy.deputySourceAt, note: deputy.deputyOpinion, name: deputy.deputyName }] : [];
+  }
+  /* เรื่องที่รับผ่านทะเบียนกลางไม่ได้โหลดผ่าน supabaseRowToCase จึงทำรูปข้อมูลให้เหมือนกัน:
+     ค่าตีกลับใน resolutionData ยกขึ้นระดับบน (หน้ารายการรองเลขาฯ อ่าน c.deputyReturn)
+     และลำดับความเห็นมีเฉพาะความเห็นจริง ไม่ใช้แถวตัวอย่างของสายไต่สวนจาก buildChainOpinions */
+  function normalizeLinked(c){
+    if (!c || !c.junction) return c;
+    var rd = c.resolutionData || {};
+    ["deputyReturn", "sourceReturn"].forEach(function(key){ if (rd[key] && !c[key]) c[key] = rd[key]; });
+    c.chainOpinions = text(c.deputyOpinion) ? [{ roleId: "deputy", type: "ACCEPT", mock: false,
+      date: c.deputySignedAt || c.deputySourceAt || "", note: c.deputyOpinion, name: c.deputyName || "" }] : [];
+    return c;
+  }
   function toA7Case(hubCase, entry){
     var p = (entry && entry.payload) || {};
     var docType = text(p.docType) || "GENERAL";
     var accused = text(p.accused || hubCase.accused).split(/\s*,\s*/).filter(Boolean)
       .map(function(name, i){ return { no: i + 1, name: name, pos: "", idcard: "", agency: text(p.agency || hubCase.agency) }; });
+    var deputy = sourceDeputyReview(text(entry && entry.junctionId), p);
+    var firstStep = deputy ? "PENDING_SECGEN" : "PENDING_DEPUTY";
     return {
       id: p.requestType ? "a7-request:" + text(hubCase.id) + ":" + text(p.requestId) : text(hubCase.id), subject: text(p.subject || hubCase.subject || hubCase.title), legalBase: text(p.legalBase || hubCase.legalBase),
-      status: docType === "644" ? "PENDING_SECGEN_72" : "PENDING_SECGEN", procType: PROC[docType] || "7.3", docType: docType, signPhase: "WAIT",
+      status: docType === "644" ? firstStep + "_72" : firstStep, procType: PROC[docType] || "7.3", docType: docType, signPhase: "WAIT",
+      deputyOpinion: deputy ? deputy.deputyOpinion : "", deputyName: deputy ? deputy.deputyName : "",
+      deputySignedAt: "", deputySignedAtIso: "", deputySourceAt: deputy ? deputy.deputySourceAt : "", deputySource: deputy ? deputy.deputySource : "",
+      chainOpinions: sourceChainOpinions(deputy),
       owner: text(p.owner || hubCase.owner), ownerOrg: text(p.destinationUnit || hubCase.destinationUnit || hubCase.ownerOrg),
       complainant: text(p.complainant || hubCase.complainant), accused: accused, allegation: text(p.allegation || hubCase.allegation),
       sourceReportHtml: text(p.sourceReportHtml), sourceReportSnapshot: p.reportSnapshot || null, docRef: text(p.letterNo),
@@ -161,7 +208,10 @@
       if (existing){
         // ส่งซ้ำรอบใหม่ (เช่น ไต่สวนเพิ่มแล้วเสนอใหม่): เข้าคิวใหม่ แต่คงประวัติและเอกสารเดิมของ ก7
         existing.junctionHistory = (existing.junctionHistory || []).concat(existing.junction ? [{ junction: existing.junction, sourceReportSnapshot: existing.sourceReportSnapshot, sourceReportHtml: existing.sourceReportHtml, result: reportResult(existing), reportWorkflowState: Object.fromEntries(Object.keys(emptyReportWorkflow()).map(key => [key, existing[key]])) }] : []);
-        Object.assign(existing, { status: incoming.status, procType: incoming.procType, docType: incoming.docType,
+        Object.assign(existing, { status: incoming.status, procType: incoming.procType, docType: incoming.docType, subject: incoming.subject || existing.subject,
+          deputyReturn: null, sourceReturn: null, resolutionData: Object.assign({}, existing.resolutionData, { deputyReturn: null, sourceReturn: null }),
+          deputyOpinion: incoming.deputyOpinion, deputyName: incoming.deputyName, deputySignedAt: "", deputySignedAtIso: "",
+          deputySourceAt: incoming.deputySourceAt, deputySource: incoming.deputySource, chainOpinions: incoming.chainOpinions,
           ...sourceDates(incoming.junction.payload), ...sourceMetadata(incoming.junction.payload), signPhase: "WAIT", junction: incoming.junction, owner: incoming.owner, ownerOrg: incoming.ownerOrg,
           docRef: incoming.docRef, sourceReportHtml: incoming.sourceReportHtml, sourceReportSnapshot: incoming.sourceReportSnapshot }, ["J02", "J04"].includes(incoming.junction.id) ? Object.assign(emptyReportResult(), emptyReportWorkflow()) : {});
         // เคสที่ __hubBridgeCases ดึงมาจากทะเบียนกลางไม่มีช่องที่หน้า ก7 ต้องใช้ (เช่น accused เป็นรายการ)
@@ -197,7 +247,7 @@
       if (typeof E?.computeResolutionStage === 'function') result.resolutionStage = E.computeResolutionStage(result);
     }
     if (result.junction?.id === 'J04' && result.status === 'PENDING_DISPATCH_GUILTY_72' && !text(result.resolution72)) result.resolutionStage = 4;
-    return result;
+    return normalizeLinked(result);
   }
   function mergeLinkedCases(list){
     var merged = new Map((list || []).map(c => [c.id, c]));
@@ -253,7 +303,7 @@
     var p = kase.junction.payload;
     return root.ECMISHandoff.send({ caseId: kase.junction.sourceCaseId || p.sourceCaseId, from: HERE, to: "intake-investigation",
       junctionId: kase.junction.id.replace(/^J14/, prefix), by: payload.by || "กระบวนการมติบอร์ด", stay: true, keepStatus: true,
-      trigger: prefix === "J15" ? "กิจกรรมที่ 7 แจ้งผลคำขอ" : "กระบวนการมติบอร์ดแจ้งความคืบหน้า",
+      trigger: prefix === "J15" ? "กระบวนการมติบอร์ดแจ้งผลคำขอ" : "กระบวนการมติบอร์ดแจ้งความคืบหน้า",
       docs: prefix === "J15" ? ["มติและเอกสารแจ้งผลคำขอ"] : [],
       payload: Object.assign({ requestType: p.requestType, requestId: p.requestId, sourceRevision: p.sourceRevision,
         submissionPackageId: p.submissionPackageId }, payload) });
@@ -294,14 +344,26 @@
     return sendRequestEvent(kase, "J15", Object.assign(base, extra));
   }
 
+  // ความเห็นในคำขอบางชนิดมีแค่รหัสบทบาท/ลำดับชั้น
+  var REVIEWER_LABEL = { "group-director": "ผู้บังคับบัญชาชั้นต้น (ผอ.กลุ่ม)", GROUP_DIRECTOR: "ผู้บังคับบัญชาชั้นต้น (ผอ.กลุ่ม)", LINE_SUPERVISOR: "ผู้บังคับบัญชาชั้นต้น (ผอ.กลุ่ม)",
+    director: "ผอ.หน่วยงาน", UNIT_DIRECTOR: "ผอ.หน่วยงาน", executive: "ผู้ช่วย/รองเลขาธิการ", SUPERVISING_EXECUTIVE: "ผู้ช่วย/รองเลขาธิการ",
+    secretary: "เลขาธิการ ป.ป.ท.", SECRETARY_GENERAL: "เลขาธิการ ป.ป.ท.", SECRETARY_GENERAL_PERSONAL: "เลขาธิการ ป.ป.ท." };
   function renderSourceChain(kase) {
     var p = kase.junction?.payload;
     if (!p) return null;
     var escape = value => text(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-    var opinions = p.reviewOpinions || p.requestSnapshot?.opinions || p.requestSnapshot?.payload?.reviews || p.requestSnapshot?.payload?.approvals || [];
-    return opinions.map(o => '<li class="done"><span class="tl-dot"></span><div><div class="tl-t">' + escape(o.reviewerRole || o.role || o.tier || 'ความเห็นจากกระบวนการไต่สวน')
+    // รายงาน 213/644 ส่งความเห็นสะสมทุกฉบับมา แสดงเฉพาะของฉบับที่ส่งมารอบนี้
+    var revision = Number(p.sourceRevision || p.reportRevision || 0);
+    var reportOpinions = (p.reviewOpinions || []).filter(function(o){ return !revision || o.reportRevisionNo == null || Number(o.reportRevisionNo) === revision; });
+    var opinions = p.reviewOpinions ? reportOpinions : (p.requestSnapshot?.opinions || p.requestSnapshot?.payload?.reviews || p.requestSnapshot?.payload?.approvals || []);
+    var source = sourceLabel(kase);
+    var rows = opinions.map(o => '<li class="done"><span class="tl-dot"></span><div><div class="tl-t">' + escape(o.reviewerRole || REVIEWER_LABEL[o.role] || REVIEWER_LABEL[o.tier] || o.role || o.tier || 'ความเห็นจาก' + source)
       + '</div><div class="tl-m">' + escape(o.reviewerName || o.byName || o.by || 'ผู้ให้ความเห็นต้นทาง') + '</div><p>'
-      + escape(o.opinionText || o.opinion || o.decision || o.result) + '</p></div></li>').join('') || '<li>ดูความเห็นและเอกสารฉบับที่เสนอจากกระบวนการไต่สวน</li>';
+      + escape(o.opinionText || o.opinion || o.decision || o.result) + '</p></div></li>').join('') || '<li>ดูความเห็นและเอกสารฉบับที่เสนอจาก' + source + '</li>';
+    // ความเห็นรองเลขาธิการฯ ที่ลงใน ก7 เอง (ความเห็นที่มาจากต้นทางอยู่ในรายการข้างบนแล้ว)
+    if (text(kase.deputySignedAt) && text(kase.deputyOpinion) && !kase.deputySource) rows += '<li class="done"><span class="tl-dot"></span><div><div class="tl-t">รองเลขาธิการ ป.ป.ท.</div><div class="tl-m">'
+      + escape(kase.deputyName || 'รองเลขาธิการ ป.ป.ท.') + '</div><p>' + escape(kase.deputyOpinion) + '</p></div></li>';
+    return rows;
   }
 
   function publishResult(kase, info){
@@ -354,6 +416,13 @@
   function publishReturn(kase, info){
     if (!kase || !text(info?.reason)) return null;
     if (text(kase.junction?.id).startsWith('J14:')) return sendRequestEvent(kase, 'J15', Object.assign(baseResult(kase, info), { kind: 'SOURCE_RETURN', reason: info.reason }));
+    /* ก10/ก8 ไม่มีเส้นตีกลับแยก จึงส่งทางเส้นผลมติเดิมพร้อม kind SOURCE_RETURN ให้ต้นทางแก้แล้วเสนอใหม่ */
+    if (kase.junction?.id === 'J12' || kase.junction?.id === 'J13') {
+      var ret = Object.assign(baseResult(kase, info), { kind: 'SOURCE_RETURN', text: text(info.reason), reason: text(info.reason),
+        reasonCode: text(info.reasonCode), returnScope: text(info.scope), by: text(info.by), returnedAt: new Date().toISOString(),
+        request: kase.junction.payload || {} });
+      return kase.junction.id === 'J12' ? send('J12R', kase, ret, info.by) : send('J10', kase, Object.assign(ret, { tracks: ['BOARD_DECISION'] }), info.by);
+    }
     if (!['J02', 'J04'].includes(kase.junction?.id)) return null;
     var p = kase.junction.payload || {};
     return send(kase.junction.id === 'J04' ? 'J05' : 'J03', kase, { docType: kase.junction.id === 'J04' ? '644' : '213', kind: 'SOURCE_RETURN',
@@ -363,7 +432,10 @@
   }
 
   /* งานที่ส่งมาจากกิจกรรมอื่นและถึงคิวของบทบาทที่ login อยู่ — คิวปกติเรียงตามเลขสำนวน งานใหม่จึงจมท้ายตาราง */
-  var FROM_LABEL = { J02: "รายงาน 213 จากระบบไต่สวน", J04: "รายงาน 644 จากระบบไต่สวน", J07B: "คุ้มครองพยานขออนุมัติ", J12: "เรื่องจากกิจกรรมกฎหมาย", J13: "ผลติดตามวินัย" };
+  var FROM_LABEL = { J02: "รายงาน 213 จากระบบไต่สวน", J04: "รายงาน 644 จากระบบไต่สวน", J07B: "คำขออนุมัติจากกระบวนการคุ้มครองพยาน", J12: "เรื่องจากกระบวนการกฎหมายในทางคดี", J13: "ผลติดตามวินัยจากกระบวนการติดตามคดี", J14: "คำขอจากกระบวนการไต่สวน" };
+  var SOURCE_LABEL = { J02: "กระบวนการไต่สวน", J04: "กระบวนการไต่สวน", J14: "กระบวนการไต่สวน",
+    J07B: "กระบวนการคุ้มครองพยาน", J12: "กระบวนการกฎหมายในทางคดี", J13: "กระบวนการติดตามคดี" };
+  function sourceLabel(kase){ return SOURCE_LABEL[text(kase && kase.junction && kase.junction.id).split(":")[0]] || "กระบวนการไต่สวน"; }
   function incomingForRole(){
     var E = ecmis(), role = "";
     try { role = root.sessionStorage.getItem("ecmis_role") || ""; } catch (e) {}
@@ -378,7 +450,7 @@
       var page = "approval-review.html";
       try { page = E.pageForCase(c) || page; } catch (e) {}
       return '<li style="margin:.25rem 0"><a href="' + page + "?case=" + encodeURIComponent(c.id) + '"><b>' + text(c.junction.payload?.caseNumber || c.id).replace(/</g, "&lt;") + "</b></a> · "
-        + (FROM_LABEL[c.junction.id] || "งานเข้าใหม่") + " · " + String(c.subject || "").replace(/</g, "&lt;") + "</li>";
+        + (FROM_LABEL[text(c.junction.id).split(":")[0]] || "งานเข้าใหม่") + " · " + String(c.subject || "").replace(/</g, "&lt;") + "</li>";
     }).join("");
     main.insertAdjacentHTML("afterbegin", '<section data-jn7-incoming style="margin:12px 16px;padding:12px 16px;border:1px solid #c9d6e7;border-radius:10px;background:#f4f8fd">'
       + '<b>งานจากกระบวนการอื่นที่รอคุณ (' + list.length + ")</b><ul style=\"margin:.4rem 0 0 1rem;padding:0\">" + rows + "</ul></section>");
@@ -396,5 +468,5 @@
     if (root.document.readyState === "loading") root.document.addEventListener("DOMContentLoaded", function(){ try { showIncoming(); } catch (e) {} });
     else try { showIncoming(); } catch (e) {}
   }
-  root.ECMISJunctionBridgeA7 = { importPending: importPending, mergeLinkedCases: mergeLinkedCases, applyLinkedCase: applyLinkedCase, publishResult: publishResult, publishReturn: publishReturn, toA7Case: toA7Case, renderSourceChain: renderSourceChain, lastImported: count };
+  root.ECMISJunctionBridgeA7 = { importPending: importPending, mergeLinkedCases: mergeLinkedCases, applyLinkedCase: applyLinkedCase, publishResult: publishResult, publishReturn: publishReturn, toA7Case: toA7Case, renderSourceChain: renderSourceChain, sourceLabel: sourceLabel, lastImported: count };
 })(typeof window !== "undefined" ? window : globalThis);

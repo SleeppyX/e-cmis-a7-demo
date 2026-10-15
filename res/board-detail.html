@@ -186,10 +186,12 @@
       gap: 1.25rem;
       align-items: start;
     }
+    /* ข้อความยาวในการ์ด (text-truncate) ต้องไม่ดันคอลัมน์ให้กว้างเกินจอ (Task 236) */
+    .board-two-pane-layout > * { min-width: 0; }
 
     @media (max-width: 1080px) {
       .board-two-pane-layout {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
       }
     }
 
@@ -480,9 +482,8 @@
             <!-- Symmetrical 4-Button Segmented Status Bar -->
             <div class="p-1 bg-light rounded-2 border d-flex gap-1">
               <button type="button" class="btn btn-xs btn-primary agenda-status-btn active flex-fill py-1" data-st="ALL" style="font-size:0.72rem; border-radius: 5px;">ทั้งหมด (<span id="countStAll">10</span>)</button>
-              <button type="button" class="btn btn-xs btn-outline-secondary agenda-status-btn flex-fill py-1 border-0 bg-transparent text-secondary" data-st="LIVE" style="font-size:0.72rem; border-radius: 5px;">LIVE (<span id="countStLive">1</span>)</button>
-              <button type="button" class="btn btn-xs btn-outline-secondary agenda-status-btn flex-fill py-1 border-0 bg-transparent text-secondary" data-st="PENDING" style="font-size:0.72rem; border-radius: 5px;">รอ (<span id="countStPending">7</span>)</button>
-              <button type="button" class="btn btn-xs btn-outline-secondary agenda-status-btn flex-fill py-1 border-0 bg-transparent text-secondary" data-st="RESOLVED" style="font-size:0.72rem; border-radius: 5px;">เสร็จ (<span id="countStResolved">2</span>)</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary agenda-status-btn flex-fill py-1 border-0 bg-transparent text-secondary" data-st="PENDING" style="font-size:0.72rem; border-radius: 5px;">รอพิจารณา (<span id="countStPending">0</span>)</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary agenda-status-btn flex-fill py-1 border-0 bg-transparent text-secondary" data-st="RESOLVED" style="font-size:0.72rem; border-radius: 5px;">มีมติแล้ว (<span id="countStResolved">2</span>)</button>
             </div>
           </div>
 
@@ -589,28 +590,10 @@
               
               <!-- Opinions Comparison (Only CAT5) -->
               <div id="opinionsComparisonBox" class="mb-3">
-                <label class="form-label text-muted small mb-1.5">ความเห็นพนักงานไต่สวน และ คณะอนุกรรมการกลั่นกรอง</label>
-                <div class="row g-2.5">
-                  <div class="col-md-6">
-                    <div class="p-3 bg-white rounded border h-100">
-                      <div class="d-flex align-items-center justify-content-between mb-1.5">
-                        <strong class="text-navy small">ความเห็นพนักงานไต่สวน</strong>
-                        <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:0.68rem;">ชี้มูลความผิด</span>
-                      </div>
-                      <p class="small text-muted mb-0" style="font-size:0.8rem; line-height:1.45;">เห็นควรชี้มูลความผิดทางอาญาตาม ป.อาญา ม.157 และ ม.162 และความผิดวินัยอย่างร้ายแรง ส่งสำนวน อสส.</p>
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="p-3 bg-white rounded border h-100">
-                      <div class="d-flex align-items-center justify-content-between mb-1.5">
-                        <strong class="text-navy small">ความเห็นคณะอนุกรรมการกลั่นกรอง</strong>
-                        <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:0.68rem;">เห็นพ้อง</span>
-                      </div>
-                      <p class="small text-muted mb-0" style="font-size:0.8rem; line-height:1.45;">คณะอนุกรรมการกลั่นกรองคณะที่ 1 มีมติเห็นพ้องตามรายงานของพนักงานไต่สวน เสนอคณะกรรมการ ป.ป.ท. วินิจฉัยชี้มูล</p>
-                    </div>
-                  </div>
-                </div>
+                <label class="form-label text-muted small mb-1.5">ความเห็นตามลำดับชั้นและคณะอนุกรรมการ</label>
+                <div class="row g-2" id="opinionsList"></div>
               </div>
+
 
               <!-- Meeting Deliberation / Resolution -->
               <div>
@@ -755,13 +738,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="../assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="../assets/ecmis-model.js"></script>
+  <script src="../assets/agenda-registry-data.js?v=20261005-board-real"></script>
   <script>
     
     function toggleFloatingNote(forceState) {
@@ -783,303 +768,102 @@
     ECMIS.renderShell('board-inbox.html');
     $('nav[aria-label="breadcrumb"], ol.breadcrumb').remove();
 
-        /* Board Meetings Dataset Across 6 Official Categories with Context-Aware Data */
-    const BOARD_MEETINGS = [
-      {
-        id: 38,
-        name: '38/2569',
-        date: '2569-08-28',
-        time: '09:30 - 16:30 น.',
-        location: 'ห้องประชุม 501 ชั้น 5 อาคาร ป.ป.ท. / Zoom Hybrid Meeting',
-        agendaCount: 10,
-        status: 'ACTIVE_READING',
-        statusText: 'เปิดให้อ่านล่วงหน้า (3 วัน)',
-        isNext: true,
-        agendas: [
-          {
-            cat: 'CAT1',
-            catName: 'วาระที่ ๑ : เรื่องประธานแจ้งให้ทราบ',
-            catBadgeClass: 'badge-cat-1',
-            agendaNo: '1.1',
-            caseId: 'วาระที่ ๑.๑',
-            subject: 'แจ้งนโยบายและแนวทางการขับเคลื่อนการปราบปรามการทุจริตในภาครัฐ ประจำปีงบประมาณ พ.ศ. ๒๕๖๙',
-            presenter: 'นายวิชัย ยุติธรรม (ประธานกรรมการ ป.ป.ท.)',
-            agency: 'สำนักงาน ป.ป.ท.',
-            topicType: 'นโยบายและทิศทางการบริหารงาน',
-            status: 'RESOLVED',
-            statusLabel: 'แจ้งทราบแล้ว',
-            factSummary: 'ประธานกรรมการ ป.ป.ท. ได้แจ้งต่อที่ประชุมถึงนโยบายสำคัญเร่งด่วนในการเร่งรัดสำนวนคดีค้างเก่าที่มีอายุความเกินกว่า ๑๐ ปี ให้แล้วเสร็จภายในไตรมาสแรก และการบูรณาการเชื่อมโยงฐานข้อมูลการปราบปรามการทุจริตร่วมกับ ป.ป.ช. และ สตง. ผ่านระบบ E-CMIS 7.0 เต็มรูปแบบ',
-            meetingDeliberation: 'ที่ประชุมรับทราบแนวทางการขับเคลื่อนนโยบายดังกล่าว และมอบหมายให้เลขาธิการ ป.ป.ท. รายงานความก้าวหน้าการเร่งรัดสำนวนคดีเป็นรายเดือน',
-            evidences: [
-              { id: 'DOC-101', title: 'กรอบนโยบายและทิศทางการขับเคลื่อนงาน ป.ป.ท. ประจำปีงบประมาณ พ.ศ. ๒๕๖๙', act: 'POLICY', actLabel: 'เอกสารนโยบาย', size: '2.8 MB', icon: 'fa-file-lines', preview: 'เอกสารแสดงเป้าหมาย ยุทธศาสตร์ และตัวชี้วัดความสำเร็จในการปราบปรามการทุจริตภาครัฐ' },
-              { id: 'DOC-102', title: 'แผนผังการเชื่อมโยงระบบฐานข้อมูล E-CMIS 7.0 ร่วมกับ ป.ป.ช. และ สตง.', act: 'INTEGRATION', actLabel: 'แผนภาพระบบ', size: '4.5 MB', icon: 'fa-diagram-project', preview: 'สถาปัตยกรรมการแลกเปลี่ยนข้อมูลสำนวนคดีระหว่างองค์กรตรวจสอบตามกฎหมาย' }
-            ],
-            conflictNote: null
-          },
-          {
-            cat: 'CAT2',
-            catName: 'วาระที่ ๒ : รับรองรายงานการประชุม',
-            catBadgeClass: 'badge-cat-2',
-            agendaNo: '2.1',
-            caseId: 'วาระที่ ๒.๑',
-            subject: 'รับรองรายงานการประชุมคณะกรรมการ ป.ป.ท. ครั้งที่ ๓๗/๒๕๖๙ เมื่อวันที่ ๒๐ สิงหาคม ๒๕๖๙',
-            presenter: 'ฝ่ายเลขานุการ (กลุ่มงานกิจการคณะกรรมการ)',
-            agency: 'กองบริหารคดี สำนักงาน ป.ป.ท.',
-            topicType: 'รายงานการประชุมครั้งที่ ๓๗/๒๕๖๙',
-            status: 'RESOLVED',
-            statusLabel: 'รับรองแล้ว',
-            factSummary: 'ฝ่ายเลขานุการได้จัดทำรายงานการประชุมคณะกรรมการ ป.ป.ท. ครั้งที่ ๓๗/๒๕๖๙ เมื่อวันที่ ๒๐ สิงหาคม ๒๕๖๙ จำนวน ๔ วาระ และส่งให้กรรมการ ป.ป.ท. ทุกท่านตรวจทานล่วงหน้าผ่านระบบ E-CMIS ไม่มีการขอแก้ไขข้อความใดๆ',
-            meetingDeliberation: 'ที่ประชุมมีมติรับรองรายงานการประชุมคณะกรรมการ ป.ป.ท. ครั้งที่ ๓๗/๒๕๖๙ โดยไม่มีการแก้ไข',
-            evidences: [
-              { id: 'DOC-201', title: 'ร่างรายงานการประชุมคณะกรรมการ ป.ป.ท. ครั้งที่ ๓๗/๒๕๖๙ (ฉบับตรวจทาน)', act: 'MINUTES', actLabel: 'รายงานการประชุม', size: '5.2 MB', icon: 'fa-file-contract', preview: 'รายงานการประชุมฉบับเต็ม บันทึกการอภิปรายและมติการชี้มูลความผิดจำนวน 4 วาระ' }
-            ],
-            conflictNote: null
-          },
-          {
-            cat: 'CAT3',
-            catName: 'วาระที่ ๓ : เรื่องสืบเนื่อง',
-            catBadgeClass: 'badge-cat-3',
-            agendaNo: '3.1',
-            caseId: 'วาระที่ ๓.๑ (สำนวน ๑๕๒๕/๒๕๕๘)',
-            subject: 'รายงานความคืบหน้าการส่งสำนวนคดีให้อัยการสูงสุดดำเนินคดีอาญาตามมาตรา ๓๘ (สำนวน ๑๕๒๕/๒๕๕๘)',
-            presenter: 'ฝ่ายเลขานุการ (กลุ่มงานคำวินิจฉัยและมติ)',
-            agency: 'กรมชลประทาน / สำนักงาน ป.ป.ท.',
-            topicType: 'ติดตามมติที่ประชุมครั้งที่ ๓๗/๒๕๖๙',
-            status: 'RESOLVED',
-            statusLabel: 'รับทราบความคืบหน้า',
-            factSummary: 'สืบเนื่องจากมติที่ประชุมครั้งที่ ๓๗/๒๕๖๙ ที่ชี้มูลความผิด นายสมศักดิ์ มั่นคง ขณะนี้ฝ่ายเลขานุการได้รวบรวมสำนวนพร้อมพยานหลักฐานส่งให้อัยการสูงสุดแล้วเมื่อวันที่ ๒๕ ส.ค. ๒๕๖๙ ตามกรอบเวลา SLA ๓๐ วัน',
-            meetingDeliberation: 'ที่ประชุมรับทราบความคืบหน้า และกำชับให้ฝ่ายเลขานุการติดตามผลการสั่งฟ้องของพนักงานอัยการอย่างต่อเนื่อง',
-            evidences: [
-              { id: 'DOC-301', title: 'หนังสือนำส่งสำนวนคดีถึงอัยการสูงสุด ที่ ปปท ๐๐๐๔/๑๘๙๒', act: 'DISPATCH', actLabel: 'หนังสือนำส่ง', size: '1.9 MB', icon: 'fa-envelope-circle-check', preview: 'หนังสือนำส่งสำนวนหลักฐานตามมาตรา ๓๘ พร้อมใบตอบรับของสำนักงานอัยการสูงสุด' }
-            ],
-            conflictNote: null
-          },
-          {
-            cat: 'CAT4',
-            catName: 'วาระที่ ๔ : เรื่องเพื่อทราบ / สถิติ',
-            catBadgeClass: 'badge-cat-4',
-            agendaNo: '4.1',
-            caseId: 'วาระที่ ๔.๑',
-            subject: 'รายงานสถิติมติคณะกรรมการ ป.ป.ท. และการติดตามผลการดำเนินการตามกรอบ SLA ประจำไตรมาส ๓ (แบบรายงาน กบค.)',
-            presenter: 'กลุ่มงานวิเคราะห์สถิติและเทคโนโลยี',
-            agency: 'กองบริหารคดี สำนักงาน ป.ป.ท.',
-            topicType: 'สถิติมติและการบริหารคดี',
-            status: 'RESOLVED',
-            statusLabel: 'รับทราบ',
-            factSummary: 'รายงานสถิติการชี้มูลความผิด ๕ หมวดสถิติ สรุปผลการดำเนินงาน ๑๐๐% ตามแบบรายงาน กบค. โดยมีสำนวนชี้มูลความผิดวินัยร้ายแรง ๑๒ เรื่อง และอาญา ๘ เรื่อง เป็นไปตามกรอบระยะเวลา SLA',
-            meetingDeliberation: 'ที่ประชุมรับทราบรายงานสถิติ และให้ข้อเสนอแนะในการพัฒนาระบบสถิติอัตโนมัติบนแดชบอร์ดสำหรับผู้บริหาร',
-            evidences: [
-              { id: 'DOC-401', title: 'แบบรายงานสถิติมติคณะกรรมการ ป.ป.ท. ประจำไตรมาส ๓ (แบบ กบค. ๑-๕)', act: 'STATS', actLabel: 'รายงานสถิติ', size: '3.4 MB', icon: 'fa-chart-column', preview: 'ตารางสถิติจำนวนสำนวนที่ชี้มูลความผิด แยกตามประเภทข้อกล่าวหาและหน่วยงานต้นสังกัด' }
-            ],
-            conflictNote: null
-          },
-          {
-            cat: 'CAT5',
-            catName: 'วาระที่ ๕ : เรื่องเพื่อพิจารณา (สำนวนคดี)',
-            catBadgeClass: 'badge-cat-5',
-            agendaNo: '5.1',
-            caseId: '2018/2569',
-            subject: 'กรณีกล่าวหา นายสุรชัย สมมุติ (ตัวการ) และ หจก.เชียงใหม่โยธา (ผู้สนับสนุน) ทุจริตเบิกจ่ายเงินโครงการก่อสร้าง',
-            accused: 'นายสุรชัย สมมุติ',
-            accusedPos: 'นายช่างโยธาชำนาญงาน (กรรมการตรวจรับ)',
-            agency: 'เทศบาลตำบลดอนแก้ว จ.เชียงใหม่',
-            complainant: 'สำนักงานการตรวจเงินแผ่นดิน (สตง.)',
-            incidentDateStart: '2568-01-15',
-            incidentDateEnd: '2568-02-20',
-            incidentDate: '15 ม.ค. 2568 - 20 ก.พ. 2568',
-            prescription: '16 ม.ค. 2583 (ตัวการ 15 ปี) / 16 ม.ค. 2578 (ผู้สนับสนุน 10 ปี)',
-            prescriptionPrincipal: '16 ม.ค. 2583 (ขาดอายุความ: นับจากเกิดเหตุ 15 ม.ค. 68 + 15 ปี + 1 วัน ตาม ป.อาญา ม.95 (2))',
-            prescriptionAccessory: '16 ม.ค. 2578 (ขาดอายุความ: นับจากเกิดเหตุ 15 ม.ค. 68 + 10 ปี + 1 วัน ตาม ป.อาญา ม.86 ประกอบ ม.95 (3))',
-            accusedAccessory: 'หจก.เชียงใหม่โยธาการช่าง (ผู้รับจ้าง / ผู้สนับสนุน)',
-            status: 'LIVE',
-            statusLabel: 'กำลังพิจารณา Live',
-            factSummary: 'จากการไต่สวนข้อเท็จจริงของคณะอนุกรรมการไต่สวน พบว่า ผู้ถูกกล่าวหาซึ่งได้รับแต่งตั้งเป็นกรรมการตรวจรับพัสดุ ได้ร่วมกับผู้รับจ้างลงนามตรวจรับงานจ้างโครงการก่อสร้างถนนคอนกรีตเสริมเหล็ก ทั้งที่งานยังไม่แล้วเสร็จตามแบบรูปรายการ เป็นเหตุให้ทางราชการเบิกจ่ายเงินงบประมาณไปโดยมิชอบ เกิดความเสียหายแก่ทางราชการเป็นเงินจำนวน 1,240,000 บาท',
-            meetingDeliberation: 'ที่ประชุมได้ร่วมกันพิจารณาพยานหลักฐานและข้อเท็จจริงในสำนวนไต่สวนอย่างรอบคอบ โดยมีข้อสังเกตว่าพฤติการณ์ของผู้ถูกกล่าวหามีเจตนาเอื้อประโยชน์แก่ผู้รับจ้างอย่างชัดเจน แม้ผู้ถูกกล่าวหาจะอ้างว่าลงนามตามที่ผู้ควบคุมงานเสนอ แต่ในฐานะกรรมการตรวจรับมีหน้าที่โดยตรงในการตรวจวัดงานจริง จึงเห็นพ้องชี้มูลความผิด',
-            offenses: ['ป.อาญา ม.157', 'ป.อาญา ม.162 (1) (4)', 'พ.ร.บ. ป.ป.ท. ม.18/4', 'วินัยร้ายแรง'],
-            evidences: [
-              { id: 'E5-01', title: 'บันทึกถ้อยคำพยานบุคคล (นายสมเกียรติ - วิศวกรผู้ควบคุมงาน)', act: 'ACT5', actLabel: 'สำนวนไต่สวน', size: '2.4 MB', icon: 'fa-file-lines', preview: 'พยานให้ถ้อยคำยืนยันว่า ในวันที่ผู้ถูกกล่าวหาลงนามตรวจรับงานนั้น ผิวจราจรคอนกรีตยังเทไม่เสร็จตามแบบรูปรายการ' },
-              { id: 'E5-02', title: 'สัญญาจ้างก่อสร้างโครงการและแบบรูปรายการ เลขที่ 45/2568', act: 'ACT5', actLabel: 'สำนวนไต่สวน', size: '14.8 MB', icon: 'fa-file-contract', preview: 'สัญญาจ้างระบุงวดงานและเงื่อนไขการตรวจรับอย่างชัดเจนว่าต้องผ่านการตรวจวัดความหนาของผิวคอนกรีตก่อนลงนาม' },
-              { id: 'E5-03', title: 'รายงานการตรวจสอบเส้นทางการเงินและรายการเดินบัญชีธนาคาร', act: 'ACT5', actLabel: 'สำนวนไต่สวน', size: '5.1 MB', icon: 'fa-file-invoice-dollar', preview: 'พบรายการโอนเงินจากบัญชีของผู้รับจ้างเข้าบัญชีเครือญาติของผู้ถูกกล่าวหาจำนวน 150,000 บาท ภายหลังวันตรวจรับงาน 3 วัน' },
-              { id: 'E5-04', title: 'ภาพถ่ายและวิดีโอการตรวจสถานที่ก่อสร้างจริงโดยพนักงานไต่สวน', act: 'ACT5', actLabel: 'สำนวนไต่สวน', size: '32.0 MB', icon: 'fa-image', preview: 'ภาพถ่ายสภาพถนนจริงปรากฏว่าความหนาของคอนกรีตไม่ได้มาตรฐานตามแบบแปลน และมีรอยแตกร้าวเสียหายตลอดสายทาง' }
-            ],
-            conflictNote: null
-          },
-          {
-            cat: 'CAT5',
-            catName: 'วาระที่ ๕ : เรื่องเพื่อพิจารณา (สำนวนคดี)',
-            catBadgeClass: 'badge-cat-5',
-            agendaNo: '5.2',
-            caseId: '2015/2569',
-            subject: 'กรณีกล่าวหา นายวิชัย รักษ์ดี จัดซื้อครุภัณฑ์คอมพิวเตอร์ราคาสูงเกินจริง',
-            accused: 'นายวิชัย รักษ์ดี',
-            accusedPos: 'ผู้อำนวยการกองการศึกษา',
-            agency: 'องค์การบริหารส่วนตำบลบางพลี',
-            complainant: 'บัตรสนเท่ห์และเจ้าหน้าที่ภายใน',
-            incidentDateStart: '2568-03-10',
-            incidentDateEnd: '2568-03-10',
-            incidentDate: '10 มี.ค. 2568',
-            prescription: '11 มี.ค. 2583 (ตัวการ 15 ปี) / 11 มี.ค. 2578 (ผู้สนับสนุน 10 ปี)',
-            prescriptionPrincipal: '11 มี.ค. 2583 (ขาดอายุความ: นับจากเกิดเหตุ 10 มี.ค. 68 + 15 ปี + 1 วัน ตาม ม.12 พ.ร.บ.ฮั้ว)',
-            prescriptionAccessory: '11 มี.ค. 2578 (ขาดอายุความ: นับจากเกิดเหตุ 10 มี.ค. 68 + 10 ปี + 1 วัน)',
-            accusedAccessory: 'บริษัท คอมพิวเทค ซิสเต็ม จำกัด (คู่สัญญา)',
-            status: 'PENDING',
-            statusLabel: 'รอพิจารณา',
-            factSummary: 'ไต่สวนพบการกำหนดสเปกครุภัณฑ์ล็อกสเปกให้เอกชนรายเดียว และมีราคาสูงกว่าราคากลางของกระทรวงดิจิทัลฯ เกือบเท่าตัว',
-            meetingDeliberation: 'ที่ประชุมมีประเด็นอภิปรายเรื่องส่วนต่างราคากลาง และให้ตรวจสอบเพิ่มเติมว่ามีเจ้าหน้าที่อื่นในคณะกรรมการกำหนดราคากลางร่วมกระทำผิดด้วยหรือไม่',
-            offenses: ['ป.อาญา ม.157', 'พ.ร.บ.ฮั้ว ม.12'],
-            evidences: [
-              { id: 'E5-05', title: 'ตารางเปรียบเทียบสเปกคอมพิวเตอร์และราคากลาง', act: 'ACT5', actLabel: 'สำนวนไต่สวน', size: '3.2 MB', icon: 'fa-table', preview: 'สเปกอุปกรณ์ตรงกับแคตตาล็อกของบริษัทผู้ชนะการเสนอราคาถึง 98%' },
-              { id: 'E5-06', title: 'รายงานการตรวจรับพัสดุและใบส่งของครุภัณฑ์', act: 'ACT5', actLabel: 'สำนวนไต่สวน', size: '4.5 MB', icon: 'fa-file-contract', preview: 'ตรวจรับครุภัณฑ์ที่มีสเปกต่ำกว่าเกณฑ์แต่เบิกจ่ายเต็มจำนวน' }
-            ],
-            conflictNote: 'นายวิเชียร จันทรโณทัย (กรรมการ ป.ป.ท.) ขอถอนตัวจากการพิจารณาสำนวนนี้ เนื่องจากเคยดำรงตำแหน่งผู้ว่าราชการจังหวัดในพื้นที่เกิดเหตุ (ตาม ม.๑๓ พ.ร.บ.วิธีปฏิบัติราชการทางปกครอง)'
-          },
-          {
-            cat: 'CAT6',
-            catName: 'วาระที่ ๖ : เรื่องอื่นๆ',
-            catBadgeClass: 'badge-cat-6',
-            agendaNo: '6.1',
-            caseId: 'วาระที่ ๖.๑',
-            subject: 'การกำหนดวันและเวลานัดหมายการประชุมคณะกรรมการ ป.ป.ท. ครั้งที่ ๓๙/๒๕๖๙',
-            presenter: 'ฝ่ายเลขานุการ (กลุ่มงานกิจการคณะกรรมการ)',
-            agency: 'สำนักงาน ป.ป.ท.',
-            topicType: 'กำหนดการประชุมครั้งถัดไป',
-            status: 'PENDING',
-            statusLabel: 'รอนัดหมาย',
-            factSummary: 'ฝ่ายเลขานุการเสนอให้กำหนดการประชุมครั้งที่ ๓๙/๒๕๖๙ ในวันพฤหัสบดีที่ ๔ กันยายน ๒๕๖๙ เวลา ๐๙.๓๐ น. ณ ห้องประชุม ๕๐๑ อาคาร ป.ป.ท. เพื่อพิจารณาสำนวนคดีค้างเก่าต่อเนื่อง',
-            meetingDeliberation: 'ที่ประชุมเห็นพ้องกำหนดวันนัดหมายดังกล่าว และมอบหมายให้ฝ่ายเลขานุการออกหนังสือเชิญประชุมตามระเบียบ',
-            evidences: [
-              { id: 'DOC-601', title: 'ปฏิทินและตารางกำหนดการประชุมคณะกรรมการ ป.ป.ท. ไตรมาส ๔', act: 'SCHEDULE', actLabel: 'ตารางการประชุม', size: '1.2 MB', icon: 'fa-calendar-days', preview: 'ตารางวันนัดหมายการประชุมประจำเดือนกันยายน - ธันวาคม ๒๕๖๙' }
-            ],
-            conflictNote: null
-          }
-        ]
-      },
-      {
-        id: 37,
-        name: '37/2569',
-        date: '2569-08-20',
-        time: '09:30 - 16:00 น.',
-        location: 'ห้องประชุม 501 ชั้น 5 อาคาร ป.ป.ท.',
-        agendaCount: 4,
-        status: 'CLOSED',
-        statusText: 'ประชุมเสร็จสิ้นแล้ว (มีมติแล้ว)',
-        isNext: false,
-        agendas: [
-          {
-            cat: 'CAT1',
-            catName: 'วาระที่ ๑ : เรื่องประธานแจ้งให้ทราบ',
-            catBadgeClass: 'badge-cat-1',
-            agendaNo: '1.1',
-            caseId: 'วาระที่ ๑.๑',
-            subject: 'แจ้งผลการดำเนินงานคณะกรรมการ ป.ป.ท. รอบครึ่งปีแรก',
-            presenter: 'นายวิชัย ยุติธรรม (ประธานกรรมการ ป.ป.ท.)',
-            agency: 'สำนักงาน ป.ป.ท.',
-            topicType: 'รายงานผลการดำเนินงาน',
-            status: 'RESOLVED',
-            statusLabel: 'แจ้งทราบแล้ว',
-            factSummary: 'ประธานกรรมการ ป.ป.ท. สรุปผลสัมฤทธิ์การดำเนินงานของสำนักงาน ป.ป.ท. ในรอบ 6 เดือนแรกของปีงบประมาณ 2569',
-            meetingDeliberation: 'ที่ประชุมรับทราบรายงานผลการดำเนินงาน',
-            evidences: [],
-            conflictNote: null
-          },
-          {
-            cat: 'CAT5',
-            catName: 'วาระที่ ๕ : เรื่องเพื่อพิจารณา (สำนวนคดี)',
-            catBadgeClass: 'badge-cat-5',
-            agendaNo: '5.1',
-            caseId: '1525/2558',
-            subject: 'กรณีกล่าวหา นายสมศักดิ์ มั่นคง เบียดบังเงินงบประมาณโครงการจัดซื้อจัดจ้าง',
-            accused: 'นายสมศักดิ์ มั่นคง',
-            accusedPos: 'หัวหน้าฝ่ายการเงิน',
-            agency: 'กรมชลประทาน',
-            complainant: 'สำนักงานการตรวจเงินแผ่นดิน (สตง.)',
-            incidentDateStart: '2558-05-12',
-            incidentDateEnd: '2558-05-12',
-            incidentDate: '12 พ.ค. 2558',
-            prescription: '13 พ.ค. 2573 (ตัวการ 15 ปี)',
-            prescriptionPrincipal: '13 พ.ค. 2573 (ตัวการ 15 ปี)',
-            prescriptionAccessory: '—',
-            accusedAccessory: '—',
-            status: 'RESOLVED',
-            statusLabel: 'ชี้มูลความผิดแล้ว',
-            factSummary: 'ไต่สวนพบการโอนเงินงบประมาณเข้าบัญชีส่วนตัวและปลอมแปลงเอกสารใบเสร็จรับเงิน',
-            meetingDeliberation: 'ที่ประชุมมีมติเอกฉันท์ชี้มูลความผิดอาญาและวินัยร้ายแรง ส่งสำนวน อสส.',
-            offenses: ['ป.อาญา ม.147', 'ป.อาญา ม.157', 'วินัยร้ายแรง'],
-            evidences: [],
-            conflictNote: null
-          }
-        ]
-      },
-      {
-        id: 36,
-        name: '36/2569',
-        date: '2569-08-05',
-        time: '09:30 - 15:30 น.',
-        location: 'ห้องประชุม 501 ชั้น 5 อาคาร ป.ป.ท.',
-        agendaCount: 6,
-        status: 'CLOSED',
-        statusText: 'ประชุมเสร็จสิ้นแล้ว (มีมติแล้ว)',
-        isNext: false,
-        agendas: [
-          {
-            cat: 'CAT5',
-            catName: 'วาระที่ ๕ : เรื่องเพื่อพิจารณา (สำนวนคดี)',
-            catBadgeClass: 'badge-cat-5',
-            agendaNo: '5.1',
-            caseId: '1340/2566',
-            subject: 'กรณีกล่าวหา เจ้าหน้าที่จัดซื้อวัสดุอุปกรณ์สำนักงานเอื้อประโยชน์แก่เครือญาติ',
-            accused: 'นางสาวมาลี ชื่นใจ',
-            accusedPos: 'เจ้าพนักงานพัสดุ',
-            agency: 'กรมทางหลวงชนบท',
-            complainant: 'ศูนย์ดำรงธรรม',
-            incidentDateStart: '2566-02-10',
-            incidentDateEnd: '2566-02-10',
-            incidentDate: '10 ก.พ. 2566',
-            prescription: '11 ก.พ. 2581 (ตัวการ 15 ปี)',
-            prescriptionPrincipal: '11 ก.พ. 2581 (ตัวการ 15 ปี)',
-            prescriptionAccessory: '—',
-            accusedAccessory: '—',
-            status: 'RESOLVED',
-            statusLabel: 'ชี้มูลความผิดแล้ว',
-            factSummary: 'เจ้าหน้าที่พัสดุจัดซื้ออุปกรณ์สำนักงานจากร้านค้าของเครือญาติโดยไม่ผ่านกระบวนการสืบราคากลางตามระเบียบ',
-            meetingDeliberation: 'ที่ประชุมมีมติชี้มูลความผิดวินัยร้ายแรง',
-            offenses: ['ป.อาญา ม.157', 'วินัยร้ายแรง'],
-            evidences: [],
-            conflictNote: null
-          }
-        ]
-      },
-      {
-        id: 39,
-        name: '39/2569',
-        date: '2569-09-04',
-        time: '09:30 - 16:30 น.',
-        location: 'ห้องประชุม 501 ชั้น 5 อาคาร ป.ป.ท.',
-        agendaCount: 3,
-        status: 'SCHEDULED',
-        statusText: 'กำหนดการแล้ว (รอเปิดอ่าน)',
-        isNext: false,
-        agendas: [
-          {
-            cat: 'CAT1',
-            catName: 'วาระที่ ๑ : เรื่องประธานแจ้งให้ทราบ',
-            catBadgeClass: 'badge-cat-1',
-            agendaNo: '1.1',
-            caseId: 'วาระที่ ๑.๑',
-            subject: 'กำหนดการตรวจราชการและติดตามคดีทุจริตในพื้นที่ภาค ๕',
-            presenter: 'นายวิชัย ยุติธรรม (ประธานกรรมการ ป.ป.ท.)',
-            agency: 'สำนักงาน ป.ป.ท.',
-            topicType: 'กำหนดการตรวจราชการ',
-            status: 'PENDING',
-            statusLabel: 'รอดำเนินการ',
-            factSummary: 'แจ้งกำหนดการตรวจราชการและติดตามสำนวนคดีค้างเก่าในพื้นที่ภาค ๕ ในช่วงปลายเดือนกันยายน ๒๕๖๙',
-            meetingDeliberation: 'ที่ประชุมรับทราบกำหนดการ',
-            evidences: [],
-            conflictNote: null
-          }
-        ]
+    /* ห้องอ่านสำนวนอิงการประชุมจริง (Task 236): ครั้งประชุมจาก tbl_res_calendar (?id = trc_id) วาระจาก
+       tbl_res_calendar_item และสำนวนที่ผูกวาระโหลดจาก DB — แสดงเฉพาะข้อมูลที่มีจริง */
+    const AR = window.AgendaRegistry;
+    const CAT_NAMES = {
+      CAT1: 'วาระที่ ๑ : เรื่องประธานแจ้งให้ทราบ', CAT2: 'วาระที่ ๒ : รับรองรายงานการประชุม',
+      CAT3: 'วาระที่ ๓ : เรื่องสืบเนื่อง', CAT4: 'วาระที่ ๔ : เรื่องเพื่อทราบ / สถิติ',
+      CAT5: 'วาระที่ ๕ : เรื่องเพื่อพิจารณา', CAT6: 'วาระที่ ๖ : เรื่องอื่นๆ'
+    };
+    const MEETING_STATUS_TEXT = { CLOSED: 'ประชุมเสร็จสิ้นแล้ว', SCHEDULED: 'เปิดให้อ่านวาระล่วงหน้า', CANCELLED: 'ยกเลิก/เลื่อน' };
+    const THAI_DIGITS = '๐๑๒๓๔๕๖๗๘๙';
+    function agendaCat(no) {
+      const d = String(no || '').replace(/[๐-๙]/g, c => THAI_DIGITS.indexOf(c)).match(/\d/);
+      const n = d ? Number(d[0]) : 5;
+      return n >= 1 && n <= 6 ? `CAT${n}` : 'CAT5';
+    }
+    function opinionText(v) {
+      if (!v) return '';
+      if (typeof v === 'string') return v.trim();
+      return String(v.text || v.note || v.opinion || v.summary || '').trim();
+    }
+    function caseOpinions(kase) {
+      return [
+        ['ความเห็นรองเลขาธิการฯ', kase.deputyOpinion],
+        ['ความเห็นเลขาธิการฯ', kase.secgenOpinion],
+        ['ความเห็นคณะอนุกรรมการสนับสนุนฯ', kase.supportOpinion72 || kase.supportOpinion],
+        ['ความเห็นคณะอนุกรรมการกลั่นกรองฯ', kase.subOpinion],
+        ['ความเห็นกลุ่มงานกิจการคณะกรรมการ', kase.affairsOpinion72]
+      ].map(([title, v]) => ({ title, text: opinionText(v) })).filter(o => o.text);
+    }
+    function caseResolutionText(kase) {
+      if (!ECMIS.isBoardResolvedCase(kase)) return 'ยังไม่มีมติ — รอที่ประชุมพิจารณา';
+      const r = ECMIS.resolutionOf(kase.code || (kase.resolution && kase.resolution.code));
+      return (r && r.label) || kase.label || 'ที่ประชุมมีมติแล้ว';
+    }
+    function itemCaseRefs(it) {
+      return String(it.case_ref || '').match(/\d{1,7}\/\d{4}/g) || [];
+    }
+    function toAgenda(it, cases) {
+      const kase = itemCaseRefs(it).map(ref => cases.find(c => c.id === ref)).find(Boolean) || null;
+      const cat = agendaCat(it.trci_number);
+      const presenters = (it.presenters || []).map(p => (p && (p.name || p.n)) || p).filter(x => typeof x === 'string' && x.trim());
+      const base = {
+        trciId: it.trci_id, cat, catName: CAT_NAMES[cat], catBadgeClass: `badge-cat-${cat.slice(3)}`,
+        agendaNo: it.trci_number || '—', kase,
+        subject: it.trci_topic || (kase && kase.subject) || '—',
+        presenter: presenters.join(', ') || (it.owner && it.owner !== '-' ? it.owner : ''),
+        agency: (kase && kase.ownerOrg) || (it.org && it.org !== '-' ? it.org : ''),
+        topicType: AR.CATEGORY_LABEL[it.category] || '',
+        evidences: []
+      };
+      if (!kase) {
+        return Object.assign(base, {
+          caseId: 'ไม่มีสำนวนแนบ', caseIdFull: '',
+          status: 'PENDING', statusLabel: 'รอพิจารณา',
+          factSummary: [it.trci_detail, it.trci_description, it.remark].find(x => x && x !== '-') || '—',
+          meetingDeliberation: 'ยังไม่มีมติ — รอที่ประชุมพิจารณา'
+        });
       }
-    ];
+      const resolved = ECMIS.isBoardResolvedCase(kase);
+      return Object.assign(base, {
+        caseId: ECMIS.caseRefText(it.case_ref, 'list'), caseIdFull: ECMIS.caseRefText(it.case_ref, 'full'),
+        accused: (kase.accused || []).map(a => a.name).filter(Boolean).join(', '),
+        accusedPos: (kase.accused || [])[0] ? kase.accused[0].pos : '',
+        complainant: kase.complainant || '',
+        caseStatusLabel: (ECMIS.STATUS[kase.status] || {}).label || '',
+        status: resolved ? 'RESOLVED' : 'PENDING', statusLabel: resolved ? 'มีมติแล้ว' : 'รอพิจารณา',
+        factSummary: kase.allegation || kase.subject || '—',
+        opinions: caseOpinions(kase),
+        meetingDeliberation: caseResolutionText(kase)
+      });
+    }
+    /* ไม่ระบุ ?id: ครั้งถัดไปที่เปิดอ่านได้ ถ้าไม่มีใช้ครั้งล่าสุดที่เปิดอ่านได้ */
+    function defaultMeetingView() {
+      const views = AR.boardMeetings();
+      return views.filter(m => m.status === 'SCHEDULED' && m.readOpen).sort((a, b) => a.date.localeCompare(b.date))[0]
+        || views.find(m => m.readOpen) || views[0] || null;
+    }
+    async function loadMeeting(id) {
+      await AR.ready;
+      const raw = AR.MEETINGS.find(m => m.trc_id === id && m.trc_confirmed);
+      const view = raw ? AR.boardMeetingView(raw) : defaultMeetingView();
+      if (!view) return null;
+      if (!view.readOpen) return Object.assign(view, { agendas: [], locked: true });
+      const items = AR.itemsOf(view.id);
+      const cases = await ECMIS.fetchCasesByNos(items.flatMap(itemCaseRefs));
+      cases.forEach(c => ECMIS.noteCaseRefSource(c.id, c.scenarioSource));
+      return Object.assign(view, { agendas: items.map(it => toAgenda(it, cases)) });
+    }
+    function showEmptyWorkspace(msg) {
+      $('#dossierAgendaPill, #dossierCatBadge, #dossierStatusBadge').addClass('d-none');
+      $('#dossierSubject').text(msg);
+      $('#dossierTabs, #tabPane_brief, #tabPane_evidence, #tabPane_doc').addClass('d-none');
+      $('#currentAgendaStepperText').text('0 / 0');
+      $('#btnPrevAgenda, #btnNextAgenda').prop('disabled', true);
+      document.getElementById('agendaListContainer').innerHTML = `<div class="text-muted text-center py-4 small px-3">${ECMIS.escapeHtml(msg)}</div>`;
+    }
 
     const BOARD_MEMBERS_LIST = [
       { n: 'นายวิชัย ยุติธรรม', r: 'ประธานกรรมการ ป.ป.ท.', status: 'PRESENT' },
@@ -1099,38 +883,61 @@
     let isSinglePageMode = true;
 
     /* Initialize Page */
-    function initPage() {
+    async function initPage() {
       const urlParams = new URLSearchParams(window.location.search);
       const meetingIdParam = parseInt(urlParams.get('id') || urlParams.get('meet'), 10);
       const agendaParam = urlParams.get('agenda');
 
-      // Find Meeting
-      let foundMeeting = BOARD_MEETINGS.find(m => m.id === meetingIdParam) || BOARD_MEETINGS[0];
-      currentMeeting = foundMeeting;
+      $('#bannerMeetName').text('กำลังโหลดการประชุม…');
+      $('#bannerAgendaCount, #bannerStatusBadge').addClass('d-none');
+      $('#bannerMeetDetails').empty();
+      showEmptyWorkspace('กำลังโหลดระเบียบวาระ…');
 
-      // Dynamic Banner & Header Update
+      try {
+        currentMeeting = await loadMeeting(meetingIdParam);
+      } catch (err) {
+        console.error('โหลดการประชุมไม่สำเร็จ:', err);
+        $('#bannerMeetName').text('โหลดการประชุมไม่สำเร็จ');
+        showEmptyWorkspace('โหลดระเบียบวาระไม่สำเร็จ — ลองรีเฟรชหน้า');
+        return;
+      }
+      if (!currentMeeting) {
+        $('#bannerMeetName').text('ยังไม่มีรอบการประชุมที่จัดวาระแล้ว');
+        showEmptyWorkspace('ยังไม่มีรอบการประชุมที่ฝ่ายเลขานุการจัดวาระแล้ว');
+        return;
+      }
+
       $('#bannerMeetName').text(`การประชุม ครั้งที่ ${currentMeeting.name}`);
-      $('#bannerStatusBadge').html(`<i class="fa-solid fa-calendar-check me-1"></i>${currentMeeting.statusText || (currentMeeting.status === 'CLOSED' ? 'ประชุมเสร็จสิ้นแล้ว' : 'เปิดให้อ่านวาระล่วงหน้า')}`);
-      $('#bannerAgendaCount').html(`<i class="fa-solid fa-list-ol me-1 text-primary"></i>${currentMeeting.agendas ? currentMeeting.agendas.length : currentMeeting.agendaCount} วาระ`);
+      $('#bannerStatusBadge').removeClass('d-none').html(`<i class="fa-solid fa-calendar-check me-1"></i>${MEETING_STATUS_TEXT[currentMeeting.status]}`);
+      $('#bannerAgendaCount').removeClass('d-none').html(`<i class="fa-solid fa-list-ol me-1 text-primary"></i>${currentMeeting.agendaCount} วาระ`);
       $('#bannerMeetDetails').html(`
-        <span><i class="fa-regular fa-clock me-1 text-primary"></i>${ECMIS.thaiDate(currentMeeting.date)} (${currentMeeting.time || '09:30 - 16:30 น.'})</span>
-        <span><i class="fa-solid fa-location-dot me-1 text-danger"></i>${currentMeeting.location || 'ห้องประชุม 501 ชั้น 5 อาคาร ป.ป.ท.'}</span>
+        <span><i class="fa-regular fa-clock me-1 text-primary"></i>${ECMIS.escapeHtml(ECMIS.thaiDate(currentMeeting.date))}${currentMeeting.time !== '—' ? ` (${ECMIS.escapeHtml(currentMeeting.time)})` : ''}</span>
       `);
 
-      // Find Target Agenda Index
+      if (currentMeeting.locked) {
+        showEmptyWorkspace(`ยังไม่เปิดให้อ่านวาระล่วงหน้า — เปิดให้อ่าน ${ECMIS.thaiDate(currentMeeting.readOpenDate)} (${AR.BOARD_READ_AHEAD_DAYS} วันก่อนวันประชุม ตาม ม.๒๐)`);
+        return;
+      }
+      if (!currentMeeting.agendas.length) {
+        showEmptyWorkspace('การประชุมครั้งนี้ยังไม่มีวาระ');
+        return;
+      }
+
+      $('#dossierAgendaPill, #dossierCatBadge, #dossierTabs, #tabPane_brief').removeClass('d-none');
+      $('#dossierTabs .ws-detail-tab').removeClass('active');
+      $('#tabBriefBtn').addClass('active');
+
       let targetIdx = 0;
-      if (agendaParam && currentMeeting.agendas) {
+      if (agendaParam) {
         const foundIdx = currentMeeting.agendas.findIndex(a => a.agendaNo === agendaParam);
         if (foundIdx >= 0) targetIdx = foundIdx;
       }
       currentAgendaIdx = targetIdx;
 
-      // Render KPIs and Cards
       updateAgendaKPIs();
       renderAgendaCards();
       selectAgenda(currentAgendaIdx, false);
     }
-
 
 
     function updateAgendaKPIs() {
@@ -1185,13 +992,13 @@
         if (a.status === 'LIVE') {
           statusBadge = '<span class="badge bg-danger text-white px-1.5 py-0.5" style="font-size:0.68rem;"><i class="fa-solid fa-circle-dot me-1"></i>LIVE</span>';
         } else if (a.status === 'RESOLVED') {
-          statusBadge = '<span class="badge bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5" style="font-size:0.68rem;">เสร็จสิ้น</span>';
+          statusBadge = '<span class="badge bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5" style="font-size:0.68rem;">มีมติแล้ว</span>';
         } else {
           statusBadge = '<span class="badge bg-light text-muted border px-1.5 py-0.5" style="font-size:0.68rem;">รอพิจารณา</span>';
         }
 
         const catBadgeClass = a.catBadgeClass || 'badge-cat-5';
-        const isCase = (a.cat === 'CAT5');
+        const isCase = !!a.kase;
 
         return `
           <div class="agenda-nav-item ${isSelected ? 'active' : ''}" onclick="selectAgenda(${a.originalIdx}, true)">
@@ -1204,9 +1011,9 @@
             ${a.conflictNote ? '<div class="text-danger fw-semibold mt-1" style="font-size:0.68rem;"><i class="fa-solid fa-triangle-exclamation me-1 text-warning"></i>มีกรรมการขอถอนตัว</div>' : ''}
             <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top" style="font-size:0.72rem;">
               <span class="text-muted text-truncate" style="max-width:140px;">
-                <i class="fa-solid ${isCase ? 'fa-user' : 'fa-building-columns'} me-1"></i>${isCase ? (a.accused ? a.accused.split(' ')[0] : '—') : (a.agency || 'สำนักงาน ป.ป.ท.')}
+                <i class="fa-solid ${isCase ? 'fa-user' : 'fa-building-columns'} me-1"></i>${isCase ? (a.accused || '—') : (a.agency || 'สำนักงาน ป.ป.ท.')}
               </span>
-              <span class="text-primary fw-medium"><i class="fa-solid fa-paperclip me-1"></i>${a.evidences ? a.evidences.length : 0} ไฟล์</span>
+              <span class="text-primary fw-medium"><i class="fa-solid ${isCase ? 'fa-folder-open' : 'fa-file-lines'} me-1"></i>${isCase ? 'มีสำนวน' : 'ไม่มีสำนวนแนบ'}</span>
             </div>
           </div>
         `;
@@ -1219,7 +1026,7 @@
       currentAgendaIdx = idx;
       const agenda = currentMeeting.agendas[idx];
       const totalAgendas = currentMeeting.agendas.length;
-      const isCase = (agenda.cat === 'CAT5');
+      const isCase = !!agenda.kase;
 
       // Update URL without reload
       if (updateHistory) {
@@ -1252,8 +1059,8 @@
         $('#evidenceHeaderSub').text('เอกสาร พยานวัตถุ และรายงานผลการตรวจพิสูจน์ที่ประกอบการพิจารณา');
         $('#lblFactHeader').text('พฤติการณ์และการกระทำความผิด (ข้อเท็จจริงจากการไต่สวน)');
         $('#lblFactSub').text('สรุปข้อเท็จจริงและพฤติการณ์แห่งคดี');
-        $('#cardOffenses').removeClass('d-none');
-        $('#opinionsComparisonBox').removeClass('d-none');
+        $('#cardOffenses').addClass('d-none');
+        $('#opinionsComparisonBox').toggleClass('d-none', !(agenda.opinions && agenda.opinions.length));
       } else {
         $('#tabBriefBtn').text('สาระสำคัญและรายละเอียด');
         $('#tabEvidenceBtn').html('เอกสารประกอบวาระ <span class="badge bg-secondary rounded-pill ms-1" id="tabEvidenceCount">' + (agenda.evidences ? agenda.evidences.length : 0) + '</span>');
@@ -1265,6 +1072,14 @@
         $('#cardOffenses').addClass('d-none');
         $('#opinionsComparisonBox').addClass('d-none');
       }
+
+      // ไม่มีคลังพยานหลักฐานในข้อมูลจริง — ซ่อนแท็บนี้ (Task 236)
+      $('#tabEvidenceBtn').addClass('d-none');
+      $('#opinionsList').html((agenda.opinions || []).map(o => `
+        <div class="col-md-6"><div class="p-3 bg-white rounded border h-100">
+          <strong class="text-navy small d-block mb-1">${ECMIS.escapeHtml(o.title)}</strong>
+          <p class="small text-muted mb-0" style="font-size:0.8rem; line-height:1.45; white-space:pre-line">${ECMIS.escapeHtml(o.text)}</p>
+        </div></div>`).join(''));
 
       // Populate Card 1: General Info Row
       renderGeneralInfoRow(agenda, isCase);
@@ -1317,7 +1132,7 @@
       }
 
       // Populate Card 6: Private Notes
-      const noteKey = `ecmis_board_note_${agenda.caseId || agenda.agendaNo}`;
+      const noteKey = `ecmis_board_note_trci_${agenda.trciId}`;
       const savedNote = localStorage.getItem(noteKey) || '';
       $('#boardPrivateNote').val(savedNote);
       $('#noteCharCount').text(`${savedNote.length} ตัวอักษร`);
@@ -1347,7 +1162,7 @@
                 <div class="fw-bold text-navy fs-6" style="line-height:1.35;">${agenda.accused || '—'}</div>
               </div>
               <div class="mt-2 pt-1.5 border-top text-secondary small text-truncate" style="font-size:0.75rem;">
-                <i class="fa-solid fa-id-badge me-1 text-muted"></i>${agenda.accusedPos ? `ตำแหน่ง ${agenda.accusedPos}` : 'เจ้าหน้าที่ของรัฐ'} (${agenda.agency || '—'})
+                <i class="fa-solid fa-id-badge me-1 text-muted"></i>${agenda.accusedPos ? `ตำแหน่ง ${agenda.accusedPos}` : 'ตำแหน่ง —'} (${agenda.agency || '—'})
               </div>
             </div>
           </div>
@@ -1368,12 +1183,12 @@
             <div class="p-3 bg-white rounded-3 border border-start border-danger border-3 h-100 shadow-xs d-flex flex-column justify-content-between">
               <div>
                 <div class="text-danger small fw-semibold mb-1.5" style="font-size:0.75rem;">
-                  <i class="fa-solid fa-calendar-xmark me-1"></i>วันเกิดเหตุ & อายุความ
+                  <i class="fa-solid fa-folder-open me-1"></i>เลขเรื่อง / สถานะสำนวน
                 </div>
-                <div class="fw-bold text-danger fs-6" style="line-height:1.35;">${agenda.incidentDate || '—'}</div>
+                <div class="fw-bold text-danger fs-6" style="line-height:1.35;">${ECMIS.escapeHtml(agenda.caseIdFull || '—')}</div>
               </div>
               <div class="mt-2 pt-1.5 border-top text-danger small text-truncate fw-medium" style="font-size:0.75rem;">
-                <i class="fa-solid fa-hourglass-half me-1"></i>${agenda.prescription || '—'}
+                <i class="fa-solid fa-hourglass-half me-1"></i>${ECMIS.escapeHtml(agenda.caseStatusLabel || '—')}
               </div>
             </div>
           </div>
@@ -1496,38 +1311,7 @@
       if (!paper) return;
 
       if (isCase) {
-        paper.innerHTML = `
-          <div class="doc-secret">ลับ</div>
-          <div style="text-align:center; margin-bottom:4px;">
-            <img src="../assets/doc_logo.jpg" alt="ตราครุฑ" style="height:52px;">
-          </div>
-          <div class="doc-title">รายงานการไต่สวนเพื่อวินิจฉัยชี้มูล</div>
-          <div class="doc-sub">คณะกรรมการ ป.ป.ท. (แบบ ปปท. ๗-๐๒)</div>
-          
-          <div class="doc-row" style="margin-top:6px;"><span style="font-weight:bold;">ระเบียบวาระที่</span> ${agenda.agendaNo} (สำนวนเลขที่ ${agenda.caseId})</div>
-          <div class="doc-row"><span style="font-weight:bold;">วันเดือนปีที่ประชุม</span> ${meetDateThai}</div>
-
-          <div class="doc-indent" style="margin-top:8px;">
-            ในคราวการประชุมคณะกรรมการ ป.ป.ท. ครั้งที่ ${currentMeeting.name} เมื่อวันที่ ${meetDateThai} เพื่อพิจารณาและวินิจฉัยชี้มูลความผิด เรื่องที่ ${agenda.caseId} กรณีกล่าวหา <strong>${agenda.accused || 'ผู้ถูกกล่าวหา'}</strong> ${agenda.accusedPos ? `ตำแหน่ง ${agenda.accusedPos}` : ''} สังกัด ${agenda.agency || 'หน่วยงานของรัฐ'}
-          </div>
-
-          <div class="doc-h" style="margin-top:12px; font-size:16pt;">๑. ผู้ถูกกล่าวหาและตำแหน่งหน้าที่</div>
-          <div class="doc-indent">
-            ${agenda.accused || 'ผู้ถูกกล่าวหา'} ${agenda.accusedPos ? `ตำแหน่ง ${agenda.accusedPos}` : ''} สังกัด ${agenda.agency || 'หน่วยงานของรัฐ'} ${agenda.accusedAccessory && agenda.accusedAccessory !== '—' ? `ร่วมกับ ${agenda.accusedAccessory}` : ''}
-          </div>
-
-          <div class="doc-h" style="margin-top:10px; font-size:16pt;">๒. พฤติการณ์และการกระทำความผิด</div>
-          <div class="doc-indent">${agenda.factSummary || '—'}</div>
-
-          <div class="doc-h" style="margin-top:10px; font-size:16pt;">๓. ความเห็นและมติที่ประชุมคณะกรรมการ ป.ป.ท.</div>
-          <div class="doc-indent">${agenda.meetingDeliberation || 'ที่ประชุมมีมติเป็นเอกฉันท์ชี้มูลความผิดตามรายงานไต่สวน'}</div>
-
-          <div style="margin-top:28px; text-align:right; padding-right:15px;">
-            <p style="margin-bottom:4px;">(ลงชื่อ) ...........................................................</p>
-            <p style="margin-bottom:0; font-weight:bold;">(นายวิชัย ยุติธรรม)</p>
-            <p style="margin-bottom:0; font-size:14pt; color:#475569;">ประธานกรรมการ ป.ป.ท.</p>
-          </div>
-        `;
+        paper.innerHTML = ECMIS.renderSecgenReportDoc(agenda.kase, { signed: true });
       } else {
         paper.innerHTML = `
           <div style="text-align:center; margin-bottom:4px;">
@@ -1632,37 +1416,19 @@
           timer: 1800,
           showConfirmButton: false
         }).then(() => {
-          Swal.fire({
-            icon: 'success',
-            title: 'ดาวน์โหลดสำเร็จ',
-            text: `สร้างเล่มเอกสารการประชุมคณะกรรมการ ป.ป.ท. ครั้งที่ ${currentMeeting.name} (ขนาด 48.6 MB) เรียบร้อยแล้ว`,
-            confirmButtonColor: '#0F2A62',
-            confirmButtonText: 'ตกลง'
-          });
+          ECMIS.toastOk('ดาวน์โหลดสำเร็จ', `เล่มเอกสารการประชุมครั้งที่ ${currentMeeting.name} (ขนาด 48.6 MB)`);
         });
       });
 
       // Export Word & PDF
       $('#btnExportDocx').on('click', function () {
         const agenda = currentMeeting.agendas[currentAgendaIdx];
-        Swal.fire({
-          icon: 'success',
-          title: 'กำลังส่งออก Word (.DOCX)',
-          text: `ระบบกำลังสร้างไฟล์เอกสารสำหรับ ${agenda.agendaNo}...`,
-          timer: 1500,
-          showConfirmButton: false
-        });
+        ECMIS.toastOk('กำลังส่งออก Word (.DOCX)', `เอกสารวาระที่ ${agenda.agendaNo}`);
       });
 
       $('#btnExportPdf').on('click', function () {
         const agenda = currentMeeting.agendas[currentAgendaIdx];
-        Swal.fire({
-          icon: 'success',
-          title: 'กำลังส่งออก PDF',
-          text: `ส่งออกเอกสารของ ${agenda.agendaNo} เรียบร้อยแล้ว`,
-          timer: 1500,
-          showConfirmButton: false
-        });
+        ECMIS.toastOk('ส่งออก PDF เรียบร้อย', `เอกสารวาระที่ ${agenda.agendaNo}`);
       });
 
       // Auto-save Private Notes
@@ -1670,7 +1436,7 @@
       $('#boardPrivateNote').on('input', function () {
         if (!currentMeeting || !currentMeeting.agendas || !currentMeeting.agendas[currentAgendaIdx]) return;
         const agenda = currentMeeting.agendas[currentAgendaIdx];
-        const noteKey = `ecmis_board_note_${agenda.caseId || agenda.agendaNo}`;
+        const noteKey = `ecmis_board_note_trci_${agenda.trciId}`;
         const text = $(this).val();
         $('#noteCharCount').text(`${text.length} ตัวอักษร`);
         $('#noteSaveStatus').html('<i class="fa-solid fa-spinner fa-spin text-warning me-1"></i>กำลังบันทึก...');

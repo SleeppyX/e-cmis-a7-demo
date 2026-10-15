@@ -62,28 +62,25 @@
                 <div class="ws-card mb-3">
                     <div class="card-header"><i class="fa-solid fa-clipboard-check"></i> บันทึกมติและข้อสังเกตของคณะอนุกลั่นกรองฯ</div>
                     <div class="card-body">
+                        <!-- Task 300: เลขบันทึกแจ้งมติคณะอนุกรรมการกลั่นกรองฯ (ปป 0004/) -->
+                        <div class="mb-3" id="screeningMemoNoBox" style="max-width:34rem"></div>
                         <div class="row g-2 mb-3">
-                            <div class="col-md-4"><label class="form-label field-req">ครั้งที่ประชุมคณะอนุฯ</label>
+                            <div class="col-md-6"><label class="form-label field-req">ครั้งที่ประชุมคณะอนุฯ</label>
                                 <input class="form-control" id="subMeetNo" placeholder="เช่น 1/2569">
                             </div>
-                            <div class="col-md-4"><label class="form-label field-req">วันที่ประชุม</label>
+                            <div class="col-md-6"><label class="form-label field-req">วันที่ประชุม</label>
                                 <input class="form-control" id="subMeetDate" placeholder="วว/ดด/ปปปป หรือ YYYY-MM-DD">
-                            </div>
-                            <div class="col-md-4"><label class="form-label">จำนวนอนุกรรมการที่เข้าประชุม</label>
-                                <input class="form-control" id="subQuorum" value="5" type="number" min="1">
                             </div>
                         </div>
 
-                        <div class="rule-panel mb-3" id="subQuorumBox"></div>
-
                         <div class="row g-2 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label">จำนวนอนุกรรมการทั้งคณะ (ตั้งค่าโดย Admin)</label>
+                                <label class="form-label" for="subTotal">จำนวนอนุกรรมการทั้งคณะ</label>
                                 <input class="form-control" id="subTotal" type="number" min="1" value="7">
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">องค์ประชุมขั้นต่ำที่ระบบใช้</label>
-                                <input class="form-control autofilled" id="subMin" readonly>
+                            <div class="col-md-6"><label class="form-label" for="subQuorum">จำนวนอนุกรรมการที่เข้าประชุม</label>
+                                <input class="form-control" id="subQuorum" value="5" type="number" min="1" aria-describedby="subQuorumHint">
+                                <div class="form-text" id="subQuorumHint" aria-live="polite"></div>
                             </div>
                         </div>
 
@@ -214,10 +211,11 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
     <script src="../cases.js"></script>
-    <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+    <script src="../assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
+    <script src="../assets/saraban-no.js?v=20261015-a7-saraban-off"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
     <script src="../assets/ecmis-model.js"></script>
     <script>
         ECMIS.renderShell('screening.html');
@@ -236,22 +234,70 @@
         try { sb = window.ECMIS && window.ECMIS.getSupabaseClient ? window.ECMIS.getSupabaseClient() : null; }
         catch (e) { console.warn('Supabase init skipped, using local data store:', e); }
 
-        function persistPatch(patch) {
+        /* Task 311: อ่าน trr_resolution_data ล่าสุดจาก DB แล้วเติมเฉพาะช่องของ patch — ไม่ทับข้อมูลที่หน้าอื่นเพิ่งบันทึก
+           strict (ผลกลั่นกรอง/ขอข้อมูลเพิ่ม): เขียน DB ก่อน สำเร็จแล้วจึงแก้สำเนาในเบราว์เซอร์ + บันทึก event
+           คืน true/false ให้ผู้เรียกแจ้งเตือนและอยู่หน้าเดิมเมื่อบันทึกไม่สำเร็จ (เดิมเงียบ แล้วเคสค้างที่อนุฯ) */
+        function applyLocalPatch(patch) {
             Object.assign(kase, patch);
             ECMIS.Model.CaseStore.update(kase.id, patch);
-            if (!sb || !kase.trr_id) return;
-            const dbPatch = {};
-            if (patch.status) dbPatch.trr_status = ECMIS.STATUS_CODE[patch.status] || patch.status;
-            if ('subCommittee' in patch) dbPatch.trr_sub_committee = patch.subCommittee || null;
-            const extra = Object.assign({}, kase.resolutionData || {});
-            Object.keys(patch).forEach(k => {
-                if (k !== 'status' && k !== 'subCommittee' && k !== 'history') extra[k] = patch[k];
-            });
-            dbPatch.trr_resolution_data = extra;
-            kase.resolutionData = extra;
-            sb.from('tbl_res_request').update(dbPatch).eq('trr_id', kase.trr_id)
-                .then(({ error }) => { if (error) console.warn('บันทึกข้อมูลลง Supabase ไม่สำเร็จ:', error); });
         }
+        async function persistPatch(patch, opts) {
+            const o = opts || {};
+            if (!o.strict) applyLocalPatch(patch);
+            if (!sb || !kase.trr_id) {
+                if (o.strict) { console.warn('ไม่มีรหัสคำขอ (trr_id) — บันทึกลงฐานข้อมูลไม่ได้'); return false; }
+                return true;
+            }
+            const write = (async () => {
+                const { data: fresh, error: readErr } = await sb.from('tbl_res_request').select('trr_resolution_data').eq('trr_id', kase.trr_id).maybeSingle();
+                if (readErr) throw readErr;
+                const extra = Object.assign({}, (fresh && fresh.trr_resolution_data) || kase.resolutionData || {});
+                Object.keys(patch).forEach(k => {
+                    if (k !== 'status' && k !== 'subCommittee' && k !== 'history') extra[k] = patch[k];
+                });
+                const dbPatch = { trr_resolution_data: extra };
+                if (patch.status) dbPatch.trr_status = ECMIS.STATUS_CODE[patch.status] || patch.status;
+                if ('subCommittee' in patch) dbPatch.trr_sub_committee = patch.subCommittee || null;
+                const { error } = await sb.from('tbl_res_request').update(dbPatch).eq('trr_id', kase.trr_id);
+                if (error) throw error;
+                kase.resolutionData = extra;
+                if (o.event) await ECMIS.logRequestEvent(kase.trr_id, o.event.from, o.event.to, o.event.opts || {});
+                return true;
+            })().catch(e => { console.warn('บันทึกข้อมูลลง Supabase ไม่สำเร็จ:', e); return false; });
+            const ok = await ECMIS.trackSave(write);
+            if (ok && o.strict) applyLocalPatch(patch);
+            return ok;
+        }
+
+        /* Task 311: ยึดฐานข้อมูลเป็นหลัก — เปิดหน้าแล้วดึงเคสจริง ถ้าสำเนาในเบราว์เซอร์มีผลกลั่นกรองที่ DB ไม่มี
+           (บันทึกไม่สำเร็จ) ล้างทิ้งแล้วโหลดหน้าใหม่ครั้งเดียว ป้าย "กลั่นกรองแล้วเสร็จ"/การล็อกจึงตรงกับกล่องงานเสมอ */
+        const SCREEN_KEYS = ['subOutcome', 'subOutcomeNote', 'subOutcomeLawRef', 'subOutcomeAt', 'subOutcomeBy', 'subOutcomeTeam',
+            'screeningMeetNo', 'screeningMeetDate', 'subMeetingNo', 'subMeetingDate', 'subSecSignerName', 'subSecSignerTitle',
+            'signedBySubSec', 'subSecSignedAt', 'screeningMeetNo72', 'screeningMeetDate72', 'screeningOpinion72',
+            'subSecSignerName72', 'subSecSignerTitle72', 'signedBySubSec72', 'subSecSignedAt72', 'rulingTemplate',
+            'moreInfoRequestedAt', 'moreInfoNote', 'moreInfoRequested72'];
+        const SCREEN_EVENTS = /^(SCREENING_|SCREEN_DONE|REQUEST_MORE_INFO)/;
+        (async function syncScreeningFromDb() {
+            if (!sb || !ECMIS.fetchCasesByNos) return;
+            let live = null;
+            try { live = (await ECMIS.fetchCasesByNos([kase.id]))[0] || null; } catch (e) { return; }
+            if (!live) return;
+            const sig = c => JSON.stringify([c.status, c.subOutcome || null, c.subOutcomeAt || null, c.subCommittee || null]);
+            const before = sig(kase);
+            const strip = c => {
+                if (!c) return;
+                SCREEN_KEYS.forEach(k => { if (!(k in live)) delete c[k]; });
+                if (!live.subOutcome && Array.isArray(c.history)) c.history = c.history.filter(h => !SCREEN_EVENTS.test(h.event || ''));
+            };
+            strip(kase);
+            const stored = (ECMIS.CASES || []).find(c => c.id === kase.id);
+            if (stored && stored !== kase) strip(stored);
+            if (ECMIS.applyLiveCase(kase, live)) return;
+            if (sig(kase) === before) return;
+            const key = 'ecmis_screen_sync_' + kase.id;
+            try { if (sessionStorage.getItem(key) === sig(kase)) return; sessionStorage.setItem(key, sig(kase)); } catch (e) { return; }
+            location.reload();
+        })();
 
         /* อนุกลั่นกรองฯ เห็นเฉพาะส่วนที่ตนทำได้ — การกระจายสำนวนเข้าคณะเป็นงานของ กบค. เท่านั้น
            ซ่อนด้วย d-none แทนการลบ DOM เพราะ initScreening71/72 ยังเขียนลง #quotaGrid/#assignedTeam/
@@ -321,13 +367,15 @@
             };
             return {
                 name: role.id === 'subcommittee' && role.name ? role.name : 'ไม่ระบุผู้ลงนาม',
-                title: role.id === 'subcommittee' && role.title ? role.title : 'อนุกรรมการและเลขานุการ คณะอนุกรรมการกลั่นกรองฯ'
+                /* Task 248: ชื่อบทบาทบนหน้าจอย่อเป็น "อนุกรรมการกลั่นกรองฯ" แต่บรรทัดลงนามในมติใช้ตำแหน่งเต็มตามแบบพิมพ์ */
+                title: 'อนุกรรมการและเลขานุการ คณะอนุกรรมการกลั่นกรองฯ'
             };
         }
 
         const savedMeeting = savedScreeningMeeting();
         document.getElementById('subMeetNo').value = savedMeeting.number;
         document.getElementById('subMeetDate').value = savedMeeting.date;
+        ECMIS.initMeetingDateInput(document.getElementById('subMeetDate')); // Task 248: กดเลือกจากปฏิทินได้
 
         function currentSubOutcome(){
             const el = document.querySelector('input[name="subRes"]:checked');
@@ -335,7 +383,7 @@
         }
 
         /* บันทึกมติคณะอนุฯ ลง case + audit trail + สถานะกลางที่ map ไว้ */
-        function persistSubOutcome(extraPatch){
+        async function persistSubOutcome(extraPatch){
             const outcome = currentSubOutcome();
             const om = ECMIS.mapSubOutcome(outcome);
             const opinion = (document.getElementById('subOpinion').value || '').trim();
@@ -346,39 +394,44 @@
                     ? (isRuling ? 'RETURNED_72' : 'RETURNED')
                     : (isRuling ? 'PENDING_SIGN_AGENDA_72' : 'PENDING_SIGN_AGENDA'))  /* ทั้ง 7.1/7.2: เสนอประธานฯ ลงนามสั่งบรรจุวาระก่อน (G3; 7.1 เพิ่ม Task 164) */
                 : kase.status;
-            ECMIS.pushCaseHistory(kase, {
-                from: kase.status, to: targetStatus,
+            const fromStatus = kase.status;
+            const histEntry = {
+                from: fromStatus, to: targetStatus,
                 event: om ? om.centralEvent : 'SCREENING_NOTE',
                 outcome: outcome || null, lawRef: om ? om.lawRef : null, note: opinion
-            });
+            };
             const patch = Object.assign({
                 subOutcome: outcome || null,
                 subOutcomeNote: opinion,
                 subOutcomeLawRef: om ? om.lawRef : null,
                 subOutcomeAt: now, subOutcomeBy: role.id, subOutcomeTeam: team,
                 subCommittee: team || kase.subCommittee,
-                history: kase.history,
                 chairmanReturnReason72: '',  /* ล้างเหตุตีกลับของประธานฯ เมื่อคณะอนุฯ ส่งมติใหม่ (G3) */
                 status: targetStatus
             }, extraPatch || {});
             if (isRuling && om && om.docxTemplate) patch.rulingTemplate = om.docxTemplate; // 3 = ชี้มูล, 4 = ไม่ชี้มูล/ทำเพิ่ม/ตกไป
-            persistPatch(patch);
-            return { om, targetStatus };
+            const ok = await persistPatch(patch, { strict: true, event: { from: fromStatus, to: targetStatus,
+                opts: { type: histEntry.event, actorRole: role.id, note: opinion || null, data: { outcome: outcome || null, team, lawRef: histEntry.lawRef } } } });
+            if (ok) { ECMIS.pushCaseHistory(kase, histEntry); ECMIS.Model.CaseStore.update(kase.id, { history: kase.history }); }
+            return { ok, om, targetStatus };
         }
 
-        function persistMoreInfo(note){
+        async function persistMoreInfo(note, extraPatch){
             const team = (document.getElementById('manualTeam') || {}).value || (kase.subCommittee || '');
-            ECMIS.pushCaseHistory(kase, {
-                from: kase.status, to: MORE_INFO_STATUS, event: MORE_INFO_EVENT, note: note || ''
-            });
-            persistPatch({
+            const fromStatus = kase.status;
+            const ok = await persistPatch(Object.assign({
                 status: MORE_INFO_STATUS,
                 subCommittee: team || kase.subCommittee,
                 onHoldDays: Number(kase.onHoldDays) || 0,
                 moreInfoRequestedAt: new Date().toISOString(),
-                moreInfoNote: note || '',
-                history: kase.history
-            });
+                moreInfoNote: note || ''
+            }, extraPatch || {}), { strict: true, event: { from: fromStatus, to: MORE_INFO_STATUS,
+                opts: { type: MORE_INFO_EVENT, actorRole: role.id, note: note || null, data: { team } } } });
+            if (ok) {
+                ECMIS.pushCaseHistory(kase, { from: fromStatus, to: MORE_INFO_STATUS, event: MORE_INFO_EVENT, note: note || '' });
+                ECMIS.Model.CaseStore.update(kase.id, { history: kase.history });
+            }
+            return ok;
         }
 
         function renderScreeningTimeline(){
@@ -394,7 +447,7 @@
                     <i class="fa-solid fa-circle mt-1" style="font-size:0.5rem;color:#0F2A62"></i>
                     <div><div class="small"><strong>${h.event || '-'}</strong>${oc}${law}</div>
                     <div class="text-muted" style="font-size:0.75rem">${h.team || ''} · ${h.actor || ''} · ${d}</div>
-                    ${h.note ? `<div class="small mt-1">${h.note}</div>` : ''}</div></div>`;
+                    ${h.note ? `<div class="small mt-1">${String(h.note).replace(/\s*\(Round-Robin\)/g, '')}</div>` : ''}</div></div>`;
             }).join('');
         }
 
@@ -435,6 +488,11 @@
         let docZoomLevel = 0.75;
 
         if (isRuling) { initScreening72(); } else { initScreening71(); }
+        /* Task 300: ช่องเลขสารบรรณ — render เอกสารผ่าน listener เดิมของช่องครั้งที่ประชุม (renderDoc อยู่ใน initScreening71/72) */
+        if (ECMIS.mountSarabanField) ECMIS.mountSarabanField({ host: document.getElementById('screeningMemoNoBox'), id: 'screeningMemoNo',
+            label: 'เลขบันทึกแจ้งมติคณะอนุกรรมการกลั่นกรองฯ', slot: 'screeningMemo', prefix: 'ปป 0004/', kase, sb,
+            readonly: !(SUB_CAN_WRITE && !SCREEN_LOCKED),
+            onChange: () => document.getElementById('subMeetNo').dispatchEvent(new Event('input')) });
         renderScreeningTimeline();
         setTimeout(applyViewOnlyGuard, 0);
 
@@ -467,7 +525,7 @@
   </div>`;
         }).join('');
 
-        document.getElementById('assignedTeam').value = assigned + ' (Round-Robin อัตโนมัติ)';
+        document.getElementById('assignedTeam').value = assigned + ' (อัตโนมัติ)';
         document.getElementById('manualTeam').innerHTML =
             '<option value="">— ไม่เปลี่ยนแปลง —</option>' +
             QUOTA.map(q => `<option value="คณะที่ ${q.n}" ${q.used >= 40 ? 'disabled' : ''}>คณะที่ ${q.n}${q.used >= 40 ? ' (เต็มโควตา)' : ''}</option>`).join('');
@@ -484,16 +542,11 @@
             const min = Math.ceil(total * ECMIS.CONFIG.subQuorumRatio);
             const att = +document.getElementById('subQuorum').value || 0;
             const ok = att >= min;
-            document.getElementById('subMin').value = `${min} คน (กึ่งหนึ่งของ ${total})`;
-            document.getElementById('subQuorumBox').innerHTML = `
-    <div class="rule ${ok ? 'pass' : 'fail'}">
-      <i class="fa-solid ${ok ? 'fa-circle-check' : 'fa-circle-xmark'}"></i>
-      <span><strong>องค์ประชุมคณะอนุกลั่นกรองฯ:</strong> เข้าประชุม ${att} จาก ${total} คน
-        — ต้องไม่น้อยกว่า ${min} คน (กึ่งหนึ่งโดยอนุโลมจาก ม.12)</span>
-    </div>
-    ${!ok ? `<div class="rule fail"><i class="fa-solid fa-ban"></i>
-      <span><strong>ระบบเตือน (ไม่บล็อก)</strong> — เนื่องจากเกณฑ์นี้ยังไม่มีฐานกฎหมายโดยตรง
-      ต่างจากบอร์ดใหญ่ที่ระบบบล็อกตาม ม.12</span></div>` : ''}`;
+            /* เกณฑ์องค์ประชุมเขียนใต้ช่องผู้เข้าประชุม — ไม่ครบเป็นสีแดง เตือนอย่างเดียว ไม่บล็อก (ไม่มีฐานกฎหมายโดยตรง ต่างจากบอร์ดใหญ่ ม.12) */
+            const hint = document.getElementById('subQuorumHint');
+            hint.className = 'form-text' + (ok ? '' : ' text-danger');
+            hint.innerHTML = (ok ? '' : '<i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>')
+                + (ok ? `ต้องไม่น้อยกว่า ${min} คน (กึ่งหนึ่งของทั้งคณะ)` : `ต้องไม่น้อยกว่า ${min} คน — ตอนนี้ ${att} คน`);
             return ok;
         }
         ['subTotal', 'subQuorum'].forEach(id =>
@@ -552,6 +605,7 @@
       </div>
       <div class="doc-sub">ครั้งที่ ${M(meetNo)} วันที่ ${M(meetDate)}</div>
 
+      <div class="doc-row"><span class="k">ที่</span> ${M(ECMIS.sarabanThai(ECMIS.sarabanNoOf(kase, 'screeningMemo')), 'ปป ๐๐๐๔/......')}</div>
       <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
       <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
       <div class="doc-row"><span class="k">ผู้รับผิดชอบ</span> ${M(kase.owner)}</div>
@@ -638,7 +692,7 @@
             return true;
         }
 
-        function handle(act) {
+        async function handle(act) {
             if (SCREEN_LOCKED) {
                 ECMIS.toastWarn('สำนวนนี้คณะอนุกรรมการกลั่นกรองฯ ดำเนินการเสร็จแล้ว — แก้ไขไม่ได้ (เปิดดูได้อย่างเดียว)');
                 return;
@@ -658,9 +712,9 @@
                     title: 'ขอข้อมูลเพิ่มเติม',
                     html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — คณะอนุกลั่นกรองฯ ขอข้อมูล/เอกสารเพิ่มเติมจากเจ้าของสำนวน (หยุดนับ SLA จนกว่าจะได้รับข้อมูลกลับ)</p>`,
                     confirmText: 'ยืนยันขอข้อมูลเพิ่มเติม'
-                }).then(res => {
+                }).then(async res => {
                     if (!res.isConfirmed) return;
-                    persistMoreInfo(note);
+                    if (!(await persistMoreInfo(note))) { ECMIS.toastWarn('บันทึกผลลงฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง — ยังไม่ได้ส่งต่อ'); return; }
                     renderScreeningTimeline();
                     ECMIS.toastOk('บันทึกคำขอข้อมูลเพิ่มเติม และแจ้งเตือนเจ้าของสำนวนแล้ว');
                 });
@@ -703,7 +757,7 @@
                         updateSigBoxUI(true, res.value, now.toLocaleString('th-TH'));
                         renderDoc();
                         renderActionButtons();
-                        ECMIS.toastOk('ลงนามรับรองมติเรียบร้อยแล้ว กรุณากดปุ่ม "บันทึกเพื่อส่งมติ"');
+                        handle('save_status'); // Task 234: ลงนามแล้วส่งต่อทันที (ขั้นเดียวทั้งระบบ)
                     });
                 return;
             }
@@ -714,7 +768,7 @@
                 const meetNo = document.getElementById('subMeetNo').value.trim();
                 const meetDate = document.getElementById('subMeetDate').value.trim();
                 const signerTitle = `${signer.title} ${team}`;
-                const { om } = persistSubOutcome({
+                const { ok, om } = await persistSubOutcome({
                     screeningMeetNo: meetNo,
                     screeningMeetDate: meetDate,
                     subMeetingNo: meetNo,
@@ -724,6 +778,7 @@
                     signedBySubSec: true,
                     subSecSignedAt: new Date().toISOString()
                 });
+                if (!ok) { ECMIS.toastWarn('บันทึกผลลงฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง — ยังไม่ได้ส่งต่อ'); return; }
                 const isReturn = om && om.localStatus === 'RETURNED';
                 const next = isReturn
                     ? { p: ECMIS.homeHref(role.id), t: 'ส่งคืนเจ้าของสำนวนเพื่อไต่สวนเพิ่มเติม (ม.๒๔ ว.๕)' }
@@ -741,16 +796,8 @@
                     });
                 }
 
-                Swal.fire({
-                    icon: 'success',
-                    title: 'ส่งมติคณะอนุกลั่นกรองฯ เรียบร้อย',
-                    html: `<div class="text-start">
-                        สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — ${next.t}<br>
-                        <span class="st st-done mt-2 d-inline-block"><i class="fa-solid fa-signature me-1"></i>ลงนามรับรองมติแล้ว</span>
-                    </div>`,
-                    confirmButtonColor: '#0F2A62',
-                    confirmButtonText: 'ตกลง'
-                }).then(() => location.href = next.p + '?case=' + encodeURIComponent(kase.id));
+                ECMIS.toastOk('ส่งมติคณะอนุกลั่นกรองฯ เรียบร้อย' + ' · ' + ECMIS.caseNo(kase), next.t);
+                ECMIS.goAfterSaves(next.p + '?case=' + encodeURIComponent(kase.id));
             }
         }
 
@@ -787,7 +834,7 @@
   </div>`;
             }).join('');
 
-            document.getElementById('assignedTeam').value = assigned + ' (Round-Robin อัตโนมัติ)';
+            document.getElementById('assignedTeam').value = assigned + ' (อัตโนมัติ)';
             document.getElementById('manualTeam').innerHTML =
                 '<option value="">— ไม่เปลี่ยนแปลง —</option>' +
                 QUOTA.map(q => `<option value="คณะที่ ${q.n}" ${q.used >= 40 ? 'disabled' : ''}>คณะที่ ${q.n}${q.used >= 40 ? ' (เต็มโควตา)' : ''}</option>`).join('');
@@ -803,16 +850,11 @@
                 const min = Math.ceil(total * ECMIS.CONFIG.subQuorumRatio);
                 const att = +document.getElementById('subQuorum').value || 0;
                 const ok = att >= min;
-                document.getElementById('subMin').value = `${min} คน (กึ่งหนึ่งของ ${total})`;
-                document.getElementById('subQuorumBox').innerHTML = `
-    <div class="rule ${ok ? 'pass' : 'fail'}">
-      <i class="fa-solid ${ok ? 'fa-circle-check' : 'fa-circle-xmark'}"></i>
-      <span><strong>องค์ประชุมคณะอนุกลั่นกรองฯ:</strong> เข้าประชุม ${att} จาก ${total} คน
-        — ต้องไม่น้อยกว่า ${min} คน (กึ่งหนึ่งโดยอนุโลมจาก ม.12)</span>
-    </div>
-    ${!ok ? `<div class="rule fail"><i class="fa-solid fa-ban"></i>
-      <span><strong>ระบบเตือน (ไม่บล็อก)</strong> — เนื่องจากเกณฑ์นี้ยังไม่มีฐานกฎหมายโดยตรง
-      ต่างจากบอร์ดใหญ่ที่ระบบบล็อกตาม ม.12</span></div>` : ''}`;
+                /* เกณฑ์องค์ประชุมเขียนใต้ช่องผู้เข้าประชุม — ไม่ครบเป็นสีแดง เตือนอย่างเดียว ไม่บล็อก (ไม่มีฐานกฎหมายโดยตรง ต่างจากบอร์ดใหญ่ ม.12) */
+                const hint = document.getElementById('subQuorumHint');
+                hint.className = 'form-text' + (ok ? '' : ' text-danger');
+                hint.innerHTML = (ok ? '' : '<i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>')
+                    + (ok ? `ต้องไม่น้อยกว่า ${min} คน (กึ่งหนึ่งของทั้งคณะ)` : `ต้องไม่น้อยกว่า ${min} คน — ตอนนี้ ${att} คน`);
             }
             ['subTotal', 'subQuorum'].forEach(id => document.getElementById(id).addEventListener('input', renderSubQuorum));
 
@@ -865,6 +907,7 @@
       </div>
       <div class="doc-sub">ครั้งที่ ${M(meetNo)} วันที่ ${M(meetDate)}</div>
 
+      <div class="doc-row"><span class="k">ที่</span> ${M(ECMIS.sarabanThai(ECMIS.sarabanNoOf(kase, 'screeningMemo')), 'ปป ๐๐๐๔/......')}</div>
       <div class="doc-row"><span class="k">เรื่องที่</span> ${M(ECMIS.caseNo(kase))}</div>
       <div class="doc-row"><span class="k">เรื่อง</span> ${M(kase.subject)}</div>
       <div class="doc-row"><span class="k">ผู้รับผิดชอบสำนวน</span> ${M(kase.owner)}</div>
@@ -930,7 +973,7 @@
                 return true;
             }
 
-            function handle(act){
+            async function handle(act){
                 if (SCREEN_LOCKED) {
                     ECMIS.toastWarn('สำนวนนี้คณะอนุกรรมการกลั่นกรองฯ ดำเนินการเสร็จแล้ว — แก้ไขไม่ได้ (เปิดดูได้อย่างเดียว)');
                     return;
@@ -969,13 +1012,13 @@
                         title: 'ขอข้อมูลเพิ่มเติม',
                         html: `<p>สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — คณะอนุกลั่นกรองฯ ขอข้อมูล/เอกสารเพิ่มเติมจากผู้รับผิดชอบสำนวน</p>`,
                         confirmText: 'ยืนยันขอข้อมูลเพิ่มเติม'
-                    }).then(res => {
+                    }).then(async res => {
                         if (!res.isConfirmed) return;
-                        persistPatch({
+                        const okMore = await persistMoreInfo(opinion, {
                             screeningOpinion72: opinion,
                             moreInfoRequested72: { date: new Date().toISOString().slice(0, 10), note: opinion }
                         });
-                        persistMoreInfo(opinion);
+                        if (!okMore) { ECMIS.toastWarn('บันทึกผลลงฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง — ยังไม่ได้ส่งต่อ'); return; }
                         renderScreeningTimeline();
                         ECMIS.toastOk('บันทึกคำขอข้อมูลเพิ่มเติม และแจ้งเตือนเจ้าของสำนวนแล้ว');
                     });
@@ -997,7 +1040,7 @@
                             updateSigBoxUI72(true, res.value, now.toLocaleString('th-TH'));
                             renderDoc();
                             renderActionButtons72();
-                            ECMIS.toastOk('ลงนามรับรองความเห็นเรียบร้อยแล้ว กรุณากดปุ่ม "บันทึกเพื่อส่งบรรจุวาระ"');
+                            handle('save_status'); // Task 234: ลงนามแล้วส่งต่อทันที (ขั้นเดียวทั้งระบบ)
                         });
                     return;
                 }
@@ -1010,7 +1053,7 @@
                     const team = document.getElementById('manualTeam').value || assigned;
                     const signerTitle = `${signer72.title} ${team}`;
 
-                    const { om: om72 } = persistSubOutcome({
+                    const { ok: ok72, om: om72 } = await persistSubOutcome({
                         screeningMeetNo72: meetNo,
                         screeningMeetDate72: meetDate,
                         screeningOpinion72: opinion,
@@ -1019,6 +1062,7 @@
                         signedBySubSec72: true,
                         subSecSignedAt72: new Date().toISOString()
                     });
+                    if (!ok72) { ECMIS.toastWarn('บันทึกผลลงฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง — ยังไม่ได้ส่งต่อ'); return; }
                     const isReturn72 = om72 && om72.localStatus === 'RETURNED';
                     renderScreeningTimeline();
 
@@ -1033,16 +1077,8 @@
                         });
                     }
 
-                    Swal.fire({
-                        icon: 'success',
-                        title: isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อทำเพิ่มเติมเรียบร้อย' : 'บันทึกความเห็นและเสนอประธานฯ เรียบร้อย',
-                        html: `<div class="text-start">
-                            สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — ${isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อไต่สวนเพิ่มเติม (ม.๖๗ พ.ร.ป. ป.ป.ช. ๒๕๖๑)' : 'เสนอประธานกรรมการ ป.ป.ท. ลงนามสั่งบรรจุระเบียบวาระการประชุม'}<br>
-                            <span class="st st-done mt-2 d-inline-block"><i class="fa-solid fa-signature me-1"></i>ลงนามรับรองความเห็นแล้ว</span>
-                        </div>`,
-                        confirmButtonColor: '#0F2A62',
-                        confirmButtonText: 'ตกลง'
-                    }).then(() => location.href = (isReturn72 ? ECMIS.homeHref(role.id) : ECMIS.pageForCase72(kase)) + '?case=' + encodeURIComponent(kase.id));
+                    ECMIS.toastOk((isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อทำเพิ่มเติมเรียบร้อย' : 'บันทึกความเห็นและเสนอประธานฯ เรียบร้อย') + ' · ' + ECMIS.caseNo(kase), isReturn72 ? 'ส่งคืนเจ้าของสำนวนเพื่อไต่สวนเพิ่มเติม (ม.๖๗ พ.ร.ป. ป.ป.ช. ๒๕๖๑)' : 'ส่งต่อไปยัง ประธานกรรมการ ป.ป.ท. เพื่อลงนามสั่งบรรจุระเบียบวาระการประชุม');
+                    ECMIS.goAfterSaves((isReturn72 ? ECMIS.homeHref(role.id) : ECMIS.pageForCase72(kase)) + '?case=' + encodeURIComponent(kase.id));
                 }
             }
 

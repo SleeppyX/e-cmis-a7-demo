@@ -114,7 +114,7 @@
     </div>
 
     <!-- Active Reading Banner (Hero Highlight Announcement) -->
-    <div class="next-meet-banner mb-4" id="nextMeetingBanner">
+    <div class="next-meet-banner mb-4 d-none" id="nextMeetingBanner">
       <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
         <span class="badge bg-warning text-dark px-2.5 py-1 fw-bold">
           <i class="fa-solid fa-calendar-check me-1"></i>เปิดให้อ่านวาระล่วงหน้า (3 วัน)
@@ -123,14 +123,8 @@
           <i class="fa-solid fa-unlock-keyhole me-1"></i>เข้าถึงสำนวนระดับกรรมการ ป.ป.ท.
         </span>
       </div>
-      <h4 class="fw-bold text-white mb-2" id="bannerMeetingTitle">
-        การประชุมคณะกรรมการ ป.ป.ท. ครั้งที่ 38/2569
-      </h4>
-      <div class="d-flex align-items-center gap-3 text-light opacity-90 small flex-wrap" id="bannerMeetingDetails">
-        <span><i class="fa-regular fa-clock me-1 text-warning"></i>28 ส.ค. 2569 (09:30 - 16:30 น.)</span>
-        <span><i class="fa-solid fa-location-dot me-1 text-warning"></i>ห้องประชุม 501 ชั้น 5 / Zoom Hybrid</span>
-        <span><i class="fa-solid fa-list-ol me-1 text-warning"></i>บรรจุ 10 วาระ (สำนวนคดี 5 เรื่อง)</span>
-      </div>
+      <h4 class="fw-bold text-white mb-2" id="bannerMeetingTitle"></h4>
+      <div class="d-flex align-items-center gap-3 text-light opacity-90 small flex-wrap" id="bannerMeetingDetails"></div>
     </div>
 
     <!-- 3 Summary KPI Cards Row -->
@@ -150,6 +144,11 @@
           <div class="card-body"><div class="a7-kpi-num" id="kpiClosedMeetings">0</div><div class="a7-kpi-label">ประชุมเสร็จสิ้นแล้ว</div></div>
         </div>
       </div>
+      <div class="col-12 col-sm-6 col-md-4 col-xl d-none" id="kpiCancelledCol">
+        <div class="card card-ecmis kpi-card a7-kpi h-100" role="button" tabindex="0" aria-pressed="false" data-filter="CANCELLED">
+          <div class="card-body"><div class="a7-kpi-num" id="kpiCancelledMeetings">0</div><div class="a7-kpi-label">ยกเลิก/เลื่อน</div></div>
+        </div>
+      </div>
     </div>
 
     <!-- Filter Card -->
@@ -161,7 +160,7 @@
             <div class="input-group input-group-sm">
               <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
               <input type="text" id="searchInput" class="form-control"
-                placeholder="ครั้งที่ประชุม เช่น 38/2569, ชื่อสำนวนคดี, ผู้ถูกกล่าวหา, หรือเลขที่เรื่อง...">
+                placeholder="ครั้งที่ประชุม เช่น 57/2569, วันที่ประชุม หรือเรื่องวาระ...">
             </div>
           </div>
           <div class="col-md-4">
@@ -171,6 +170,7 @@
               <option value="ALL">ทั้งหมด</option>
               <option value="PENDING">กำหนดการแล้ว — รอประชุม</option>
               <option value="CLOSED">ประชุมเสร็จสิ้นแล้ว</option>
+              <option value="CANCELLED">ยกเลิก/เลื่อน</option>
             </select>
           </div>
           <div class="col-md-2 text-end">
@@ -193,12 +193,11 @@
         <div class="table-responsive">
           <table class="table table-hover tbl-ecmis mb-0 align-middle">
             <colgroup>
-              <col style="width:130px">
-              <col style="width:230px">
+              <col style="width:160px">
               <col>
               <col style="width:130px">
-              <col style="width:190px">
               <col style="width:220px">
+              <col style="width:240px">
             </colgroup>
             <thead>
               <tr>
@@ -206,7 +205,6 @@
                     class="fa-solid fa-sort-down ms-1 text-primary" id="sortIcon_name" style="font-size:0.75rem"></i></th>
                 <th class="sortable-header" data-sort="date" style="cursor:pointer">วัน/เวลาประชุม <i
                     class="fa-solid fa-sort ms-1 text-muted" id="sortIcon_date" style="font-size:0.75rem"></i></th>
-                <th>สถานที่ / รูปแบบการประชุม</th>
                 <th class="text-center sortable-header" data-sort="agendas" style="cursor:pointer">จำนวนวาระ <i
                     class="fa-solid fa-sort ms-1 text-muted" id="sortIcon_agendas" style="font-size:0.75rem"></i></th>
                 <th>สถานะการประชุม</th>
@@ -220,7 +218,7 @@
         </div>
 
         <div class="px-3 py-2 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <div class="small text-muted" id="summaryText">แสดง 1 ถึง 4 จาก 4 รายการ</div>
+          <div class="small text-muted" id="summaryText"></div>
         </div>
       </div>
     </div>
@@ -231,160 +229,138 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="../assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="../assets/ecmis-model.js"></script>
+  <script src="../assets/agenda-registry-data.js?v=20261005-board-real"></script>
   <script>
     // Initialize standard system navigation shell & role authentication
     ECMIS.renderShell('board-inbox.html');
 
-    /* Board Meetings Dataset Sorted Chronologically */
-    const BOARD_MEETINGS = [
-      {
-        id: 39,
-        name: '39/2569',
-        date: '2569-09-04',
-        time: '09:30 - 16:30 น.',
-        location: 'ห้องประชุม 501 ชั้น 5 อาคาร ป.ป.ท.',
-        agendaCount: 3,
-        status: 'SCHEDULED',
-        statusText: 'กำหนดการแล้ว (รอเปิดอ่าน)',
-        isNext: false
-      },
-      {
-        id: 38,
-        name: '38/2569',
-        date: '2569-08-28',
-        time: '09:30 - 16:30 น.',
-        location: 'ห้องประชุม 501 ชั้น 5 อาคาร ป.ป.ท. / Zoom Hybrid Meeting',
-        agendaCount: 10,
-        status: 'ACTIVE_READING',
-        statusText: 'เปิดให้อ่านล่วงหน้า (3 วัน)',
-        isNext: true
-      },
-      {
-        id: 37,
-        name: '37/2569',
-        date: '2569-08-20',
-        time: '09:30 - 16:00 น.',
-        location: 'ห้องประชุม 501 ชั้น 5 อาคาร ป.ป.ท.',
-        agendaCount: 4,
-        status: 'CLOSED',
-        statusText: 'ประชุมเสร็จสิ้นแล้ว (มีมติแล้ว)',
-        isNext: false
-      },
-      {
-        id: 36,
-        name: '36/2569',
-        date: '2569-08-05',
-        time: '09:30 - 15:30 น.',
-        location: 'ห้องประชุม 501 ชั้น 5 อาคาร ป.ป.ท.',
-        agendaCount: 6,
-        status: 'CLOSED',
-        statusText: 'ประชุมเสร็จสิ้นแล้ว (มีมติแล้ว)',
-        isNext: false
-      }
-    ];
+    /* รอบประชุมจริงจาก tbl_res_calendar เฉพาะครั้งที่จัดวาระแล้ว (Task 236) — ดู AgendaRegistry.boardMeetings() */
+    const AR = window.AgendaRegistry;
+    let BOARD_MEETINGS = [];
+    let loadState = 'loading';
 
     let currentFilter = 'ALL';
-    let currentSortCol = 'name';
+    let currentSortCol = 'date';
     let currentSortDir = 'desc';
 
-    /* Render KPI Cards on Overview Page */
-    function renderOverviewKPI() {
-      const total = BOARD_MEETINGS.length;
-      const pending = BOARD_MEETINGS.filter(m => m.status !== 'CLOSED').length;
-      const closed = BOARD_MEETINGS.filter(m => m.status === 'CLOSED').length;
+    const STATUS_BADGE = {
+      CLOSED: '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-circle-check me-1"></i>ประชุมเสร็จสิ้นแล้ว</span>',
+      CANCELLED: '<span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle px-2 py-1"><i class="fa-solid fa-circle-xmark me-1"></i>ยกเลิก/เลื่อน</span>',
+      SCHEDULED: '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1"><i class="fa-solid fa-clock me-1"></i>กำหนดการแล้ว — รอประชุม</span>'
+    };
 
-      $('#kpiTotalMeetings').text(total);
-      $('#kpiPendingMeetings').text(pending);
-      $('#kpiClosedMeetings').text(closed);
+    /* แบนเนอร์: ครั้งที่ใกล้ที่สุดที่ยังไม่ประชุมและเปิดให้อ่านล่วงหน้าแล้ว — ไม่มีก็ซ่อน */
+    function renderBanner() {
+      const next = BOARD_MEETINGS.filter(m => m.status === 'SCHEDULED' && m.readOpen)
+        .sort((a, b) => a.date.localeCompare(b.date))[0];
+      const banner = document.getElementById('nextMeetingBanner');
+      if (!next) { banner.classList.add('d-none'); return; }
+      $('#bannerMeetingTitle').text(`การประชุมคณะกรรมการ ป.ป.ท. ครั้งที่ ${next.name}`);
+      $('#bannerMeetingDetails').html(`
+        <span><i class="fa-regular fa-clock me-1 text-warning"></i>${ECMIS.escapeHtml(ECMIS.thaiDate(next.date))}${next.time !== '—' ? ` (${ECMIS.escapeHtml(next.time)})` : ''}</span>
+        <span><i class="fa-solid fa-list-ol me-1 text-warning"></i>บรรจุ ${next.agendaCount} วาระ</span>
+        <a href="board-detail.html?id=${next.id}" class="btn btn-sm btn-warning fw-semibold px-3"><i class="fa-solid fa-book-open-reader me-1"></i>เปิดห้องอ่านสำนวน</a>`);
+      banner.classList.remove('d-none');
     }
 
-    /* Render Meeting Rounds Table with Sorting */
+    function renderOverviewKPI() {
+      const count = st => BOARD_MEETINGS.filter(m => m.status === st).length;
+      $('#kpiTotalMeetings').text(BOARD_MEETINGS.length);
+      $('#kpiPendingMeetings').text(count('SCHEDULED'));
+      $('#kpiClosedMeetings').text(count('CLOSED'));
+      $('#kpiCancelledMeetings').text(count('CANCELLED'));
+      $('#kpiCancelledCol').toggleClass('d-none', !count('CANCELLED'));
+    }
+
+    function meetingSearchText(m) {
+      const topics = AR.itemsOf(m.id).map(it => `${it.trci_number} ${it.trci_topic} ${ECMIS.caseRefText(it.case_ref, 'full')}`).join(' ');
+      return `${m.name} ${ECMIS.thaiDate(m.date)} ${topics}`.toLowerCase();
+    }
+
     function renderMeetingsTable() {
+      const tbody = document.getElementById('meetingsTableBody');
+      if (loadState !== 'ready') {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">${loadState === 'loading'
+          ? '<i class="fa-solid fa-spinner fa-spin me-1"></i>กำลังโหลดรอบการประชุม…'
+          : '<i class="fa-solid fa-triangle-exclamation text-danger me-1"></i>โหลดรอบการประชุมไม่สำเร็จ — ลองรีเฟรชหน้า'}</td></tr>`;
+        $('#summaryText').text('');
+        return;
+      }
       const q = ($('#searchInput').val() || '').trim().toLowerCase();
       const st = $('#statusFilter').val() || currentFilter;
 
-      let filtered = BOARD_MEETINGS.filter(m => {
-        if (st === 'PENDING' && m.status === 'CLOSED') return false;
-        if (st === 'CLOSED' && m.status !== 'CLOSED') return false;
-        if (!q) return true;
-        return m.name.toLowerCase().includes(q) || m.location.toLowerCase().includes(q) || ECMIS.thaiDate(m.date).toLowerCase().includes(q);
-      });
+      const filtered = BOARD_MEETINGS.filter(m => (st === 'ALL' || m.status === st) && (!q || meetingSearchText(m).includes(q)));
 
-      // Sort according to currentSortCol and currentSortDir
+      const key = { name: m => m.id, date: m => m.date, agendas: m => m.agendaCount }[currentSortCol];
       filtered.sort((a, b) => {
-        let valA, valB;
-        if (currentSortCol === 'name') {
-          valA = a.id;
-          valB = b.id;
-        } else if (currentSortCol === 'date') {
-          valA = a.date;
-          valB = b.date;
-        } else if (currentSortCol === 'agendas') {
-          valA = a.agendaCount;
-          valB = b.agendaCount;
-        }
-
+        const valA = key(a), valB = key(b);
         if (valA < valB) return currentSortDir === 'asc' ? -1 : 1;
         if (valA > valB) return currentSortDir === 'asc' ? 1 : -1;
         return 0;
       });
 
-      // Update Header Sort Icons
       ['name', 'date', 'agendas'].forEach(col => {
         const iconEl = $(`#sortIcon_${col}`);
         if (col === currentSortCol) {
-          iconEl.removeClass('fa-sort text-muted').addClass(currentSortDir === 'asc' ? 'fa-sort-up text-primary' : 'fa-sort-down text-primary');
+          iconEl.removeClass('fa-sort fa-sort-up fa-sort-down text-muted').addClass(currentSortDir === 'asc' ? 'fa-sort-up text-primary' : 'fa-sort-down text-primary');
         } else {
           iconEl.removeClass('fa-sort-up fa-sort-down text-primary').addClass('fa-sort text-muted');
         }
       });
 
-      $('#summaryText').text(`แสดง 1 ถึง ${filtered.length} จาก ${filtered.length} รายการ`);
+      $('#summaryText').text(filtered.length ? `แสดง 1 ถึง ${filtered.length} จาก ${filtered.length} รายการ` : '');
 
-      const html = filtered.map(m => `
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">${BOARD_MEETINGS.length
+          ? 'ไม่พบรอบการประชุมตามเงื่อนไข' : 'ยังไม่มีรอบการประชุมที่ฝ่ายเลขานุการจัดวาระแล้ว'}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(m => `
         <tr>
-          <td class="fw-bold text-navy">ครั้งที่ ${m.name}</td>
+          <td class="fw-bold text-navy">ครั้งที่ ${ECMIS.escapeHtml(m.name)}</td>
           <td>
-            <div class="fw-semibold text-dark">${ECMIS.thaiDate(m.date)}</div>
-            <small class="text-muted"><i class="fa-regular fa-clock me-1"></i>${m.time}</small>
-          </td>
-          <td>
-            <div class="text-truncate" style="max-width:300px;" title="${m.location}">
-              <i class="fa-solid fa-location-dot text-danger me-1"></i>${m.location}
-            </div>
+            <div class="fw-semibold text-dark">${ECMIS.escapeHtml(ECMIS.thaiDate(m.date))}</div>
+            <small class="text-muted"><i class="fa-regular fa-clock me-1"></i>${ECMIS.escapeHtml(m.time)}</small>
           </td>
           <td class="text-center">
             <span class="badge px-2.5 py-1 fw-bold" style="background-color: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; font-size: 0.82rem;">
               ${m.agendaCount} วาระ
             </span>
           </td>
-          <td>
-            ${m.status === 'CLOSED'
-              ? '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-circle-check me-1"></i>ประชุมเสร็จสิ้นแล้ว</span>'
-              : '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1"><i class="fa-solid fa-clock me-1"></i>กำหนดการแล้ว — รอประชุม</span>'}
-          </td>
+          <td>${STATUS_BADGE[m.status]}</td>
           <td class="text-end">
-            <a href="board-detail.html?id=${m.id}" class="btn btn-sm btn-navy px-3 text-decoration-none">
-              <i class="fa-solid fa-book-open-reader me-1 text-warning"></i>เปิดห้องอ่านสำนวน
-            </a>
+            ${m.readOpen
+              ? `<a href="board-detail.html?id=${m.id}" class="btn btn-sm btn-navy px-3 text-decoration-none">
+                   <i class="fa-solid fa-book-open-reader me-1 text-warning"></i>เปิดห้องอ่านสำนวน
+                 </a>`
+              : `<span class="badge bg-light text-muted border px-2 py-1" title="อ่านวาระล่วงหน้าได้ ${AR.BOARD_READ_AHEAD_DAYS} วันก่อนวันประชุม (ม.๒๐)">
+                   <i class="fa-solid fa-lock me-1"></i>เปิดให้อ่าน ${ECMIS.escapeHtml(ECMIS.thaiDate(m.readOpenDate))}
+                 </span>`}
           </td>
         </tr>
       `).join('');
-
-      $('#meetingsTableBody').html(html);
     }
 
     /* Document Ready */
     $(document).ready(function () {
       renderOverviewKPI();
       renderMeetingsTable();
+      AR.ready.then(() => {
+        BOARD_MEETINGS = AR.boardMeetings();
+        loadState = 'ready';
+      }).catch(err => {
+        console.error('โหลดรอบการประชุมไม่สำเร็จ:', err);
+        loadState = 'failed';
+      }).then(() => { renderBanner(); renderOverviewKPI(); renderMeetingsTable(); });
 
       // Sort Click Handlers
       $('.sortable-header').on('click', function () {

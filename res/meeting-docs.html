@@ -199,11 +199,11 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="../assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
-  <script src="../assets/agenda-registry-data.js?v=20261004-stale-links"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
+  <script src="../assets/agenda-registry-data.js?v=20261005-board-real"></script>
   <script>
     ECMIS.renderShell('meeting-docs.html');
     const M = ECMIS.mergeField;
@@ -475,7 +475,7 @@
           <div class="doc-row"><span class="k">วาระที่ ${M(it.trci_number)}</span> ${M(it.trci_topic)}</div>
           <div style="padding-left:2em">
             <div class="doc-row"><span class="k">หมวดหมู่</span> ${M(AR.CATEGORY_LABEL[it.category])}</div>
-            <div class="doc-row"><span class="k">เลขที่เรื่อง</span> ${M(it.case_ref, '-')}</div>
+            <div class="doc-row"><span class="k">เลขที่เรื่อง</span> ${M(ECMIS.caseRefText(it.case_ref, 'full'), '-')}</div>
             <div class="doc-row"><span class="k">สถานะ/หมายเหตุ</span> ${M(it.remark, '-')}</div>
           </div>
         </div>`) : [`<div class="text-muted" style="margin-top:8px">— ไม่มีวาระในการประชุมครั้งนี้ —</div>`];

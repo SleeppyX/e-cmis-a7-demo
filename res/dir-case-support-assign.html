@@ -134,10 +134,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="../assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
   <script src="../shared-assets/handoff.js"></script>
   <script src="../shared-assets/junctions.js"></script>
-  <script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+  <script src="../assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="../assets/ecmis-model.js"></script>
   <script>
     /* ผอ.กบค. ออกเลขทะเบียนคุม + มอบหมายคณะอนุกรรมการสนับสนุนเลขาธิการฯ สำหรับสำนวนซับซ้อน (สาย 7.1/7.2)
@@ -402,16 +402,8 @@
         ECMIS.toastWarn('บันทึกลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
         return;
       }
-      await Swal.fire({
-        icon: 'success',
-        title: 'ออกเลขทะเบียนคุมและมอบหมายเรียบร้อย',
-        html: `<div class="text-start">สำนวน <strong>${ECMIS.caseNo(kase)}</strong><br>
-          เลขทะเบียนคุม <strong>${controlNo}</strong><br>
-          มอบหมาย <strong>คณะอนุกรรมการสนับสนุนเลขาธิการฯ ${team}</strong></div>`,
-        confirmButtonColor: '#0F2A62',
-        confirmButtonText: 'ตกลง (กลับรายการงาน)'
-      });
-      location.href = ECMIS.homeHref(role.id);
+      ECMIS.toastOk('ออกเลขทะเบียนคุมและมอบหมายเรียบร้อย' + ' · ' + ECMIS.caseNo(kase), `เลขทะเบียนคุม ${controlNo} · มอบหมายคณะอนุกรรมการสนับสนุนเลขาธิการฯ ${team}`);
+      ECMIS.goAfterSaves(ECMIS.homeHref(role.id));
     }
 
     /* ---------- Document workspace: collapsible pane ---------- */

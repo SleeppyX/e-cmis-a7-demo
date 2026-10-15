@@ -15,6 +15,12 @@
   <link href="../assets/ecmis-app.css" rel="stylesheet">
   <link href="../assets/a4-ecmis-workspace.css" rel="stylesheet">
   <link href="../assets/ecmis-ws-standard.css?v=215" rel="stylesheet">
+  <style>
+    /* Task 274: 7.3 หลังมีมติ — ซ้ายเหลือการ์ดแจ้งมติ/ปิดเรื่อง, เอกสารอ่านอย่างเดียว, ไม่มีแถบล่าง */
+    body.res-closure-view #formCol > :not(#closurePanel):not(#closureExtras) { display: none !important; }
+    body.res-closure-view #btnDocEdit, body.res-closure-view #actionBarSlot, body.res-closure-view #attachExtraCard { display: none !important; }
+    body.res-closure-view.res-closure-actions #actionBarSlot { display: block !important; }
+  </style>
 </head>
 
 <body class="ws-std">
@@ -82,6 +88,8 @@
               </div>
               <label class="form-label field-req">เลือกประเภทผลมติ</label>
               <div class="list-group mb-3" id="resList"></div>
+              <!-- Task 324: ผู้ถูกกล่าวหามากกว่า 1 คน — แยกมติรายคน (assets/resolution-split.js) -->
+              <div class="mb-3 d-none" id="splitModeBox"></div>
               <div class="mb-3 d-none" id="otherResBox">
                 <label class="form-label field-req">รายละเอียดผลมติอื่นๆ</label>
                 <textarea class="form-control" id="otherResText" rows="3" placeholder="ระบุรายละเอียดผลมติที่ประชุม..."></textarea>
@@ -206,6 +214,10 @@
                 <button type="button" class="ws-doc-pane-toggle" id="btnPaneCollapse" title="ย่อแผงเอกสาร"><i class="fa-solid fa-angles-right"></i></button>
               </div>
             </div>
+            <div class="d-none align-items-center gap-1" id="splitDocPane" style="font-size:.78rem">
+              <span class="text-secondary small fw-medium"><i class="fa-solid fa-files me-1"></i>ฉบับ:</span>
+              <div class="d-flex gap-1 flex-wrap" id="splitDocTabs" role="group" aria-label="เลือกฉบับเอกสารมติ"></div>
+            </div>
 
             <!-- Symmetrical Pagination & Zoom Navigator Bar -->
             <div class="pagination-toolbar-symmetric" id="docPaginationBar">
@@ -267,13 +279,14 @@
   <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="../assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
+  <script src="../assets/resolution-split.js?v=20261014-a7-split2"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="../assets/ecmis-model.js"></script>
-  <script src="../assets/agenda-registry-data.js?v=20261004-stale-links"></script>
-  <script src="../assets/case-closure.js"></script>
+  <script src="../assets/agenda-registry-data.js?v=20261005-board-real"></script>
+  <script src="../assets/case-closure.js?v=20261015-a7-saraban-off"></script>
   <script>
     ECMIS.renderShell('resolution.html');
 
@@ -565,19 +578,75 @@
 
     if (resKind === 'general73') {
       document.getElementById('resListSection').classList.add('d-none');
-      document.getElementById('resFreeTextNote').classList.remove('d-none');
+      /* Task 261: ชิปคำแนะนำของช่องความเห็นที่ประชุมใช้ข้อความมติเรื่องทั่วไปตามชีต กจ.10 (initWritingSuggestions อ่าน data-suggestions) */
+      document.getElementById('boardOpinion').dataset.suggestions = JSON.stringify(ECMIS.GENERAL_73_OPINION_SUGGESTIONS
+        .map(o => ({ label: o.label, text: o.text.replace('{caseNo}', ECMIS.caseNo(kase)) })));
     } else {
       const selectedCode = kase.resolution || activeResolutions[0].code;
-      document.getElementById('resList').innerHTML = activeResolutions.map((r, i) => `
+      if (resKind === 'legal73') {
+        document.getElementById('resList').innerHTML = activeResolutions.map((r, i) => `
   <label class="list-group-item d-flex gap-2 align-items-start">
     <input class="form-check-input mt-1" type="radio" name="res" value="${r.code}" ${r.code === selectedCode ? 'checked' : ''}>
     <span><strong>${r.label}</strong>
       <br><small class="text-muted">เอกสารที่ต้องออก: ${r.doc}${r.signer !== '—' ? ` · ผู้ลงนาม: ${r.signer}` : ''}</small></span>
   </label>`).join('');
+      } else {
+        initResGroups71();
+      }
 
       if (kase.otherResolutionText && document.getElementById('otherResText')) {
         document.getElementById('otherResText').value = kase.otherResolutionText;
       }
+    }
+
+    /* มติสาย 7.1: เลือก 4 ทางตาม Flow ก่อน (ECMIS.RESOLUTION_GROUPS_71) แล้วค่อยแสดงชั้นที่สอง
+       ค่าที่บันทึกยังเป็นรหัสมติเดิม (radio name="res") + ปลายทางส่งเรื่อง (data-fwd → #forwardTo)
+       มติเดิมที่เลือกใหม่ไม่ได้แล้ว (เช่น NO_GROUND) แสดงเป็นตัวเลือก "มติเดิม" ในกลุ่มของมัน ไม่เปลี่ยนค่าเงียบ ๆ */
+    function legacyOption71(code, fwd) {
+      const r = ECMIS.resolutionOf(code);
+      if (!r) return null;
+      const t = code === 'FORWARD' ? ECMIS.forwardTarget(fwd) : null;
+      return { code, forwardTo: t ? t.code : undefined,
+        label: `${t ? `ส่งเรื่องให้ ${t.label}` : r.label} (มติเดิม — ไม่มีในตัวเลือกปัจจุบัน)` };
+    }
+    function optionDoc71(o) {
+      const r = ECMIS.resolutionOf(o.code) || {};
+      const t = o.forwardTo ? ECMIS.forwardTarget(o.forwardTo) : null;
+      const doc = (t && t.doc) || r.doc || '—';
+      return `เอกสารที่ต้องออก: ${doc}${r.signer && r.signer !== '—' ? ` · ผู้ลงนาม: ${r.signer}` : ''}`;
+    }
+    /* มติที่บันทึกแล้วมาจาก DB เป็น resolutionData.code (supabaseRowToCase ไม่ตั้ง kase.resolution)
+       ยังไม่เคยบันทึกมติ: ตั้งต้นที่ตัวเลือกแรก (รับไว้ไต่สวน — องค์คณะ) เหมือนรายการเดิม */
+    function initResGroups71() {
+      const rd = kase.resolutionData || {};
+      const fwd = rd.forwardTo || kase.forwardTo || '';
+      const code0 = kase.resolution || rd.code || ECMIS.RESOLUTION_GROUPS_71[0].options[0].code;
+      renderResGroups71(ECMIS.resolutionGroup71(code0, fwd) || 'ACCEPT', code0, fwd);
+    }
+    function renderResGroups71(groupKey, code, fwd) {
+      const sameOpt = o => o.code === code && (code !== 'FORWARD' || o.forwardTo === fwd);
+      document.getElementById('resList').innerHTML = ECMIS.RESOLUTION_GROUPS_71.map(g => {
+        const on = g.key === groupKey;
+        const opts = g.options.slice();
+        if (on && code && !opts.some(sameOpt)) { const lo = legacyOption71(code, fwd); if (lo) opts.push(lo); }
+        const single = opts.length === 1;
+        const sub = !on ? '' : single
+          ? `<input type="radio" class="d-none" name="res" value="${opts[0].code}" data-fwd="${opts[0].forwardTo || ''}" checked>
+          <div class="small text-muted ms-4">${optionDoc71(opts[0])}</div>`
+          : `<div class="ms-4 mt-2" role="radiogroup" aria-label="${g.label}">
+            ${g.hint ? `<div class="small text-muted mb-1"><i class="fa-solid fa-circle-info me-1"></i>${g.hint}</div>` : ''}
+            ${opts.map(o => `<label class="d-flex gap-2 align-items-start py-1">
+              <input class="form-check-input mt-1" type="radio" name="res" value="${o.code}" data-fwd="${o.forwardTo || ''}" ${sameOpt(o) ? 'checked' : ''}>
+              <span><span class="fw-semibold">${o.label}</span><br><small class="text-muted">${optionDoc71(o)}</small></span>
+            </label>`).join('')}
+          </div>`;
+        return `<div class="list-group-item">
+          <label class="d-flex gap-2 align-items-start mb-0">
+            <input class="form-check-input mt-1" type="radio" name="resGroup" value="${g.key}" ${on ? 'checked' : ''}>
+            <strong>${g.label}</strong>
+          </label>${sub}
+        </div>`;
+      }).join('');
     }
 
     function selectedRes() {
@@ -674,6 +743,20 @@
          </span></div></div>`;
     }
     fwdSel.addEventListener('change', renderForwardRule);
+    /* ปลายทางส่งเรื่องมาจากตัวเลือกชั้นที่สองของมติ 7.1 — ซ่อนช่องเลือกปลายทางเดิม ไม่ต้องเลือกซ้ำ */
+    if (resKind !== 'legal73') {
+      fwdSel.classList.add('d-none');
+      const fwdLabel = fwdSel.previousElementSibling;
+      if (fwdLabel && fwdLabel.tagName === 'LABEL') fwdLabel.classList.add('d-none');
+      /* กล่องกติกาปลายทาง (นอก/ในองค์กร กำหนดส่ง คัดสำเนา) ไม่แสดงในหน้าบันทึกมติ — เอกสารที่ต้องออกอยู่ใต้ตัวเลือกแล้ว
+         กติกาเหล่านี้ยังบังคับจริงในขั้นหลังมติ (case-closure.js) */
+      document.getElementById('forwardRule').classList.add('d-none');
+    }
+    function syncForwardFromRes() {
+      const checked = document.querySelector('input[name="res"]:checked');
+      const fwd = checked && checked.dataset.fwd;
+      if (fwd && fwdSel.value !== fwd) { fwdSel.value = fwd; renderForwardRule(); }
+    }
     document.getElementById('forwardToOther').addEventListener('input', renderForwardRule);
     renderForwardRule();
 
@@ -684,15 +767,40 @@
       document.getElementById('rejectLawBox').classList.toggle('d-none', !LAWREF_CODES.includes(code));
       document.getElementById('noGroundBox').classList.toggle('d-none', code !== 'NO_GROUND');
       document.getElementById('moreBox').classList.toggle('d-none', code !== 'MORE_INVESTIGATE');
-      document.getElementById('forwardBox').classList.toggle('d-none', code !== 'FORWARD');
+      /* 7.1: ปลายทางมาจากตัวเลือกมติแล้ว เหลือกล่องนี้ไว้เฉพาะเคสเก่าที่ปลายทาง "อื่นๆ" ต้องพิมพ์ชื่อปลายทาง */
+      document.getElementById('forwardBox').classList.toggle('d-none', code !== 'FORWARD' || (resKind !== 'legal73' && fwdSel.value !== 'OTHER'));
       const otherBox = document.getElementById('otherResBox');
       if (otherBox) otherBox.classList.toggle('d-none', code !== 'OTHER');
+      if (resSplit) {
+        resSplit.apply();
+        if (resSplit.isSplit()) document.getElementById('rejectLawBox').classList.add('d-none');
+      }
     }
+
+    /* Task 324: แยกมติรายผู้ถูกกล่าวหา — 7.1 (รับ/ไม่รับ/ไม่มีมูล) และ 7.3 เรื่องของ กกม. (เรื่องทั่วไปไม่มีตัวเลือก) */
+    const resSplitKind = resKind === 'legal73' ? '73' : (resKind === 'general73' ? null : '71');
+    const resSplit = (resSplitKind && window.ECMISResolutionSplit) ? ECMISResolutionSplit.create({
+      kind: resSplitKind, kase,
+      host: document.getElementById('splitModeBox'),
+      tabPane: document.getElementById('splitDocPane'),
+      tabBox: document.getElementById('splitDocTabs'),
+      lawSelect: document.getElementById('rejectLaw'),
+      getCode: () => { const c = document.querySelector('input[name="res"]:checked'); return c ? c.value : ''; },
+      defaults: () => ({ law: document.getElementById('rejectLaw').value, reason: document.getElementById('boardOpinion').value.trim() }),
+      onChange: () => { toggleBoxes(); renderOutcome(); renderDoc(); }
+    }) : null;
+    function effectiveRes() {
+      if (!resSplit || !resSplit.isSplit()) return selectedRes();
+      const code = resSplit.effectiveCode();
+      return activeResolutions.find(x => x.code === code) || selectedRes();
+    }
+    const resSplitLocked = () => ['RESOLVED', 'DISPATCHING', 'CLOSED'].includes(kase.status) || !mayEdit;
+    if (resSplit) resSplit.restore(kase, resSplitLocked());
 
     function renderOutcome() {
       const el = document.getElementById('outcomeBox');
       if (!el) return;
-      const r = selectedRes();
+      const r = effectiveRes();
       const MAP = {
         ACCEPT_S24P1: [
           ['เอกสารที่ระบบสร้าง', 'คำสั่งแต่งตั้งองค์คณะพนักงาน ป.ป.ท. (ปปท. ๕-๐๕)'],
@@ -780,8 +888,14 @@
       const presenterNote = document.getElementById('presenterNote').value.trim();
       const signerName = document.getElementById('signerName').value.trim();
       const signerTitle = document.getElementById('signerTitle').value.trim();
-      const r = selectedRes();
+      const r = effectiveRes();
       const t = tally();
+      const split = !!(resSplit && resSplit.isSplit());
+      const splitOne = split ? resSplit.activeOne() : null;
+      if (docToolbarNameEl) {
+        const baseTitle = TOOLBAR_TITLE_BY_KIND[resKind] || TOOLBAR_TITLE_BY_KIND.default;
+        docToolbarNameEl.innerHTML = `<i class="fa-solid fa-file-word"></i> ${baseTitle}${split ? ` — แยกราย${resSplitKind === '73' ? 'จำเลย' : 'ผู้ถูกกล่าวหา'}${splitOne ? ` (${ECMIS.escapeHtml(splitOne.p.name)})` : ''}` : ''}`;
+      }
       const unanimous = t.againstV === 0 && t.abstainV === 0;
       const allBoardRows = Array.from(document.querySelectorAll('#boardTb tr')).map((tr, i) => {
         const attVal = tr.querySelector('.attend').value;
@@ -804,7 +918,7 @@
 
       function runningHeaderHtml(pageNo) {
         return `
-    <div class="doc-run-title">มติการประชุมคณะกรรมการ ป.ป.ท.<br>
+    <div class="doc-run-title">มติการประชุมคณะกรรมการ ป.ป.ท.${splitOne ? ` (${M(splitOne.p.name)})` : ''}<br>
       ครั้งที่ ${M(meetNo)} วันที่ ${M(meetDate)}<br>วาระที่ ${M(agendaNo)}</div>
     <div class="doc-secret">ลับ</div>
     <div class="doc-run-page">- ${ECMIS.toThaiDigits(pageNo)} -</div>`;
@@ -863,7 +977,8 @@
       </div>`),
         bi(`<div class="doc-indent" style="margin-top:6px">${M(agendaDetails, curSubject)}</div>`),
         bi(`<div class="doc-h">มติที่ประชุม</div>
-    <div>๑. คณะกรรมการ ป.ป.ท. มีมติ${M(unanimous ? 'เป็นเอกฉันท์' : `ด้วยคะแนนเสียงข้างมาก ${t.forV} ต่อ ${t.againstV} เสียง`)} ${M(resText)}</div>`),
+    ${split ? resSplit.resolutionHtml(M(unanimous ? 'เป็นเอกฉันท์' : `ด้วยคะแนนเสียงข้างมาก ${t.forV} ต่อ ${t.againstV} เสียง`), M)
+      : `<div>๑. คณะกรรมการ ป.ป.ท. มีมติ${M(unanimous ? 'เป็นเอกฉันท์' : `ด้วยคะแนนเสียงข้างมาก ${t.forV} ต่อ ${t.againstV} เสียง`)} ${M(resText)}</div>`}`),
         ...(t.againstV > 0 ? [bi(`<div style="padding-left:1.5em;color:#DB2626">
       (มีกรรมการเห็นแย้ง ${t.againstV} ท่าน — บันทึกความเห็นแย้งพร้อมเหตุผลไว้ในรายงานการประชุมตาม ม.๑๖)</div>`)] : []),
         ...(t.recused > 0 ? [bi(`<div style="padding-left:1.5em;color:#6b3fa0">
@@ -881,7 +996,7 @@
         ${M(presenter)} ${M(ownerOrg)} เสนอรายงานการไต่สวนเบื้องต้นที่ผ่านการพิจารณา
         เลขาธิการคณะกรรมการ ป.ป.ท. ต่อที่ประชุมคณะกรรมการ ป.ป.ท. ดังนี้
       </div>`),
-        bi(`<div style="margin-top:4px">๑. เรื่องที่ ${M(ECMIS.caseNo(kase))}
+        bi(`<div style="margin-top:4px">๑. เรื่องที่ ${M(ECMIS.caseNo(kase))}${splitOne ? `/${ECMIS.toThaiDigits(splitOne.idx + 1)}` : ''}
         (${M(kase.legalBase === 'ม.62'
           ? 'รับตามมาตรา ๖๒ พระราชบัญญัติประกอบรัฐธรรมนูญว่าด้วยการป้องกันและปราบปรามการทุจริต พ.ศ. ๒๕๖๑'
           : kase.legalBase === 'ม.18/4'
@@ -890,7 +1005,7 @@
       </div>`),
         bi(`<div class="doc-h">ผู้กล่าวหา</div><div>${M(kase.complainant)}</div>`),
         bi(`<div class="doc-h">ผู้ถูกร้อง</div>`),
-        ...kase.accused.map(a => bi(`<div>${a.no}. ${M(a.name)} ${M(a.pos)} ${M(a.agency)}</div>`)),
+        ...(split ? resSplit.docAccused() : kase.accused).map(a => bi(`<div>${a.no}. ${M(a.name)} ${M(a.pos)} ${M(a.agency)}</div>`)),
         bi(`<div class="doc-h">ข้อกล่าวหา</div><div class="doc-indent">${M(kase.allegation)}</div>`),
         bi(`<div class="doc-h">การชี้แจงเพิ่มเติม</div>
       <div class="doc-indent">ผู้ชี้แจง (${M(presenter)}) ชี้แจงเพิ่มเติมว่า
@@ -922,8 +1037,9 @@
         เรื่อง รายงานผลการรวบรวมพยานหลักฐานไต่สวนเบื้องต้นและรายงานการไต่สวนเพื่อวินิจฉัยชี้มูล
         เพื่อเสนอคณะกรรมการ ป.ป.ท. ${M(kase.subCommittee)}</div>`)] : []),
         bi(`<div class="doc-h">มติที่ประชุม</div>
-    <div>๑. คณะกรรมการ ป.ป.ท. มีมติ${M(unanimous ? 'เป็นเอกฉันท์' : `ด้วยคะแนนเสียงข้างมาก ${t.forV} ต่อ ${t.againstV} เสียง`)}</div>
-    <div style="padding-left:1.5em">- ${M(resText)}</div>`),
+    ${split ? resSplit.resolutionHtml(M(unanimous ? 'เป็นเอกฉันท์' : `ด้วยคะแนนเสียงข้างมาก ${t.forV} ต่อ ${t.againstV} เสียง`), M)
+      : `<div>๑. คณะกรรมการ ป.ป.ท. มีมติ${M(unanimous ? 'เป็นเอกฉันท์' : `ด้วยคะแนนเสียงข้างมาก ${t.forV} ต่อ ${t.againstV} เสียง`)}</div>
+    <div style="padding-left:1.5em">- ${M(resText)}</div>`}`),
         ...(t.againstV > 0 ? [bi(`<div style="padding-left:1.5em;color:#DB2626">
       (มีกรรมการเห็นแย้ง ${t.againstV} ท่าน — บันทึกความเห็นแย้งพร้อมเหตุผลไว้ในรายงานการประชุมตาม ม.๑๖)</div>`)] : []),
         ...(t.recused > 0 ? [bi(`<div style="padding-left:1.5em;color:#6b3fa0">
@@ -939,7 +1055,16 @@
       applyZoom();
     }
 
-    document.getElementById('resList').addEventListener('change', () => { toggleBoxes(); renderOutcome(); renderDoc(); });
+    document.getElementById('resList').addEventListener('change', (e) => {
+      if (e.target.name === 'resGroup') {
+        const g = ECMIS.RESOLUTION_GROUPS_71.find(x => x.key === e.target.value);
+        /* เปลี่ยนกลุ่ม: เลือกตัวเลือกแรกของกลุ่มไว้ก่อน เพื่อให้เอกสารตัวอย่างไม่ว่าง แล้วผู้ใช้เปลี่ยนชั้นที่สองได้ */
+        const first = g ? g.options[0] : null;
+        renderResGroups71(e.target.value, first ? first.code : '', first ? first.forwardTo : '');
+      }
+      syncForwardFromRes(); toggleBoxes(); renderOutcome(); renderDoc();
+    });
+    syncForwardFromRes();
     ['meetNo', 'meetDate', 'agendaNo', 'boardOpinion', 'ownerOrgField', 'presenter', 'presenterNote', 'signerName', 'signerTitle', 'rejectLaw', 'moreTask', 'moreOwner', 'moreDue', 'forwardTo', 'forwardToOther', 'otherResText']
       .forEach(id => {
         const el = document.getElementById(id); if (el) {
@@ -1028,6 +1153,30 @@
     }
 
     document.getElementById('btnDocx').addEventListener('click', async () => {
+      /* Task 324: แยกมติรายคน — ฉบับรายคนใช้แม่แบบเดิมกับข้อมูลคนนั้น, ฉบับรวมส่งออกจากเอกสาร preview (แม่แบบไม่รองรับหลายมติ) */
+      if (resSplit && resSplit.isSplit()) {
+        const one = resSplit.activeOne();
+        const safeId = kase.id.replace('/', '_');
+        try {
+          if (one) {
+            const tpl = pickTemplate();
+            const P = (v, ph) => (v && String(v).trim()) ? String(v).trim() : (ph || '…………');
+            const row = (resSplit.serialize()[resSplitKind === '73' ? 'accusedDecisions73' : 'accusedDecisions71'] || [])[one.idx] || {};
+            const tags = Object.assign(docxTags(tpl.kind), {
+              accused1: P(`${(one.acc || {}).name || ''} ${(one.acc || {}).pos || ''}`), accused2: '', accused3: '',
+              resolutionText: row.text || ''
+            });
+            await generateDocx(tpl.url, tags, `มติที่ประชุม-${safeId}-${one.idx + 1}-${one.p.name}.docx`);
+          } else {
+            ECMIS.exportDocToDocx(document.getElementById('docPaper'), `มติที่ประชุม-แยกราย-${safeId}.docx`);
+          }
+          ECMIS.toastOk('ดาวน์โหลด .docx เรียบร้อย — แก้ไขใน Word ได้ตามปกติ');
+        } catch (e) {
+          console.error(e);
+          ECMIS.toastWarn('สร้างไฟล์ .docx ไม่สำเร็จ: ' + e.message);
+        }
+        return;
+      }
       try {
         const tpl = pickTemplate();
         await generateDocx(tpl.url, docxTags(tpl.kind),
@@ -1086,7 +1235,8 @@
 
     function validateResolutionForm() {
       const q = renderQuorum();
-      const r = selectedRes();
+      const r = effectiveRes();
+      const splitOn = !!(resSplit && resSplit.isSplit());
       const meetNoVal = document.getElementById('meetNo').value.trim();
       const meetDateVal = normalizeDateInputValue(document.getElementById('meetDate').value.trim());
       const agendaNoVal = document.getElementById('agendaNo').value.trim();
@@ -1121,7 +1271,10 @@
         document.querySelector('.val-msg[data-for="boardOpinion"]').classList.remove('show');
       }
 
-      if (LAWREF_CODES.includes(r.code) && !document.getElementById('rejectLaw').value) {
+      if (splitOn) {
+        const msg = resSplit.validate();
+        if (msg) { ECMIS.toastWarn(msg); return false; }
+      } else if (LAWREF_CODES.includes(r.code) && !document.getElementById('rejectLaw').value) {
         ECMIS.toastWarn('กรุณาเลือกมาตราอ้างอิงตาม ม.25 / ม.26');
         return false;
       }
@@ -1179,14 +1332,17 @@
 
       if (act === 'save_resolution') {
         if (!validateResolutionForm()) return;
-        const r = selectedRes();
+        const r = effectiveRes();
+        const splitOn = !!(resSplit && resSplit.isSplit());
+        const splitData = resSplit ? resSplit.serialize() : {};
         const signerName = document.getElementById('signerName')?.value || 'นายวิชัย ยุติธรรม';
         const signerTitle = document.getElementById('signerTitle')?.value || 'ประธานกรรมการ ป.ป.ท.';
 
         ECMIS.confirmAction({
           title: 'ยืนยันบันทึกมติที่ประชุม',
           html: `<div class="text-start">
-        <p class="mb-2">สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — มติ: <strong>${r.label}</strong></p>
+        <p class="mb-2">สำนวน <strong>${ECMIS.caseNo(kase)}</strong> — มติ: <strong>${splitOn ? `แยกรายคน (มติสรุป: ${r.label})` : r.label}</strong>${r.code === 'FORWARD' && ECMIS.forwardTarget(fwdSel.value) ? `<br>ปลายทาง: <strong>${ECMIS.forwardTarget(fwdSel.value).label}</strong>` : ''}</p>
+        ${splitOn ? resSplit.summaryHtml() : ''}
         <div style="background:#fdf7e8;border-left:4px solid #D0A830;padding:.6rem .8rem;border-radius:0 6px 6px 0;font-size:.83rem">
           เมื่อบันทึกแล้วระบบจะ:<br>
           • บันทึกมติที่ประชุมเข้าสู่ระบบ<br>
@@ -1219,18 +1375,24 @@
             no: acc.no, name: acc.name || '', pos: acc.pos || '', agency: acc.agency || '', idcard: acc.idcard || ''
           }));
 
+          /* Task 243: ขั้นหลังบันทึกมติคำนวณจากมติจริง (เหมือน board-resolution.html) — เดิมเขียน 1 ตายตัว
+             ทำให้หน้ารายการรอจัดทำมติยังนับเป็น "อยู่ระหว่างการจัดทำมติ" ทั้งที่บันทึกมติแล้ว */
+          const newStage = ECMIS.computeResolutionStage(Object.assign({}, kase, { status: 'RESOLVED', resolution: r.code }));
           ECMIS.Model.CaseStore.update(kase.id, {
             status: 'RESOLVED',
             resolution: r.code,
             resolvedAt: new Date().toLocaleString('th-TH'),
             resolvedAtIso: new Date().toISOString(),
             recordedDocHtml,
-            resolutionStage: 1,
+            resolutionStage: newStage,
             boardAttendance: t.attendanceMap,
             boardVotes: t.votesMap,
             otherResolutionText: otherText,
+            forwardTo: r.code === 'FORWARD' ? fwdSel.value : '',
+            forwardToOther: r.code === 'FORWARD' && fwdSel.value === 'OTHER' ? (document.getElementById('forwardToOther').value || '').trim() : '',
             agendaTitle, agendaDetails, accusedSnapshot,
-            offenseBasis: kase.offenseBasis || kase.legalBase || ''
+            offenseBasis: kase.offenseBasis || kase.legalBase || '',
+            ...splitData
           });
 
           /* เขียนมติจริงลง Supabase ก่อน redirect เสมอ (ต้อง await ให้เสร็จก่อน) — ไม่งั้น
@@ -1238,13 +1400,15 @@
           if (sb && kase.trr_id) {
             const { error } = await sb.from('tbl_res_request').update({
               trr_status: ECMIS.STATUS_CODE['RESOLVED'],
-              trr_resolution_stage: 1,
+              trr_resolution_stage: newStage,
               trr_recorded_doc_html: recordedDocHtml,
               /* รวมกับข้อมูลเดิมของสำนวน (ความเห็นรองเลขาฯ/อนุสนับสนุน/ด่วน/Hub/staleAgendaLinks) — เดิมเขียนทับทั้งก้อนจนข้อมูลหาย (Task 197) */
               trr_resolution_data: Object.assign({}, kase.resolutionData || {}, {
                 code: r.code,
                 label: r.code === 'OTHER' ? `อื่นๆ: ${otherText}` : r.label,
                 otherResolutionText: otherText,
+                forwardTo: r.code === 'FORWARD' ? fwdSel.value : '',
+                forwardToOther: r.code === 'FORWARD' && fwdSel.value === 'OTHER' ? (document.getElementById('forwardToOther').value || '').trim() : '',
                 orderNo: document.getElementById('meetNo')?.value || '',
                 meetingNo: document.getElementById('meetNo')?.value || '',
                 agendaNo: document.getElementById('agendaNo')?.value || '',
@@ -1257,13 +1421,14 @@
                 boardOpinion: document.getElementById('boardOpinion')?.value || '',
                 boardAttendance: t.attendanceMap,
                 boardVotes: t.votesMap,
-                resolvedAtIso: new Date().toISOString()
+                resolvedAtIso: new Date().toISOString(),
+                ...splitData
               })
             }).eq('trr_id', kase.trr_id);
             if (!error) {
               ECMIS.logRequestEvent(kase.trr_id, fromStatus, 'RESOLVED', {
                 type: 'RESOLVED', actorRole: role.id,
-                data: { resolutionCode: r.code, resolutionLabel: r.label, signerName, signerTitle }
+                data: { resolutionCode: r.code, resolutionLabel: r.label, signerName, signerTitle, accusedSplit: splitOn }
               });
             } else {
               console.error('บันทึกมติลง Supabase ไม่สำเร็จ:', error);
@@ -1482,11 +1647,57 @@
         return;
       }
       if (!live) return;
-      Object.assign(kase, live);
+      if (ECMIS.applyLiveCase(kase, live)) return; // Task 244: สถานะจริงต่างจากที่เรนเดอร์ไป → โหลดหน้าใหม่ด้วยสถานะจริง
+      if (resKind !== 'legal73' && resKind !== 'general73') { initResGroups71(); syncForwardFromRes(); }
+      if (resSplit) resSplit.restore(kase, resSplitLocked());
       applyMode(); toggleBoxes(); renderOutcome(); renderDoc();
       /* 7.3 หลังมติ: แจ้งมติ / ส่งกองกฎหมาย / ปิดเรื่อง (assets/case-closure.js, Task 178) */
       if (window.CaseClosure) CaseClosure.mount({ kase, role, sb, host: document.getElementById('closurePanel') });
+      applyClosureLayout73();
     })();
+
+    /* Task 274: 7.3 หลังมีมติ (มีมติแล้ว / ส่งกองกฎหมาย / ปิดเรื่องแล้ว) — ซ้ายเหลือการ์ดแจ้งมติ/ปิดเรื่อง
+       ขวาเป็นเอกสารมติอ่านอย่างเดียว; ฟอร์มบันทึกมติซ่อนไว้ (ข้อมูลยังอยู่ให้เอกสารแสดงครบ) */
+    function applyClosureLayout73() {
+      const panel = document.getElementById('closurePanel');
+      const on = ECMIS.isCase73(kase) && ['RESOLVED', 'DISPATCHING', 'CLOSED'].includes(kase.status)
+        && panel && !panel.classList.contains('d-none');
+      document.body.classList.toggle('res-closure-view', !!on);
+      if (!on) return;
+      const formCol = document.getElementById('formCol');
+      if (formCol && panel.parentElement !== formCol) formCol.prepend(panel);
+      /* Task 277/280: เหนือการ์ดปิดเรื่อง — ลำดับการดำเนินการ (คอลัมน์ซ้ายไม่โหวงเทียบกับเอกสาร) */
+      let extras = document.getElementById('closureExtras');
+      if (!extras) { extras = document.createElement('div'); extras.id = 'closureExtras'; }
+      if (formCol) panel.before(extras); // ลำดับการดำเนินการ → แจ้งมติ/ปิดเรื่อง
+      extras.innerHTML = `
+        <div class="ws-card mb-3">
+          <div class="card-header"><i class="fa-solid fa-list-ol"></i> ลำดับการดำเนินการ</div>
+          <div class="card-body"><ul class="tl mb-0">${ECMIS.caseRouteChainHtml(kase)}</ul></div>
+        </div>`;
+      const editBtn = document.getElementById('btnDocEdit');
+      if (editBtn && editBtn.classList.contains('active')) editBtn.click();
+      const nameEl = document.querySelector('.ws-doc-toolbar .name');
+      if (nameEl) {
+        const title = TOOLBAR_TITLE_BY_KIND[pickTemplate().kind] || TOOLBAR_TITLE_BY_KIND.default;
+        nameEl.innerHTML = `<i class="fa-solid fa-lock"></i> ${title} (อ่านอย่างเดียว)`;
+      }
+      /* Task 275: ปุ่มของการ์ดปิดเรื่องไปอยู่แถบล่างแบบหน้าอื่น (บทบาท + ปุ่ม) — กดแล้วเรียกปุ่มเดิมในการ์ด
+         จึงตรวจค่า/ยืนยัน/บันทึกตาม case-closure.js เหมือนเดิม; ไม่มีปุ่ม (ไม่ใช่ผู้ดำเนินการ/ปิดแล้ว) = ไม่มีแถบ */
+      const srcBtns = [...panel.querySelectorAll('#closureCard button[id^="c73"]')];
+      const slot = document.getElementById('actionBarSlot');
+      if (!srcBtns.length) { slot.innerHTML = ''; return; }
+      srcBtns.forEach(b => { const row = b.closest('.mt-3, .d-flex'); (row && row !== panel ? row : b).classList.add('d-none'); });
+      slot.innerHTML = `<div class="action-bar" id="caseActionBar">
+          <div class="role-hint"><i class="fa-solid fa-user me-1"></i>กำลังดำเนินการในบทบาท: <strong>${ECMIS.escapeHtml(role.title)}</strong></div>
+          ${srcBtns.map((b, i) => `<button type="button" class="btn ${i === 0 ? 'btn-navy' : 'btn-outline-secondary'} btn-sm" data-closure-proxy="${b.id}">${b.innerHTML}</button>`).join('')}
+        </div>`;
+      slot.querySelectorAll('[data-closure-proxy]').forEach(pb => pb.addEventListener('click', () => {
+        const src = document.getElementById(pb.dataset.closureProxy);
+        if (src) src.click();
+      }));
+      document.body.classList.add('res-closure-actions');
+    }
   </script>
 
 <script src="../shared-assets/case-bar.js"></script>

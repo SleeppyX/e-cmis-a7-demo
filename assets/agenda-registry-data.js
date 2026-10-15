@@ -317,6 +317,7 @@
       const cc = r.tbl_res_request && r.tbl_res_request.tbl_cmp_case;
       const caseNo = cc && cc.tcc_no;
       if (!caseNo) return;
+      if (window.ECMIS && ECMIS.noteCaseRefSource) ECMIS.noteCaseRefSource(caseNo, (r.tbl_res_request.trr_resolution_data || {}).scenarioSource);
       (LINKED_CASE_NOS[r.trci_id] = LINKED_CASE_NOS[r.trci_id] || []).push(caseNo);
       (LINKED_CASE_DETAILS[r.trci_id] = LINKED_CASE_DETAILS[r.trci_id] || []).push({
         tcc_no: caseNo, org: (cc && cc.tcc_owner_org) || '-', remark: r.trcic_remark || '—'
@@ -365,11 +366,17 @@
     return /ชุด|บัญชีแนบ|เรื่องรวม/.test(item.trci_topic) || /,/.test(item.case_ref);
   }
 
+  /* เคสที่ไม่มีเลขสำนวนแสดง "—" แบบเดียวกับหน้ารายการอื่น (ECMIS.caseNoListHtml, Task 228/235) แทนลิงก์เลขรับเรื่อง */
+  function caseChip(ref, target) {
+    const kase = global.ECMIS && global.ECMIS.caseByRef ? global.ECMIS.caseByRef(ref) : null;
+    if (kase && global.ECMIS.hasNoCaseNumber && global.ECMIS.hasNoCaseNumber(kase)) return global.ECMIS.caseNoListHtml(kase);
+    return `<a class="case-chip" href="${target}?q=${encodeURIComponent(ref)}" title="ค้นหาในทะเบียนสำนวน">${ref}</a>`;
+  }
+
   function renderCaseRef(text) {
     if (!text || text === '-') return '<span class="text-muted small">—</span>';
     const target = (global.ECMIS && global.ECMIS.resolvePage) ? global.ECMIS.resolvePage('case-register.html') : 'case-register.html';
-    const linked = text.replace(/(\d[\d]{1,6}\/\d{4})/g, m =>
-      `<a class="case-chip" href="${target}?q=${encodeURIComponent(m)}" title="ค้นหาในทะเบียนสำนวน">${m}</a>`);
+    const linked = text.replace(/(\d[\d]{1,6}\/\d{4})/g, m => caseChip(m, target));
     return `<span class="small">${linked}</span>`;
   }
 
@@ -381,7 +388,7 @@
     const rows = item.caseDetails.map((c, i) => `
       <tr>
         <td class="text-center">${i + 1}</td>
-        <td><a class="case-chip" href="${target}?q=${encodeURIComponent(c.tcc_no)}" title="ค้นหาในทะเบียนสำนวน">${c.tcc_no}</a></td>
+        <td>${caseChip(c.tcc_no, target)}</td>
         <td>${c.org || '-'}</td>
         <td>${c.remark || '—'}</td>
       </tr>`).join('');
@@ -615,9 +622,35 @@
     return true;
   }
 
+  /* มุมมองรอบประชุมของกรรมการ ป.ป.ท. (board-inbox / board-detail — Task 236)
+     สถานะ: 2 = ยกเลิก/เลื่อน; 1 หรือเลยวันประชุมแล้ว = ประชุมเสร็จสิ้นแล้ว (คิดตอนแสดง ไม่เขียน DB); นอกนั้น = รอประชุม
+     อ่านล่วงหน้าได้ตั้งแต่ 3 วันก่อนวันประชุม (ม.๒๐) */
+  const BOARD_READ_AHEAD_DAYS = 3;
+  function boardMeetingView(m) {
+    const E = global.ECMIS;
+    const daysLeft = E.daysUntilFakeIso(m.trc_date);
+    const status = m.trc_status === '2' ? 'CANCELLED' : (m.trc_status === '1' || daysLeft < 0) ? 'CLOSED' : 'SCHEDULED';
+    const t = [m.trc_start_time, m.trc_end_time].map(x => String(x || '').slice(0, 5)).filter(Boolean);
+    const openDate = new Date(m.trc_date + 'T00:00:00');
+    openDate.setDate(openDate.getDate() - BOARD_READ_AHEAD_DAYS);
+    const pad = n => String(n).padStart(2, '0');
+    return {
+      id: m.trc_id, name: m.trc_name, date: m.trc_date,
+      time: t.length === 2 ? `${t[0]} - ${t[1]} น.` : t.length === 1 ? `${t[0]} น.` : '—',
+      agendaCount: itemsOf(m.trc_id).length, status, daysLeft,
+      readOpen: daysLeft <= BOARD_READ_AHEAD_DAYS,
+      readOpenDate: `${openDate.getFullYear()}-${pad(openDate.getMonth() + 1)}-${pad(openDate.getDate())}`
+    };
+  }
+  /* เฉพาะครั้งที่ฝ่ายเลขาฯ จัดวาระแล้ว (trc_confirmed) เรียงครั้งที่มาก→น้อย */
+  function boardMeetings() {
+    return MEETINGS.filter(m => m.trc_confirmed).map(boardMeetingView)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+  }
+
   global.AgendaRegistry = {
     sb, MEETINGS, ITEMS, LINKED_TRR_IDS, CATEGORY_LABEL, CATEGORY_CLASS, STATUS_LABEL, STATUS_CLASS, STATUS_ICON, meetingBadge,
-    ready, meetingOf, itemsOf, isFlagged, isBundled, itemSortKey,
+    ready, meetingOf, itemsOf, boardMeetingView, boardMeetings, BOARD_READ_AHEAD_DAYS, isFlagged, isBundled, itemSortKey,
     renderCaseRef, renderCaseSchedule, renderQualifierChips, renderPresenters,
     lookupCaseForAgenda, resolveCaseNoToTrrId, mergeQueueCases, isJunctionCaseLinked, getOwnerOrg, setOwnerOrg,
     addMeeting, toRealIsoDate, deleteMeeting, addItem, deleteItem, updateItemNumber, swapItemNumber, confirmMeeting

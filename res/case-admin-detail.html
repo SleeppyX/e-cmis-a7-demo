@@ -93,10 +93,10 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="../shared-assets/auth.js?v=20261002-boundary2"></script>
   <script src="../cases.js"></script>
-  <script src="../assets/ecmis-app.js?v=20261004-a7-no-null"></script>
+  <script src="../assets/ecmis-app.js?v=20261014-a7-edit-cancel4"></script>
 <script src="../shared-assets/handoff.js"></script>
 <script src="../shared-assets/junctions.js"></script>
-<script src="../assets/junction-bridge-a7.js?v=20261002-source-queue4"></script>
+<script src="../assets/junction-bridge-a7.js?v=20261006-a7-g73-picks"></script>
   <script src="../assets/ecmis-model.js"></script>
   <script>
     ECMIS.renderShell('case-admin-inbox.html');
@@ -186,7 +186,7 @@
           return `<div class="d-flex gap-2 mb-2"><i class="fa-solid fa-circle mt-1" style="font-size:.5rem;color:#0F2A62"></i>
             <div><div class="small"><strong>${esc(h.event || '-')}</strong></div>
             <div class="text-muted" style="font-size:.75rem">${esc(h.actor || '')} · ${d}</div>
-            ${h.note ? '<div class="small mt-1">' + esc(h.note) + '</div>' : ''}</div></div>`;
+            ${h.note ? '<div class="small mt-1">' + esc(String(h.note).replace(/\s*\(Round-Robin\)/g, '')) + '</div>' : ''}</div></div>`;
         }).join('')
         : '<div class="text-muted small">ยังไม่มีประวัติการดำเนินการของคดีนี้ในระบบ</div>';
 
@@ -244,7 +244,7 @@
         }
         ECMIS.pushCaseHistory(kase, {
           event: 'ROUTE_TO_SUBCOMMITTEE', from: kase.status, to: kase.status, team,
-          note: `กระจายสำนวนเข้า ${team}${team === suggested ? ' (Round-Robin)' : ' (เลือกโดย กบค.)'}${reason ? ' — ' + reason : ''}`
+          note: `กระจายสำนวนเข้า ${team}${team === suggested ? '' : ' (เลือกโดย กบค.)'}${reason ? ' — ' + reason : ''}`
         });
         ECMIS.Model.CaseStore.update(kase.id, { subCommittee: team, routedByCaseAdminAt: new Date().toISOString(), history: kase.history });
         kase = ECMIS.getCase(kase.id);
